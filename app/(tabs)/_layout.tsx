@@ -18,9 +18,9 @@ function NativeTabLayout() {
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>Add</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="import">
-        <Icon sf={{ default: "square.and.arrow.down", selected: "square.and.arrow.down.fill" }} />
-        <Label>Import</Label>
+      <NativeTabs.Trigger name="sommelier">
+        <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
+        <Label>Sommelier</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="history">
         <Icon sf={{ default: "clock", selected: "clock.fill" }} />
@@ -79,11 +79,11 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="import"
+        name="sommelier"
         options={{
-          title: "Import",
+          title: "Sommelier",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cloud-upload-outline" size={size} color={color} />
+            <Ionicons name="sparkles" size={size} color={color} />
           ),
         }}
       />

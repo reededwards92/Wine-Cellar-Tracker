@@ -4,6 +4,13 @@ import db from "./db";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import iconv from "iconv-lite";
+import Anthropic from "@anthropic-ai/sdk";
+import { CELLAR_TOOLS, executeTool } from "./ai-tools";
+
+const anthropic = new Anthropic({
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+});
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -464,6 +471,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       errors,
       total_rows: records.length,
     });
+  });
+
+  const SYSTEM_PROMPT = `You are a knowledgeable and personable sommelier who manages the user's wine cellar. You have direct access to their wine database and can search, add, update, and track wines and bottles.
+
+Your personality:
+- Warm, knowledgeable, and conversational — like a trusted wine advisor
+- Share brief, relevant wine knowledge when appropriate (pairings, regions, aging)
+- Be concise but helpful — this is a mobile chat interface
+- When recommending wines, explain why briefly
+- Use the tools proactively to answer questions accurately — always check the database rather than guessing
+
+Key behaviors:
+- When the user mentions drinking a wine, use consume_bottle to record it. Ask for details (rating, food, occasion) naturally.
+- When asked "what should I drink?" or similar, use get_recommendations and get_cellar_stats to give informed suggestions.
+- For search queries, use search_wines and present results clearly.
+- If asked about cellar overview/stats, use get_cellar_stats.
+- When adding wines, confirm the details before using add_wine.
+- Format responses for mobile readability — use short paragraphs, not long blocks.
+- If the user asks about importing wines from CellarTracker, let them know they can use the CSV import feature on the Add tab.
+
+Current date: ${new Date().toISOString().split("T")[0]}`;
+
+  const MAX_TOOL_ITERATIONS = 8;
+
+  app.post("/api/chat", async (req: Request, res: Response) => {
+    let clientDisconnected = false;
+    req.on("close", () => { clientDisconnected = true; });
+
+    try {
+      const { messages: chatMessages } = req.body;
+      if (!chatMessages || !Array.isArray(chatMessages)) {
+        return res.status(400).json({ error: "messages array required" });
+      }
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+
+      const anthropicMessages: Anthropic.MessageParam[] = chatMessages.map((m: any) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+
+      let iterations = 0;
+      let continueLoop = true;
+
+      while (continueLoop && iterations < MAX_TOOL_ITERATIONS && !clientDisconnected) {
+        iterations++;
+
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 4096,
+          system: SYSTEM_PROMPT,
+          tools: CELLAR_TOOLS,
+          messages: anthropicMessages,
+        });
+
+        if (clientDisconnected) break;
+
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+        for (const block of response.content) {
+          if (clientDisconnected) break;
+          if (block.type === "text" && block.text) {
+            res.write(`data: ${JSON.stringify({ content: block.text })}\n\n`);
+          } else if (block.type === "tool_use") {
+            res.write(`data: ${JSON.stringify({ tool_call: block.name })}\n\n`);
+            const result = executeTool(block.name, block.input);
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: block.id,
+              content: result,
+            });
+          }
+        }
+
+        if (toolResults.length > 0) {
+          anthropicMessages.push({ role: "assistant", content: response.content });
+          anthropicMessages.push({ role: "user", content: toolResults });
+        } else {
+          continueLoop = false;
+        }
+      }
+
+      if (!clientDisconnected) {
+        if (iterations >= MAX_TOOL_ITERATIONS) {
+          res.write(`data: ${JSON.stringify({ content: "\n\nI needed to look up quite a few things. Let me know if you need more details!" })}\n\n`);
+        }
+        res.write("data: [DONE]\n\n");
+        res.end();
+      }
+    } catch (error: any) {
+      console.error("Chat error:", error);
+      if (clientDisconnected) return;
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: "Something went wrong. Please try again." })}\n\n`);
+        res.write("data: [DONE]\n\n");
+        res.end();
+      } else {
+        res.status(500).json({ error: "Chat failed" });
+      }
+    }
   });
 
   const httpServer = createServer(app);
