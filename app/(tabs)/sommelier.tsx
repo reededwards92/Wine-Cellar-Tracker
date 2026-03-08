@@ -9,12 +9,15 @@ import {
   Platform,
   ActivityIndicator,
   Linking,
+  Image,
+  Alert,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { fetch } from "expo/fetch";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { getApiUrl, queryClient } from "@/lib/query-client";
 
@@ -22,6 +25,9 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  imageUri?: string;
+  imageBase64?: string;
+  imageMimeType?: string;
 }
 
 let messageCounter = 0;
@@ -40,6 +46,11 @@ export default function SommelierScreen() {
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const inputRef = useRef<TextInput>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [pendingImage, setPendingImage] = useState<{
+    uri: string;
+    base64: string;
+    mimeType: string;
+  } | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -96,18 +107,55 @@ export default function SommelierScreen() {
     };
   }, []);
 
+  const pickImage = async (useCamera: boolean) => {
+    if (isStreaming) return;
+
+    if (useCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Camera access needed", "Please enable camera access in your device settings to take photos of wine bottles.");
+        return;
+      }
+    }
+
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+      allowsEditing: false,
+    };
+
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options);
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (asset.base64) {
+        const mime = asset.mimeType || "image/jpeg";
+        setPendingImage({ uri: asset.uri, base64: asset.base64, mimeType: mime });
+        inputRef.current?.focus();
+      }
+    }
+  };
+
   const handleSend = async () => {
     const text = inputText.trim();
-    if (!text || isStreaming) return;
+    const image = pendingImage;
+    if ((!text && !image) || isStreaming) return;
 
     const currentMessages = [...messages];
     const userMessage: Message = {
       id: generateUniqueId(),
       role: "user",
-      content: text,
+      content: text || (image ? "What can you tell me about this wine?" : ""),
+      imageUri: image?.uri,
+      imageBase64: image?.base64,
+      imageMimeType: image?.mimeType,
     };
 
     setInputText("");
+    setPendingImage(null);
     setMessages((prev) => [...prev, userMessage]);
     setIsStreaming(true);
     setShowTyping(true);
@@ -118,10 +166,19 @@ export default function SommelierScreen() {
 
     try {
       const baseUrl = getApiUrl();
-      const chatHistory = [
-        ...currentMessages.map((m) => ({ role: m.role, content: m.content })),
-        { role: "user", content: text },
-      ];
+
+      const chatHistory = currentMessages.map((m) => {
+        if (m.imageBase64) {
+          return { role: m.role, content: m.content, hadImage: true };
+        }
+        return { role: m.role, content: m.content };
+      });
+      const newMsg: any = { role: "user", content: userMessage.content };
+      if (image) {
+        newMsg.image = image.base64;
+        newMsg.mimeType = image.mimeType;
+      }
+      chatHistory.push(newMsg);
 
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -257,15 +314,25 @@ export default function SommelierScreen() {
             isUser ? styles.bubbleUser : styles.bubbleAssistant,
           ]}
         >
-          <Text
-            style={[
-              styles.bubbleText,
-              isUser ? styles.bubbleTextUser : styles.bubbleTextAssistant,
-            ]}
-            selectable
-          >
-            {item.content}
-          </Text>
+          {item.imageUri && (
+            <Image
+              source={{ uri: item.imageUri }}
+              style={styles.bubbleImage}
+              resizeMode="cover"
+            />
+          )}
+          {!!item.content && (
+            <Text
+              style={[
+                styles.bubbleText,
+                isUser ? styles.bubbleTextUser : styles.bubbleTextAssistant,
+                item.imageUri ? styles.bubbleTextWithImage : null,
+              ]}
+              selectable
+            >
+              {item.content}
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -391,7 +458,47 @@ export default function SommelierScreen() {
             },
           ]}
         >
+          {pendingImage && (
+            <View style={styles.imagePreviewContainer}>
+              <Image
+                source={{ uri: pendingImage.uri }}
+                style={styles.imagePreview}
+                resizeMode="cover"
+              />
+              <Pressable
+                onPress={() => setPendingImage(null)}
+                style={styles.removeImageButton}
+                testID="remove-image"
+              >
+                <Ionicons name="close-circle" size={22} color={Colors.light.text} />
+              </Pressable>
+            </View>
+          )}
           <View style={styles.inputRow}>
+            <Pressable
+              onPress={() => pickImage(true)}
+              disabled={isStreaming}
+              style={styles.mediaButton}
+              testID="camera-button"
+            >
+              <Ionicons
+                name="camera-outline"
+                size={24}
+                color={isStreaming ? Colors.light.tabIconDefault : Colors.light.tint}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => pickImage(false)}
+              disabled={isStreaming}
+              style={styles.mediaButton}
+              testID="gallery-button"
+            >
+              <Ionicons
+                name="image-outline"
+                size={24}
+                color={isStreaming ? Colors.light.tabIconDefault : Colors.light.tint}
+              />
+            </Pressable>
             <TextInput
               ref={inputRef}
               style={styles.textInput}
@@ -411,10 +518,10 @@ export default function SommelierScreen() {
                 handleSend();
                 inputRef.current?.focus();
               }}
-              disabled={!inputText.trim() || isStreaming}
+              disabled={(!inputText.trim() && !pendingImage) || isStreaming}
               style={[
                 styles.sendButton,
-                inputText.trim() && !isStreaming
+                (inputText.trim() || pendingImage) && !isStreaming
                   ? styles.sendButtonActive
                   : styles.sendButtonDisabled,
               ]}
@@ -424,7 +531,7 @@ export default function SommelierScreen() {
                 name="arrow-up"
                 size={20}
                 color={
-                  inputText.trim() && !isStreaming
+                  (inputText.trim() || pendingImage) && !isStreaming
                     ? Colors.light.white
                     : Colors.light.tabIconDefault
                 }
@@ -580,6 +687,35 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: Colors.light.border,
+  },
+  mediaButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    marginBottom: 2,
+  },
+  imagePreviewContainer: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  imagePreview: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+  },
+  removeImageButton: {
+    marginLeft: 8,
+  },
+  bubbleImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+  },
+  bubbleTextWithImage: {
+    marginTop: 6,
   },
   emptyContainer: {
     flex: 1,

@@ -489,6 +489,7 @@ Key behaviors:
 - For search queries, use search_wines and present results clearly.
 - If asked about cellar overview/stats, use get_cellar_stats.
 - When adding wines, confirm the details before using add_wine.
+- When the user shares a photo of a wine bottle, analyze the label carefully. Extract: wine name, producer, vintage, region, varietal, and any other visible details. Present what you found and ask the user to confirm the details before adding it to the cellar. If you can't read certain details clearly, say so and ask the user to fill in the gaps.
 - Format responses for mobile readability — use short paragraphs, not long blocks.
 - If the user asks about importing wines from CellarTracker, let them know they can use the CSV import feature on the Add tab.
 
@@ -517,10 +518,36 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
         systemPrompt += `\n\nUser's current GPS coordinates: latitude ${location.latitude}, longitude ${location.longitude}. Use the get_weather tool with these coordinates to check local conditions when making wine recommendations. You can reverse-geocode the coordinates to determine the city/region.`;
       }
 
-      const anthropicMessages: Anthropic.MessageParam[] = chatMessages.map((m: any) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      }));
+      const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      const anthropicMessages: Anthropic.MessageParam[] = chatMessages.map((m: any) => {
+        if (m.role === "user" && m.image) {
+          const mimeType = allowedImageTypes.includes(m.mimeType) ? m.mimeType : "image/jpeg";
+          const contentBlocks: Anthropic.ContentBlockParam[] = [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mimeType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
+                data: m.image,
+              },
+            },
+          ];
+          if (m.content) {
+            contentBlocks.push({ type: "text", text: m.content });
+          }
+          return { role: "user" as const, content: contentBlocks };
+        }
+        if (m.role === "user" && m.hadImage) {
+          return {
+            role: "user" as const,
+            content: `[Previously shared a wine bottle photo] ${m.content || ""}`.trim(),
+          };
+        }
+        return {
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        };
+      });
 
       let iterations = 0;
       let continueLoop = true;

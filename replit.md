@@ -22,7 +22,7 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - **consumption_log**: History of consumed bottles with tasting notes
 
 ## Key Features
-- AI Sommelier chat: natural language cellar management, recommendations, consumption tracking
+- AI Sommelier chat: natural language cellar management, recommendations, consumption tracking, wine bottle photo recognition (vision)
 - CellarTracker CSV import with latin-1 encoding support
 - Cellar list view with stats, filtering, sorting, and search
 - Add wine form with grouped sections
