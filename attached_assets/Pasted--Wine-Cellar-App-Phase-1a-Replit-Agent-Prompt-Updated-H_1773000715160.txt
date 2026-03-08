@@ -1,0 +1,245 @@
+# Wine Cellar App — Phase 1a: Replit Agent Prompt (Updated)
+
+> **How to use:** Upload your `My_Bottles.csv` file to the Replit project first, then paste this prompt into Replit Agent.
+
+---
+
+## Prompt for Replit Agent
+
+Build a wine cellar management web app called **"Cellar"** using **Next.js** (App Router) with **SQLite** (via better-sqlite3) and **Tailwind CSS**. The design should be **clean, minimal, and light** — white backgrounds, subtle grays, thin borders, generous whitespace. Think Apple-meets-wine. Use a sans-serif font stack.
+
+I've uploaded a CellarTracker CSV export called `My_Bottles.csv` — use it to understand the data format and test the import feature.
+
+---
+
+### Data Model
+
+Create a SQLite database with these tables:
+
+**wines**
+- `id` (integer, primary key, auto-increment)
+- `ct_wine_id` (integer, nullable, unique) — CellarTracker's `iWine` field, used for deduplication during import
+- `producer` (text, required) — the winery/estate name
+- `wine_name` (text, required) — the full wine name (from CellarTracker's `Wine` column)
+- `vintage` (integer, nullable) — year, null for NV wines
+- `country` (text)
+- `region` (text) — from CellarTracker's `Region` field (e.g., "California", "Bordeaux")
+- `sub_region` (text) — from CellarTracker's `SubRegion` field (e.g., "Napa Valley", "Pauillac")
+- `appellation` (text) — from CellarTracker's `Appellation` field
+- `varietal` (text) — grape(s)
+- `color` (text) — one of: Red, White, Rosé, Sparkling, Dessert, Fortified
+- `wine_type` (text, nullable) — from CellarTracker's `Type` field (e.g., "Red", "White")
+- `category` (text, nullable) — from CellarTracker's `Category` field (e.g., "Dry", "Sweet")
+- `designation` (text, nullable) — vineyard designation or special cuvée name
+- `vineyard` (text, nullable) — specific vineyard if known
+- `drink_window_start` (integer, nullable) — year
+- `drink_window_end` (integer, nullable) — year
+- `ct_community_score` (real, nullable) — CellarTracker community score (e.g., 90.4)
+- `critic_scores` (text, nullable) — JSON string for multiple critic scores if available
+- `created_at` (datetime, default now)
+- `updated_at` (datetime, default now)
+
+**bottles**
+- `id` (integer, primary key, auto-increment)
+- `wine_id` (integer, foreign key → wines.id)
+- `ct_inventory_id` (integer, nullable, unique) — CellarTracker's `iInventory` for dedup
+- `ct_barcode` (text, nullable) — CellarTracker barcode
+- `purchase_date` (date, nullable)
+- `purchase_price` (decimal, nullable)
+- `estimated_value` (decimal, nullable) — CellarTracker's `Value` field (market estimate)
+- `store` (text, nullable) — where purchased
+- `location` (text, nullable) — storage location in cellar
+- `bin` (text, nullable) — specific bin/slot
+- `size` (text, default "750ml") — bottle size
+- `notes` (text, nullable)
+- `status` (text, default "in_cellar") — one of: "in_cellar", "consumed", "gifted", "sold"
+- `consumed_date` (date, nullable)
+- `occasion` (text, nullable)
+- `rating` (integer, nullable) — personal 1-5 star rating when consumed
+- `created_at` (datetime, default now)
+
+**consumption_log** (for tracking history and analytics)
+- `id` (integer, primary key, auto-increment)
+- `bottle_id` (integer, foreign key → bottles.id)
+- `wine_id` (integer, foreign key → wines.id)
+- `consumed_date` (date, required)
+- `occasion` (text, nullable)
+- `paired_with` (text, nullable) — what food it was paired with
+- `who_with` (text, nullable) — who you shared it with
+- `rating` (integer, nullable) — 1-5 stars
+- `tasting_notes` (text, nullable)
+- `created_at` (datetime, default now)
+
+The two-table wines/bottles structure is important: a "wine" is a unique producer + name + vintage. "Bottles" are individual instances. If I own 3 bottles of the same wine, that's 1 wine record and 3 bottle records. The consumption_log creates a permanent history even after bottles are consumed.
+
+---
+
+### CellarTracker CSV Import
+
+Build an import page at `/import` that handles my CellarTracker export. **Important technical notes about the file:**
+- The CSV uses **latin-1 encoding** (not UTF-8) — there are accented characters in French producer names
+- The `Price` column is empty across all rows — use the `Value` column instead for estimated value
+- `StoreName` is mostly "Unknown" — treat "Unknown" as null/empty
+- The `Wine` column contains the full wine name (e.g., "Alta Nova Cellars Cabernet Sauvignon") and there's a separate `Producer` column
+- `iWine` is CellarTracker's unique wine ID — use this for deduplication (same `iWine` = same wine, add as another bottle)
+- `iInventory` is the unique bottle ID
+- Dates are in `MM/DD/YYYY` format
+
+**Column mapping:**
+
+| CellarTracker Column | Maps To |
+|---|---|
+| `iWine` | wines.ct_wine_id |
+| `iInventory` | bottles.ct_inventory_id |
+| `Barcode` / `WineBarcode` | bottles.ct_barcode |
+| `Producer` | wines.producer |
+| `Wine` | wines.wine_name |
+| `Vintage` | wines.vintage |
+| `Country` | wines.country |
+| `Region` | wines.region |
+| `SubRegion` | wines.sub_region |
+| `Appellation` | wines.appellation |
+| `Varietal` | wines.varietal |
+| `Color` | wines.color |
+| `Type` | wines.wine_type |
+| `Category` | wines.category |
+| `Designation` | wines.designation (ignore if "Unknown") |
+| `Vineyard` | wines.vineyard (ignore if "Unknown") |
+| `BeginConsume` | wines.drink_window_start |
+| `EndConsume` | wines.drink_window_end |
+| `CScore` | wines.ct_community_score |
+| `Value` | bottles.estimated_value |
+| `Price` | bottles.purchase_price (only if > 0) |
+| `Size` | bottles.size |
+| `PurchaseDate` | bottles.purchase_date |
+| `StoreName` | bottles.store (ignore if "Unknown") |
+| `Location` | bottles.location |
+| `Bin` | bottles.bin |
+
+**Import flow:**
+1. Upload CSV file
+2. Show preview of first 10 rows in a clean table
+3. Show summary: "Found X bottles of Y unique wines"
+4. Click "Import" to process
+5. Deduplication: group by `iWine` — if same `iWine`, create one wine record and multiple bottle records
+6. Show completion summary: "Imported X wines, Y bottles. Z rows skipped."
+7. Skip rows with errors gracefully and list them at the end
+8. Support re-importing — if `iInventory` already exists in the database, skip that bottle
+
+---
+
+### Cellar List View (Home Page)
+
+The home page at `/` should show the cellar inventory:
+
+**Summary stats bar at top (horizontal row of cards):**
+- Total bottles in cellar (status = "in_cellar")
+- Total estimated value (sum of estimated_value for in-cellar bottles)
+- Unique wines
+- Bottles consumed all-time (status = "consumed")
+
+**Wine list below.** Each wine shows as a clean card or row:
+- Producer (bold) and wine name
+- Vintage
+- Sub-region / Appellation (whichever is more specific)
+- Varietal
+- Color indicator (small colored dot: deep red for Red, gold for White, salmon pink for Rosé, etc.)
+- Quantity in cellar (bottle count where status = "in_cellar")
+- Estimated value (from bottles.estimated_value — show avg if multiple bottles)
+- Community score (if available)
+- Drink window (formatted as "2024–2030")
+- **Drink window status indicator:**
+  - 🟢 Green dot/badge: current year is within the window
+  - 🟡 Yellow: within 1 year of the window opening
+  - 🔴 Red: past the end of the window — label "Past peak"
+  - ⚪ Gray: no window set
+
+**Sorting:** Clickable column headers to sort by: producer, vintage, value, drink window start, quantity, color, region, community score. Default: producer A→Z.
+
+**Filtering (collapsible filter panel):**
+- Color: multi-select chips (Red, White, Rosé, etc.)
+- Region: dropdown of regions in the cellar
+- Country: dropdown
+- Drink window status: checkboxes (In window / Approaching / Past peak / Not set)
+- Value range: min/max inputs
+- In stock only: toggle, default ON (hides wines with 0 in-cellar bottles)
+- Varietal: searchable dropdown
+
+**Search bar:** Filters across producer, wine name, varietal, region, and appellation. Debounced, instant results.
+
+---
+
+### Add Wine Page
+
+A clean form at `/add` with fields grouped logically:
+
+**Section 1 — Wine Identity:**
+Producer, Wine Name, Vintage (number input), Color (dropdown)
+
+**Section 2 — Origin:**
+Country, Region, Sub-Region, Appellation, Varietal
+
+**Section 3 — Details:**
+Designation, Vineyard, Drink Window Start, Drink Window End, Community Score, Critic Scores
+
+**Section 4 — Bottle Info (for the first bottle):**
+Quantity (default 1 — creates that many bottle records), Purchase Date, Purchase Price, Estimated Value, Store, Location, Bin, Size (default 750ml), Notes
+
+Clean submit button. After successful creation, redirect to the wine detail page (which we'll build in Phase 1b — for now redirect to home).
+
+---
+
+### Navigation
+
+Top navigation bar, fixed:
+- **Cellar** — `/` (wine glass icon)
+- **Add Wine** — `/add` (plus icon)
+- **Import** — `/import` (upload icon)
+- **History** — `/history` (placeholder for now)
+
+On mobile, use a bottom tab bar instead of top nav.
+
+---
+
+### API Routes
+
+- `GET /api/wines` — list wines with bottle counts and aggregate stats; supports `sort`, `order`, `color`, `region`, `country`, `varietal`, `drinkWindow`, `minValue`, `maxValue`, `inStock`, `search` query params
+- `GET /api/wines/[id]` — single wine with all its bottles
+- `POST /api/wines` — create wine + initial bottles
+- `PUT /api/wines/[id]` — update wine info
+- `POST /api/wines/[id]/bottles` — add bottle(s) to existing wine
+- `PUT /api/bottles/[id]` — update a bottle
+- `PATCH /api/bottles/[id]/consume` — mark bottle as consumed, create consumption_log entry
+- `POST /api/import` — handle CSV import
+- `GET /api/stats` — summary statistics for the dashboard
+
+---
+
+### Design Specifications
+
+- Font: `-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+- Primary accent: `#722F37` (deep wine burgundy) — buttons, active states, links
+- Background: `#FFFFFF`
+- Card backgrounds: `#F9FAFB` with border `#E5E7EB`
+- Primary text: `#111827`
+- Secondary text: `#6B7280`
+- Success/in-window: `#059669`
+- Warning/approaching: `#D97706`
+- Danger/past-peak: `#DC2626`
+- Border radius: 8px on cards, 6px on inputs/buttons
+- Fully mobile-responsive — this will primarily be used on a phone
+- Bottom tab navigation on mobile screens
+- No decorative elements. Every element serves a function.
+- Subtle transitions on hover/focus states
+
+---
+
+### Technical Notes
+
+- Use `better-sqlite3` for the database (synchronous, simpler)
+- Database file: `cellar.db` in project root
+- **Handle latin-1 encoding** when reading the CSV import file
+- Treat "Unknown" values in CellarTracker data as null/empty
+- Parse dates in `MM/DD/YYYY` format from CellarTracker
+- Make the import idempotent — re-importing the same CSV should not create duplicates (check `ct_inventory_id`)
+- Use server components where possible, client components only where interactivity is needed
