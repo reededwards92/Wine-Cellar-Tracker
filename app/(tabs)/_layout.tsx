@@ -10,6 +10,10 @@ import Colors from "@/constants/colors";
 function NativeTabLayout() {
   return (
     <NativeTabs>
+      <NativeTabs.Trigger name="sommelier">
+        <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
+        <Label>Sommelier</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "wineglass", selected: "wineglass.fill" }} />
         <Label>Cellar</Label>
@@ -17,10 +21,6 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="add">
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>Add</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="sommelier">
-        <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
-        <Label>Sommelier</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="history">
         <Icon sf={{ default: "clock", selected: "clock.fill" }} />
@@ -61,6 +61,15 @@ function ClassicTabLayout() {
       }}
     >
       <Tabs.Screen
+        name="sommelier"
+        options={{
+          title: "Sommelier",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sparkles" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           title: "Cellar",
@@ -75,15 +84,6 @@ function ClassicTabLayout() {
           title: "Add",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="add-circle-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="sommelier"
-        options={{
-          title: "Sommelier",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sparkles" size={size} color={color} />
           ),
         }}
       />
