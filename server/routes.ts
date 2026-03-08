@@ -495,6 +495,89 @@ Key behaviors:
 
 Current date: ${new Date().toISOString().split("T")[0]}`;
 
+  app.post("/api/analyze-wine-image", async (req: Request, res: Response) => {
+    try {
+      const { image, mimeType } = req.body;
+      if (!image) {
+        return res.status(400).json({ error: "image (base64) required" });
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      const mediaType = allowedTypes.includes(mimeType) ? mimeType : "image/jpeg";
+
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 2048,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
+                  data: image,
+                },
+              },
+              {
+                type: "text",
+                text: `Analyze this wine bottle label and extract all visible information. Return ONLY valid JSON with these fields (use empty string "" for anything you can't determine):
+
+{
+  "producer": "winery/producer name",
+  "wine_name": "wine name or cuvée",
+  "vintage": "year as string or empty",
+  "color": "one of: Red, White, Rosé, Sparkling, Dessert, Fortified",
+  "country": "country of origin",
+  "region": "wine region",
+  "sub_region": "sub-region if visible",
+  "appellation": "appellation if visible",
+  "varietal": "grape variety/varieties",
+  "designation": "reserve/grand cru/etc if visible",
+  "vineyard": "vineyard name if visible",
+  "size": "bottle size if visible, default 750ml"
+}
+
+Be accurate — only include what you can clearly read from the label. For color, infer from the wine type/varietal if not explicitly stated.`,
+              },
+            ],
+          },
+        ],
+      });
+
+      const textBlock = response.content.find((b) => b.type === "text");
+      if (!textBlock || textBlock.type !== "text") {
+        return res.status(500).json({ error: "No response from AI" });
+      }
+
+      const defaults = {
+        producer: "", wine_name: "", vintage: "", color: "Red",
+        country: "", region: "", sub_region: "", appellation: "",
+        varietal: "", designation: "", vineyard: "", size: "750ml",
+      };
+
+      let wineData = { ...defaults };
+      try {
+        const jsonMatch = textBlock.text.match(/\{[\s\S]*?\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          for (const key of Object.keys(defaults)) {
+            if (parsed[key] && typeof parsed[key] === "string") {
+              wineData[key as keyof typeof defaults] = parsed[key];
+            }
+          }
+        }
+      } catch {
+        // partial parse failed, return defaults
+      }
+      res.json(wineData);
+    } catch (err: any) {
+      console.error("Wine image analysis error:", err);
+      res.status(500).json({ error: "Failed to analyze wine image" });
+    }
+  });
+
   const MAX_TOOL_ITERATIONS = 8;
 
   app.post("/api/chat", async (req: Request, res: Response) => {

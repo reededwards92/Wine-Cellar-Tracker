@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,14 +8,16 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Colors from "@/constants/colors";
-import { apiRequest } from "@/lib/query-client";
+import { apiRequest, getApiUrl } from "@/lib/query-client";
 import { queryClient } from "@/lib/query-client";
 
 const COLOR_OPTIONS = ["Red", "White", "Rosé", "Sparkling", "Dessert", "Fortified"];
@@ -38,37 +40,105 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
+const EMPTY_FORM = {
+  producer: "",
+  wine_name: "",
+  vintage: "",
+  color: "Red",
+  country: "",
+  region: "",
+  sub_region: "",
+  appellation: "",
+  varietal: "",
+  designation: "",
+  vineyard: "",
+  drink_window_start: "",
+  drink_window_end: "",
+  ct_community_score: "",
+  quantity: "1",
+  purchase_date: "",
+  purchase_price: "",
+  estimated_value: "",
+  store: "",
+  location: "",
+  bin: "",
+  size: "750ml",
+  notes: "",
+};
+
 export default function AddWineScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-
-  const [form, setForm] = useState({
-    producer: "",
-    wine_name: "",
-    vintage: "",
-    color: "Red",
-    country: "",
-    region: "",
-    sub_region: "",
-    appellation: "",
-    varietal: "",
-    designation: "",
-    vineyard: "",
-    drink_window_start: "",
-    drink_window_end: "",
-    ct_community_score: "",
-    quantity: "1",
-    purchase_date: "",
-    purchase_price: "",
-    estimated_value: "",
-    store: "",
-    location: "",
-    bin: "",
-    size: "750ml",
-    notes: "",
-  });
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [analyzing, setAnalyzing] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const hasLaunched = useRef(false);
 
   const update = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
+
+  const launchCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Camera access needed", "Please enable camera access in your device settings to scan wine bottles.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+      allowsEditing: false,
+    });
+
+    if (result.canceled || !result.assets[0]?.base64) return;
+
+    const asset = result.assets[0];
+    setPhotoUri(asset.uri);
+    setAnalyzing(true);
+
+    try {
+      const baseUrl = getApiUrl();
+      const resp = await fetch(new URL("/api/analyze-wine-image", baseUrl).toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: asset.base64,
+          mimeType: asset.mimeType || "image/jpeg",
+        }),
+      });
+
+      if (!resp.ok) throw new Error("Analysis failed");
+
+      const data = await resp.json();
+      setForm((prev) => ({
+        ...prev,
+        producer: data.producer || prev.producer,
+        wine_name: data.wine_name || prev.wine_name,
+        vintage: data.vintage || prev.vintage,
+        color: COLOR_OPTIONS.includes(data.color) ? data.color : prev.color,
+        country: data.country || prev.country,
+        region: data.region || prev.region,
+        sub_region: data.sub_region || prev.sub_region,
+        appellation: data.appellation || prev.appellation,
+        varietal: data.varietal || prev.varietal,
+        designation: data.designation || prev.designation,
+        vineyard: data.vineyard || prev.vineyard,
+        size: data.size || prev.size,
+      }));
+    } catch {
+      Alert.alert("Could not analyze", "The image could not be analyzed. You can fill in the details manually or try again.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!hasLaunched.current) {
+      hasLaunched.current = true;
+      const timer = setTimeout(() => launchCamera(), 400);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -104,6 +174,9 @@ export default function AddWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
+      setForm({ ...EMPTY_FORM });
+      setPhotoUri(null);
+      hasLaunched.current = false;
       router.navigate("/(tabs)");
     },
     onError: (err) => {
@@ -117,13 +190,30 @@ export default function AddWineScreen() {
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
         <Text style={styles.title}>Add Wine</Text>
+        <Pressable onPress={launchCamera} disabled={analyzing} style={styles.retakeButton} testID="retake-photo">
+          <Ionicons name="camera" size={22} color={Colors.light.tint} />
+          <Text style={styles.retakeText}>Scan</Text>
+        </Pressable>
       </View>
+
+      {analyzing && (
+        <View style={styles.analyzingBanner}>
+          <ActivityIndicator size="small" color={Colors.light.tint} />
+          <Text style={styles.analyzingText}>Analyzing wine label...</Text>
+        </View>
+      )}
 
       <KeyboardAwareScrollViewCompat
         bottomOffset={100}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: isWeb ? 84 + 34 : insets.bottom + 100 }}
       >
+        {photoUri && (
+          <View style={styles.photoSection}>
+            <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
+          </View>
+        )}
+
         <FormSection title="Wine Identity">
           <FormField label="Producer *">
             <TextInput
@@ -286,6 +376,7 @@ export default function AddWineScreen() {
             style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
             onPress={() => createMutation.mutate()}
             disabled={!canSubmit || createMutation.isPending}
+            testID="add-wine-button"
           >
             {createMutation.isPending ? (
               <ActivityIndicator color="#fff" />
@@ -313,11 +404,47 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
+    flexDirection: "row" as const,
+    alignItems: "flex-end" as const,
+    justifyContent: "space-between" as const,
   },
   title: {
     fontSize: 28,
     fontFamily: "Inter_700Bold",
     color: Colors.light.text,
+  },
+  retakeButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 4,
+    paddingVertical: 4,
+  },
+  retakeText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.light.tint,
+  },
+  analyzingBanner: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: 10,
+    paddingVertical: 12,
+    backgroundColor: "#F3E8E9",
+  },
+  analyzingText: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: Colors.light.tint,
+  },
+  photoSection: {
+    alignItems: "center" as const,
+    paddingVertical: 16,
+  },
+  photoPreview: {
+    width: 120,
+    height: 160,
+    borderRadius: 10,
   },
   section: {
     backgroundColor: Colors.light.white,
@@ -361,15 +488,15 @@ const styles = StyleSheet.create({
     textAlignVertical: "top" as const,
   },
   row: {
-    flexDirection: "row",
+    flexDirection: "row" as const,
     gap: 12,
   },
   halfField: {
     flex: 1,
   },
   colorChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
     gap: 6,
   },
   colorChip: {
@@ -400,9 +527,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
     borderRadius: 8,
     paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     gap: 8,
   },
   submitBtnDisabled: {
