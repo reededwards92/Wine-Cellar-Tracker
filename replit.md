@@ -1,4 +1,4 @@
-# Cellar - Wine Cellar Management App
+# Vin - Wine Cellar Management App
 
 ## Overview
 A wine cellar management mobile app built with Expo (React Native) frontend and Express backend with SQLite (better-sqlite3) database. Includes an AI-powered sommelier chat assistant (Claude Sonnet 4.6 via Replit AI Integrations) that can query and modify the wine database through natural language.
