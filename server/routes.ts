@@ -501,7 +501,7 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
     req.on("close", () => { clientDisconnected = true; });
 
     try {
-      const { messages: chatMessages } = req.body;
+      const { messages: chatMessages, location } = req.body;
       if (!chatMessages || !Array.isArray(chatMessages)) {
         return res.status(400).json({ error: "messages array required" });
       }
@@ -511,6 +511,11 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
       res.setHeader("X-Accel-Buffering", "no");
       res.setHeader("Connection", "keep-alive");
       res.flushHeaders();
+
+      let systemPrompt = SYSTEM_PROMPT;
+      if (location && location.latitude && location.longitude) {
+        systemPrompt += `\n\nUser's current GPS coordinates: latitude ${location.latitude}, longitude ${location.longitude}. Use the get_weather tool with these coordinates to check local conditions when making wine recommendations. You can reverse-geocode the coordinates to determine the city/region.`;
+      }
 
       const anthropicMessages: Anthropic.MessageParam[] = chatMessages.map((m: any) => ({
         role: m.role as "user" | "assistant",
@@ -526,7 +531,7 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
         const response = await anthropic.messages.create({
           model: "claude-sonnet-4-6",
           max_tokens: 4096,
-          system: SYSTEM_PROMPT,
+          system: systemPrompt,
           tools: CELLAR_TOOLS,
           messages: anthropicMessages,
         });

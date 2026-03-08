@@ -8,11 +8,13 @@ import {
   StyleSheet,
   Platform,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { fetch } from "expo/fetch";
+import * as Location from "expo-location";
 import Colors from "@/constants/colors";
 import { getApiUrl, queryClient } from "@/lib/query-client";
 
@@ -38,8 +40,57 @@ export default function SommelierScreen() {
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const inputRef = useRef<TextInput>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<
+    "pending" | "granted" | "denied" | "unavailable"
+  >("pending");
 
   useEffect(() => {
+    (async () => {
+      if (Platform.OS === "web") {
+        try {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                setUserLocation({
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                });
+                setLocationStatus("granted");
+              },
+              () => setLocationStatus("denied")
+            );
+          } else {
+            setLocationStatus("unavailable");
+          }
+        } catch {
+          setLocationStatus("unavailable");
+        }
+        return;
+      }
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        setLocationStatus("granted");
+        try {
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Low,
+          });
+          setUserLocation({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+        } catch {
+          setLocationStatus("granted");
+        }
+      } else {
+        setLocationStatus("denied");
+      }
+    })();
+
     return () => {
       abortRef.current?.abort();
     };
@@ -82,7 +133,10 @@ export default function SommelierScreen() {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
         },
-        body: JSON.stringify({ messages: chatHistory }),
+        body: JSON.stringify({
+          messages: chatHistory,
+          location: userLocation || undefined,
+        }),
         signal: controller.signal,
       });
 

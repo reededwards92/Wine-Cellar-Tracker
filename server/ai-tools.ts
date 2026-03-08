@@ -168,13 +168,15 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "get_weather",
-    description: "Get current weather and forecast for a location. Use this proactively when recommending wines — weather, temperature, and season should influence suggestions (e.g., light whites on hot days, bold reds on cold evenings). Call this tool whenever making drink recommendations.",
+    description: "Get current weather and forecast for a location. Use this proactively when recommending wines — weather, temperature, and season should influence suggestions (e.g., light whites on hot days, bold reds on cold evenings). Call this tool whenever making drink recommendations. You can pass either a city name OR latitude/longitude coordinates.",
     input_schema: {
       type: "object" as const,
       properties: {
         location: { type: "string", description: "City name or location (e.g., 'San Francisco', 'London', 'Paris')" },
+        latitude: { type: "number", description: "GPS latitude (use this if you have coordinates from the user's device)" },
+        longitude: { type: "number", description: "GPS longitude (use this if you have coordinates from the user's device)" },
       },
-      required: ["location"],
+      required: [],
     },
   },
 ];
@@ -540,19 +542,45 @@ const WMO_CODES: Record<number, string> = {
 };
 
 async function getWeather(input: any): Promise<string> {
-  const location = input.location;
-  if (!location) return JSON.stringify({ error: "Location is required" });
+  let latitude: number;
+  let longitude: number;
+  let locationName: string;
+  let countryName: string;
+  let tz: string;
 
-  const geoRes = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en`
-  );
-  const geoData = await geoRes.json();
+  if (input.latitude != null && input.longitude != null) {
+    latitude = input.latitude;
+    longitude = input.longitude;
 
-  if (!geoData.results || geoData.results.length === 0) {
-    return JSON.stringify({ error: `Could not find location: ${location}` });
+    const nominatimRes = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`
+    );
+    const nominatimData = await nominatimRes.json();
+    locationName = nominatimData.address?.city || nominatimData.address?.town || nominatimData.address?.county || "Unknown";
+    countryName = nominatimData.address?.country || "Unknown";
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "auto";
+  } else if (input.location) {
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(input.location)}&count=1&language=en`
+    );
+    const geoData = await geoRes.json();
+
+    if (!geoData.results || geoData.results.length === 0) {
+      return JSON.stringify({ error: `Could not find location: ${input.location}` });
+    }
+
+    latitude = geoData.results[0].latitude;
+    longitude = geoData.results[0].longitude;
+    locationName = geoData.results[0].name;
+    countryName = geoData.results[0].country;
+    tz = geoData.results[0].timezone;
+  } else {
+    return JSON.stringify({ error: "Provide either a location name or latitude/longitude coordinates" });
   }
 
-  const { latitude, longitude, name, country, timezone } = geoData.results[0];
+  const name = locationName;
+  const country = countryName;
+  const timezone = tz;
 
   const weatherRes = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,sunset,sunrise&timezone=${encodeURIComponent(timezone)}&forecast_days=3`
