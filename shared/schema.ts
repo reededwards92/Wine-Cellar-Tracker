@@ -1,20 +1,56 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+export interface Wine {
+  id: number;
+  ct_wine_id: number | null;
+  producer: string;
+  wine_name: string;
+  vintage: number | null;
+  country: string | null;
+  region: string | null;
+  sub_region: string | null;
+  appellation: string | null;
+  varietal: string | null;
+  color: string | null;
+  wine_type: string | null;
+  category: string | null;
+  designation: string | null;
+  vineyard: string | null;
+  drink_window_start: number | null;
+  drink_window_end: number | null;
+  ct_community_score: number | null;
+  critic_scores: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
-export const users = pgTable("users", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
+export interface Bottle {
+  id: number;
+  wine_id: number;
+  ct_inventory_id: number | null;
+  ct_barcode: string | null;
+  purchase_date: string | null;
+  purchase_price: number | null;
+  estimated_value: number | null;
+  store: string | null;
+  location: string | null;
+  bin: string | null;
+  size: string;
+  notes: string | null;
+  status: string;
+  consumed_date: string | null;
+  occasion: string | null;
+  rating: number | null;
+  created_at: string;
+}
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export interface ConsumptionLog {
+  id: number;
+  bottle_id: number;
+  wine_id: number;
+  consumed_date: string;
+  occasion: string | null;
+  paired_with: string | null;
+  who_with: string | null;
+  rating: number | null;
+  tasting_notes: string | null;
+  created_at: string;
+}

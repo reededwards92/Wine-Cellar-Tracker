@@ -1,0 +1,183 @@
+import React from "react";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Colors from "@/constants/colors";
+import { getDrinkWindowStatus, getColorDot } from "@/lib/api";
+import type { WineListItem } from "@/lib/api";
+
+interface WineCardProps {
+  wine: WineListItem;
+  onPress: () => void;
+}
+
+export default function WineCard({ wine, onPress }: WineCardProps) {
+  const dwStatus = getDrinkWindowStatus(wine.drink_window_start, wine.drink_window_end);
+
+  const dwColor =
+    dwStatus === "in_window" ? Colors.light.success :
+    dwStatus === "approaching" ? Colors.light.warning :
+    dwStatus === "past_peak" ? Colors.light.danger :
+    Colors.light.tabIconDefault;
+
+  const dwLabel =
+    dwStatus === "in_window" ? "In window" :
+    dwStatus === "approaching" ? "Approaching" :
+    dwStatus === "past_peak" ? "Past peak" :
+    "";
+
+  const location = wine.sub_region || wine.appellation || wine.region || "";
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+      onPress={onPress}
+    >
+      <View style={styles.row}>
+        <View style={[styles.colorDot, { backgroundColor: getColorDot(wine.color) }]} />
+        <View style={styles.content}>
+          <Text style={styles.producer} numberOfLines={1}>{wine.producer}</Text>
+          <Text style={styles.wineName} numberOfLines={1}>
+            {wine.wine_name}
+            {wine.vintage ? ` ${wine.vintage}` : ""}
+          </Text>
+          <View style={styles.metaRow}>
+            {location ? (
+              <Text style={styles.meta} numberOfLines={1}>{location}</Text>
+            ) : null}
+            {wine.varietal ? (
+              <Text style={styles.metaSep}>{location ? " · " : ""}{wine.varietal}</Text>
+            ) : null}
+          </View>
+        </View>
+        <View style={styles.right}>
+          <View style={styles.quantityBadge}>
+            <Text style={styles.quantityText}>{wine.bottle_count}</Text>
+          </View>
+          {wine.avg_value > 0 ? (
+            <Text style={styles.value}>${Math.round(wine.avg_value)}</Text>
+          ) : null}
+          {wine.ct_community_score ? (
+            <Text style={styles.score}>{wine.ct_community_score.toFixed(1)}</Text>
+          ) : null}
+        </View>
+      </View>
+      {(wine.drink_window_start || wine.drink_window_end) ? (
+        <View style={styles.footer}>
+          <View style={[styles.dwDot, { backgroundColor: dwColor }]} />
+          <Text style={[styles.dwText, { color: dwColor }]}>
+            {wine.drink_window_start && wine.drink_window_end
+              ? `${wine.drink_window_start}–${wine.drink_window_end}`
+              : wine.drink_window_start
+                ? `From ${wine.drink_window_start}`
+                : `Until ${wine.drink_window_end}`}
+          </Text>
+          {dwLabel ? (
+            <Text style={[styles.dwLabel, { color: dwColor }]}> · {dwLabel}</Text>
+          ) : null}
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: Colors.light.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  pressed: {
+    backgroundColor: Colors.light.cardBackground,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  colorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 6,
+    marginRight: 10,
+  },
+  content: {
+    flex: 1,
+  },
+  producer: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.light.text,
+  },
+  wineName: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: 1,
+  },
+  metaRow: {
+    flexDirection: "row",
+    marginTop: 3,
+    flexWrap: "wrap",
+  },
+  meta: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.light.textSecondary,
+  },
+  metaSep: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.light.textSecondary,
+  },
+  right: {
+    alignItems: "flex-end",
+    marginLeft: 12,
+    gap: 2,
+  },
+  quantityBadge: {
+    backgroundColor: Colors.light.tint,
+    borderRadius: 10,
+    minWidth: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  quantityText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
+  value: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: Colors.light.text,
+  },
+  score: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: Colors.light.tint,
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    marginLeft: 20,
+  },
+  dwDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 5,
+  },
+  dwText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+  dwLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
+});
