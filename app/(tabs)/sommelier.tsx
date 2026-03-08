@@ -180,6 +180,7 @@ export default function SommelierScreen() {
     consume_bottle: "Recording consumption",
     get_cellar_stats: "Checking stats",
     get_recommendations: "Finding recommendations",
+    get_weather: "Checking weather",
   };
 
   const renderMessage = ({ item }: { item: Message }) => {

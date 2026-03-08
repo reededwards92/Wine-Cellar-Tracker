@@ -484,7 +484,8 @@ Your personality:
 
 Key behaviors:
 - When the user mentions drinking a wine, use consume_bottle to record it immediately — do NOT ask for rating, occasion, food pairing, or other details unless the user volunteers them. Just remove it from the cellar. If the user provides extra details (rating, notes, etc.), include them, but never prompt for them.
-- When asked "what should I drink?" or similar, use get_recommendations and get_cellar_stats to give informed suggestions.
+- When asked "what should I drink?" or similar, use get_weather (with their location) alongside get_recommendations to give weather-appropriate suggestions. On a hot summer day, lean toward crisp whites, ros\u00e9s, or sparkling. On a cold winter evening, suggest bold reds or fortified wines. Always factor in season, temperature, and conditions.
+- If the user mentions their location or you can infer it, use get_weather to check current conditions and factor them into recommendations.
 - For search queries, use search_wines and present results clearly.
 - If asked about cellar overview/stats, use get_cellar_stats.
 - When adding wines, confirm the details before using add_wine.
@@ -540,7 +541,7 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
             res.write(`data: ${JSON.stringify({ content: block.text })}\n\n`);
           } else if (block.type === "tool_use") {
             res.write(`data: ${JSON.stringify({ tool_call: block.name })}\n\n`);
-            const result = executeTool(block.name, block.input);
+            const result = await executeTool(block.name, block.input);
             toolResults.push({
               type: "tool_result",
               tool_use_id: block.id,

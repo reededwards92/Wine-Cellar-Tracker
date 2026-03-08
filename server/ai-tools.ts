@@ -166,9 +166,20 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
       required: ["criteria"],
     },
   },
+  {
+    name: "get_weather",
+    description: "Get current weather and forecast for a location. Use this proactively when recommending wines — weather, temperature, and season should influence suggestions (e.g., light whites on hot days, bold reds on cold evenings). Call this tool whenever making drink recommendations.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        location: { type: "string", description: "City name or location (e.g., 'San Francisco', 'London', 'Paris')" },
+      },
+      required: ["location"],
+    },
+  },
 ];
 
-export function executeTool(name: string, input: any): string {
+export async function executeTool(name: string, input: any): Promise<string> {
   try {
     switch (name) {
       case "search_wines":
@@ -189,6 +200,8 @@ export function executeTool(name: string, input: any): string {
         return getCellarStats();
       case "get_recommendations":
         return getRecommendations(input);
+      case "get_weather":
+        return await getWeather(input);
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` });
     }
@@ -513,4 +526,85 @@ function getRecommendations(input: any): string {
 
   const wines = db.prepare(query).all(...params);
   return JSON.stringify({ recommendations: wines, criteria: input.criteria, count: wines.length });
+}
+
+const WMO_CODES: Record<number, string> = {
+  0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+  45: "Foggy", 48: "Depositing rime fog",
+  51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+  61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+  71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+  80: "Slight rain showers", 81: "Moderate rain showers", 82: "Violent rain showers",
+  85: "Slight snow showers", 86: "Heavy snow showers",
+  95: "Thunderstorm", 96: "Thunderstorm with slight hail", 99: "Thunderstorm with heavy hail",
+};
+
+async function getWeather(input: any): Promise<string> {
+  const location = input.location;
+  if (!location) return JSON.stringify({ error: "Location is required" });
+
+  const geoRes = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en`
+  );
+  const geoData = await geoRes.json();
+
+  if (!geoData.results || geoData.results.length === 0) {
+    return JSON.stringify({ error: `Could not find location: ${location}` });
+  }
+
+  const { latitude, longitude, name, country, timezone } = geoData.results[0];
+
+  const weatherRes = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,sunset,sunrise&timezone=${encodeURIComponent(timezone)}&forecast_days=3`
+  );
+  const weather = await weatherRes.json();
+
+  const current = weather.current;
+  const daily = weather.daily;
+
+  const now = new Date();
+  const month = now.toLocaleString("en", { month: "long" });
+  const season = getSeason(latitude, now.getMonth());
+
+  const result = {
+    location: `${name}, ${country}`,
+    season,
+    month,
+    current: {
+      temperature_c: current.temperature_2m,
+      temperature_f: Math.round(current.temperature_2m * 9 / 5 + 32),
+      feels_like_c: current.apparent_temperature,
+      feels_like_f: Math.round(current.apparent_temperature * 9 / 5 + 32),
+      humidity_percent: current.relative_humidity_2m,
+      wind_speed_kmh: current.wind_speed_10m,
+      conditions: WMO_CODES[current.weather_code] || "Unknown",
+    },
+    forecast: daily.time.map((date: string, i: number) => ({
+      date,
+      high_c: daily.temperature_2m_max[i],
+      high_f: Math.round(daily.temperature_2m_max[i] * 9 / 5 + 32),
+      low_c: daily.temperature_2m_min[i],
+      low_f: Math.round(daily.temperature_2m_min[i] * 9 / 5 + 32),
+      conditions: WMO_CODES[daily.weather_code[i]] || "Unknown",
+      sunrise: daily.sunrise[i],
+      sunset: daily.sunset[i],
+    })),
+  };
+
+  return JSON.stringify(result);
+}
+
+function getSeason(latitude: number, month: number): string {
+  const isNorthern = latitude >= 0;
+  if (isNorthern) {
+    if (month >= 2 && month <= 4) return "Spring";
+    if (month >= 5 && month <= 7) return "Summer";
+    if (month >= 8 && month <= 10) return "Fall";
+    return "Winter";
+  } else {
+    if (month >= 2 && month <= 4) return "Fall";
+    if (month >= 5 && month <= 7) return "Winter";
+    if (month >= 8 && month <= 10) return "Spring";
+    return "Summer";
+  }
 }
