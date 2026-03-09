@@ -168,7 +168,7 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "get_weather",
-    description: "Get current weather and forecast for a location. Use this proactively when recommending wines — weather, temperature, and season should influence suggestions (e.g., light whites on hot days, bold reds on cold evenings). Call this tool whenever making drink recommendations. You can pass either a city name OR latitude/longitude coordinates.",
+    description: "Get current weather and forecast for a location. Can optionally be used to factor weather into wine recommendations when it seems relevant (e.g., user asks what to drink tonight, or mentions the weather). You can pass either a city name OR latitude/longitude coordinates.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -553,12 +553,13 @@ async function getWeather(input: any): Promise<string> {
     longitude = input.longitude;
 
     const nominatimRes = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`,
+      { headers: { "User-Agent": "VinWineCellar/1.0" } }
     );
     const nominatimData = await nominatimRes.json();
     locationName = nominatimData.address?.city || nominatimData.address?.town || nominatimData.address?.county || "Unknown";
     countryName = nominatimData.address?.country || "Unknown";
-    tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "auto";
+    tz = nominatimData.address?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "auto";
   } else if (input.location) {
     const geoRes = await fetch(
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(input.location)}&count=1&language=en`

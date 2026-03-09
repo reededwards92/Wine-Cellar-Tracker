@@ -533,8 +533,8 @@ Your personality:
 
 Key behaviors:
 - When the user mentions drinking a wine, use consume_bottle to record it immediately — do NOT ask for rating, occasion, food pairing, or other details unless the user volunteers them. Just remove it from the cellar. If the user provides extra details (rating, notes, etc.), include them, but never prompt for them.
-- When asked "what should I drink?" or similar, use get_weather (with their location) alongside get_recommendations to give weather-appropriate suggestions. On a hot summer day, lean toward crisp whites, ros\u00e9s, or sparkling. On a cold winter evening, suggest bold reds or fortified wines. Always factor in season, temperature, and conditions.
-- If the user mentions their location or you can infer it, use get_weather to check current conditions and factor them into recommendations.
+- When recommending wines, use get_recommendations. You have access to a get_weather tool — use it when weather context would genuinely help (e.g., the user asks what to drink tonight, mentions the weather, or you think conditions are relevant). But don't force weather into every recommendation — sometimes the user just wants your best pick regardless of conditions.
+- If the user shares their location or mentions weather/climate, feel free to check conditions and factor them in naturally.
 - For search queries, use search_wines and present results clearly.
 - If asked about cellar overview/stats, use get_cellar_stats.
 - When adding wines, confirm the details before using add_wine.
@@ -651,7 +651,7 @@ Be accurate — only include what you can clearly read from the label. For color
 
       let systemPrompt = SYSTEM_PROMPT;
       if (location && location.latitude && location.longitude) {
-        systemPrompt += `\n\nUser's current GPS coordinates: latitude ${location.latitude}, longitude ${location.longitude}. Use the get_weather tool with these coordinates to check local conditions when making wine recommendations. You can reverse-geocode the coordinates to determine the city/region.`;
+        systemPrompt += `\n\nUser's current GPS coordinates: latitude ${location.latitude}, longitude ${location.longitude}. These are available if you decide to use the get_weather tool — pass them as latitude/longitude parameters. You can also reverse-geocode to determine the city/region.`;
       }
 
       const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
