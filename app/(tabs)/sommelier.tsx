@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
   },
   messageList: {
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
   bubbleText: {
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
   },
   bubbleTextUser: {
     color: Colors.light.white,
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
   toolText: {
     fontSize: 13,
     color: Colors.light.textSecondary,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     fontStyle: "italic" as const,
   },
   typingDots: {
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 10 : 8,
     paddingBottom: Platform.OS === "ios" ? 10 : 8,
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.cardBackground,
   },
@@ -734,14 +734,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 22,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Outfit_700Bold",
     color: Colors.light.text,
     marginBottom: 8,
     textAlign: "center" as const,
   },
   emptySubtitle: {
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center" as const,
     lineHeight: 22,
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.tint,
   },
 });

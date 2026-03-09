@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontSize: 17,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
     textAlign: "center",
   },
@@ -358,13 +358,13 @@ const styles = StyleSheet.create({
   },
   producer: {
     fontSize: 22,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
     textAlign: "center",
   },
   wineName: {
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "LibreBaskerville_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center",
     marginTop: 4,
@@ -379,12 +379,12 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     fontSize: 18,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Outfit_700Bold",
     color: Colors.light.tint,
   },
   scoreLabel: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.tint,
   },
   detailSection: {
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   },
   detailSectionTitle: {
     fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.textSecondary,
     textTransform: "uppercase" as const,
     letterSpacing: 0.5,
@@ -412,12 +412,12 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   infoValue: {
     fontSize: 14,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
     textAlign: "right",
     flex: 1,
@@ -451,22 +451,22 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
   },
   bottleSize: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   bottleMeta: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     marginTop: 4,
   },
   bottleNotes: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     marginTop: 4,
     fontStyle: "italic" as const,
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   },
   locationPillText: {
     fontSize: 12,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
   },
   locationPillTextActive: {
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   },
   consumeBtnText: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.tint,
   },
   modalOverlay: {
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
   },
   modalBody: {
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   },
   modalLabel: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
     marginBottom: 5,
     marginTop: 12,
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.cardBackground,
   },
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: {
     fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: "#fff",
   },
 });

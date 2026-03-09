@@ -8,6 +8,7 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - **Backend**: Express.js, TypeScript, better-sqlite3 (SQLite)
 - **AI**: Claude Sonnet 4.6 (Anthropic via Replit AI Integrations) with tool-calling for database operations
 - **Styling**: React Native StyleSheet with wine-burgundy (#722F37) accent color
+- **Typography**: Outfit (sans-serif, weights 300-700) as primary font; Libre Baskerville (serif) for wine names and main headings
 
 ## Architecture
 - **Frontend** runs on port 8081 (Expo dev server)

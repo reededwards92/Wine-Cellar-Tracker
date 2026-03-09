@@ -107,12 +107,12 @@ const styles = StyleSheet.create({
   },
   producer: {
     fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
   },
   wineName: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "LibreBaskerville_400Regular",
     color: Colors.light.textSecondary,
     marginTop: 1,
   },
@@ -123,12 +123,12 @@ const styles = StyleSheet.create({
   },
   meta: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_300Light",
     color: Colors.light.textSecondary,
   },
   metaSep: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_300Light",
     color: Colors.light.textSecondary,
   },
   right: {
@@ -147,17 +147,17 @@ const styles = StyleSheet.create({
   },
   quantityText: {
     fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: "#fff",
   },
   value: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
   },
   score: {
     fontSize: 12,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.tint,
   },
   footer: {
@@ -174,10 +174,10 @@ const styles = StyleSheet.create({
   },
   dwText: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_300Light",
   },
   dwLabel: {
     fontSize: 12,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
   },
 });

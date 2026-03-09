@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 14,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.textSecondary,
   },
   badge: {
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: "#fff",
   },
   body: {
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.textSecondary,
     marginTop: 12,
     marginBottom: 6,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   chipTextActive: {
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.cardBackground,
   },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   sortScroll: {
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.tint,
   },
 });

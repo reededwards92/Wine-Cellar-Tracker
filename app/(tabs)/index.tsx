@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
   },
   searchRow: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     padding: 0,
   },
@@ -211,12 +211,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
   },
   emptyText: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_300Light",
     color: Colors.light.textSecondary,
     textAlign: "center",
     paddingHorizontal: 40,

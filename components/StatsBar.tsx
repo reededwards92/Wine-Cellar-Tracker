@@ -64,12 +64,12 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 18,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Outfit_700Bold",
     color: Colors.light.text,
   },
   label: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_300Light",
     color: Colors.light.textSecondary,
     marginTop: 2,
   },

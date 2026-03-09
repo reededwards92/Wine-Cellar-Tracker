@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
   },
   listContent: {
@@ -152,18 +152,18 @@ const styles = StyleSheet.create({
   },
   cardProducer: {
     fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
   },
   cardWine: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "LibreBaskerville_400Regular",
     color: Colors.light.textSecondary,
     marginTop: 1,
   },
   cardDate: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     marginLeft: 8,
   },
@@ -180,12 +180,12 @@ const styles = StyleSheet.create({
   },
   cardOccasion: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   cardNotes: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     marginTop: 6,
     marginLeft: 20,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   pairingText: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   centered: {
@@ -212,12 +212,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
   },
   emptyText: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center",
     paddingHorizontal: 40,

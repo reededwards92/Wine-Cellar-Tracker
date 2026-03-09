@@ -1,10 +1,15 @@
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from "@expo-google-fonts/inter";
+  Outfit_300Light,
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+} from "@expo-google-fonts/outfit";
+import {
+  LibreBaskerville_400Regular,
+  LibreBaskerville_700Bold,
+} from "@expo-google-fonts/libre-baskerville";
+import { useFonts } from "expo-font";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -27,10 +32,13 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Outfit_300Light,
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+    LibreBaskerville_400Regular,
+    LibreBaskerville_700Bold,
   });
 
   useEffect(() => {

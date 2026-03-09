@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
   },
   retakeButton: {
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   },
   retakeText: {
     fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.tint,
   },
   analyzingBanner: {
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   },
   analyzingText: {
     fontSize: 14,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.tint,
   },
   photoSection: {
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.textSecondary,
     textTransform: "uppercase" as const,
     letterSpacing: 0.5,
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
     marginBottom: 5,
   },
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === "web" ? 10 : 10,
     fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.cardBackground,
   },
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   },
   colorChipText: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   colorChipTextActive: {
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   },
   locationOptionText: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
   },
   locationOptionTextActive: {
@@ -558,7 +558,7 @@ const styles = StyleSheet.create({
   },
   submitText: {
     fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Outfit_600SemiBold",
     color: "#fff",
   },
 });
