@@ -1,0 +1,110 @@
+# History Page Stats — Replit Agent Prompt
+
+Add a stats/analytics section to the top of the History tab (consumption log page). This should appear above the existing list of consumed wines and feel celebratory — this is the "look what you've enjoyed" page.
+
+---
+
+## Layout
+
+Add a stats section between the "History" header and the consumed wines list. Structure it as:
+
+1. **Top row: Two big number cards** (side by side, equal width)
+2. **Color breakdown: Donut chart** (full width card below the number cards)
+3. **Monthly trend: Bar chart** (full width card below the donut)
+
+All cards should use the existing app design language — white/light gray card backgrounds, subtle borders, the app's sans-serif font (Outfit), and wine burgundy (#722F37) as the accent color.
+
+---
+
+## Stat 1: Volume Consumed (Left Card)
+
+- **Big number:** Total bottles consumed (e.g., "20")
+- **Label:** "Bottles Consumed"
+- **Fun subtitle:** Convert to glasses poured: bottles × 5, displayed as "That's ~100 glasses poured 🍷"
+- Use the count of bottles where status = "consumed"
+
+## Stat 2: Value Consumed (Right Card)
+
+- **Big number:** Total dollar value of consumed bottles, formatted as currency (e.g., "$1,247")
+- **Label:** "Total Value Enjoyed"
+- Use the sum of `estimated_value` from consumed bottles (fall back to `purchase_price` if estimated_value is null)
+
+---
+
+## Stat 3: Color Breakdown (Donut Chart)
+
+- **Card title:** "What You've Been Drinking"
+- **Donut/ring chart** showing breakdown of consumed wines by color field
+- Use these specific colors for each wine color category:
+  - Red: `#722F37` (wine burgundy)
+  - White: `#D4A843` (gold)
+  - Rosé: `#E8998D` (salmon pink)
+  - Sparkling: `#C5B358` (champagne gold)
+  - Dessert: `#B8860B` (amber)
+  - Fortified: `#8B4513` (dark brown)
+  - Orange: `#D2691E` (orange-brown)
+- Show a legend below the chart with color swatches and counts (e.g., "Red: 14  •  White: 4  •  Rosé: 2")
+- Center of the donut can show total count
+- Use a lightweight charting approach — either a React Native compatible chart library already in the project, or build a simple SVG donut. Check what charting libraries are already installed before adding a new one.
+
+---
+
+## Stat 4: Monthly Consumption Trend (Bar Chart)
+
+- **Card title:** "Monthly Trend"
+- **Bar chart** showing number of bottles consumed per month
+- X-axis: months (abbreviated, e.g., "Nov", "Dec", "Jan", "Feb", "Mar")
+- Y-axis: bottle count
+- Only show months that have at least one consumption (don't show empty months going back years)
+- BUT if there are gaps between active months, show those gaps as zero-height bars so the timeline reads correctly
+- Bar color: `#722F37` (wine burgundy)
+- Show the count label on top of each bar
+- If all consumption is in a single month, still show the chart (just one bar) — it'll grow more useful over time
+
+---
+
+## Backend Changes
+
+### New endpoint or extend existing:
+
+**`GET /api/consumption/stats`** — returns all the data needed for the stats section:
+
+```json
+{
+  "totalBottles": 20,
+  "totalGlasses": 100,
+  "totalValue": 1247.00,
+  "colorBreakdown": [
+    { "color": "Red", "count": 14 },
+    { "color": "White", "count": 4 },
+    { "color": "Rosé", "count": 2 }
+  ],
+  "monthlyTrend": [
+    { "month": "2025-11", "label": "Nov '25", "count": 5 },
+    { "month": "2025-12", "label": "Dec '25", "count": 3 },
+    { "month": "2026-01", "label": "Jan '26", "count": 4 },
+    { "month": "2026-02", "label": "Feb '26", "count": 6 },
+    { "month": "2026-03", "label": "Mar '26", "count": 2 }
+  ]
+}
+```
+
+The query should join `consumption_log` or `bottles` (where status = 'consumed') with `wines` to get the color field for the breakdown. Use `consumed_date` for the monthly trend grouping.
+
+---
+
+## Interaction & Polish
+
+- The stats section should scroll with the page (not sticky)
+- Keep the existing "X bottles consumed" subtitle in the header — it now serves as a quick summary while the cards below provide the detail
+- Add a subtle fade-in animation when the stats load
+- If there are no consumed bottles yet, hide the entire stats section and just show the empty state
+- The consumed wines list below should remain exactly as it is today — don't change the existing list
+
+---
+
+## Technical Notes
+
+- Check what chart library is already in the project before installing a new one. If none exists, `react-native-svg` with manual SVG paths is the lightest option for simple donut and bar charts. Avoid heavy charting libraries.
+- Make sure the stats endpoint query is efficient — it should be a single or minimal number of SQL queries, not one per stat
+- The stats should update when a new bottle is consumed (invalidate/refetch when navigating back to History tab)

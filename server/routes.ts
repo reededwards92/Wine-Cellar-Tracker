@@ -368,6 +368,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(logs);
   });
 
+  app.get("/api/consumption/stats", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+
+    const totals = db.prepare(`
+      SELECT
+        COUNT(*) as totalBottles,
+        COALESCE(SUM(COALESCE(b.estimated_value, b.purchase_price, 0)), 0) as totalValue
+      FROM consumption_log cl
+      LEFT JOIN bottles b ON cl.bottle_id = b.id
+      WHERE cl.user_id = ?
+    `).get(userId) as any;
+
+    const colorBreakdown = db.prepare(`
+      SELECT w.color, COUNT(*) as count
+      FROM consumption_log cl
+      JOIN wines w ON cl.wine_id = w.id
+      WHERE cl.user_id = ? AND w.color IS NOT NULL
+      GROUP BY w.color
+      ORDER BY count DESC
+    `).all(userId) as any[];
+
+    const monthlyRaw = db.prepare(`
+      SELECT
+        strftime('%Y-%m', cl.consumed_date) as month,
+        COUNT(*) as count
+      FROM consumption_log cl
+      WHERE cl.user_id = ? AND cl.consumed_date IS NOT NULL
+      GROUP BY month
+      ORDER BY month ASC
+    `).all(userId) as any[];
+
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    let monthlyTrend: any[] = [];
+
+    if (monthlyRaw.length > 0) {
+      const first = monthlyRaw[0].month;
+      const last = monthlyRaw[monthlyRaw.length - 1].month;
+      const countMap = new Map(monthlyRaw.map((r: any) => [r.month, r.count]));
+
+      let [y, m] = first.split("-").map(Number);
+      const [ey, em] = last.split("-").map(Number);
+
+      while (y < ey || (y === ey && m <= em)) {
+        const key = `${y}-${String(m).padStart(2, "0")}`;
+        const shortYear = String(y).slice(2);
+        monthlyTrend.push({
+          month: key,
+          label: `${months[m - 1]} '${shortYear}`,
+          count: countMap.get(key) || 0,
+        });
+        m++;
+        if (m > 12) { m = 1; y++; }
+      }
+    }
+
+    res.json({
+      totalBottles: totals.totalBottles,
+      totalGlasses: totals.totalBottles * 5,
+      totalValue: Math.round(totals.totalValue * 100) / 100,
+      colorBreakdown,
+      monthlyTrend,
+    });
+  });
+
   app.delete("/api/consumption", requireAuth, (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const { ids } = req.body;

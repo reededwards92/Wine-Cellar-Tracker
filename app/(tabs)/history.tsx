@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,15 +9,100 @@ import {
   ActivityIndicator,
   Pressable,
   Alert,
+  Animated,
+  Dimensions,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Svg, { Path } from "react-native-svg";
 import Colors from "@/constants/colors";
 import { getColorDot } from "@/lib/api";
 import type { ConsumptionEntry } from "@/lib/api";
-import { apiRequest, getApiUrl, queryClient } from "@/lib/query-client";
+import { apiRequest, queryClient } from "@/lib/query-client";
+
+const WINE_COLORS: Record<string, string> = {
+  Red: "#722F37",
+  White: "#D4A843",
+  "Ros\u00e9": "#E8998D",
+  Sparkling: "#C5B358",
+  Dessert: "#B8860B",
+  Fortified: "#8B4513",
+  Orange: "#D2691E",
+};
+
+interface ConsumptionStats {
+  totalBottles: number;
+  totalGlasses: number;
+  totalValue: number;
+  colorBreakdown: { color: string; count: number }[];
+  monthlyTrend: { month: string; label: string; count: number }[];
+}
+
+function DonutChart({ data, size }: { data: { color: string; count: number }[]; size: number }) {
+  const total = data.reduce((s, d) => s + d.count, 0);
+  if (total === 0) return null;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = size / 2 - 8;
+  const innerRadius = radius * 0.6;
+
+  let startAngle = -Math.PI / 2;
+  const paths = data.map((d) => {
+    const sweep = (d.count / total) * 2 * Math.PI;
+    const endAngle = startAngle + sweep;
+    const largeArc = sweep > Math.PI ? 1 : 0;
+
+    const x1 = cx + radius * Math.cos(startAngle);
+    const y1 = cy + radius * Math.sin(startAngle);
+    const x2 = cx + radius * Math.cos(endAngle);
+    const y2 = cy + radius * Math.sin(endAngle);
+    const ix1 = cx + innerRadius * Math.cos(endAngle);
+    const iy1 = cy + innerRadius * Math.sin(endAngle);
+    const ix2 = cx + innerRadius * Math.cos(startAngle);
+    const iy2 = cy + innerRadius * Math.sin(startAngle);
+
+    const pathD = data.length === 1
+      ? `M ${cx + radius} ${cy} A ${radius} ${radius} 0 1 1 ${cx + radius - 0.01} ${cy} Z M ${cx + innerRadius} ${cy} A ${innerRadius} ${innerRadius} 0 1 0 ${cx + innerRadius - 0.01} ${cy} Z`
+      : `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${ix2} ${iy2} Z`;
+
+    startAngle = endAngle;
+    return { path: pathD, fill: WINE_COLORS[d.color] || Colors.light.tabIconDefault };
+  });
+
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {paths.map((p, i) => (
+        <Path key={i} d={p.path} fill={p.fill} />
+      ))}
+    </Svg>
+  );
+}
+
+function BarChart({ data }: { data: { label: string; count: number }[] }) {
+  if (data.length === 0) return null;
+  const maxCount = Math.max(...data.map((d) => d.count), 1);
+  const barWidth = Math.min(32, (Dimensions.get("window").width - 80) / data.length - 4);
+  const chartHeight = 120;
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barChartScroll}>
+      {data.map((d, i) => {
+        const barH = maxCount > 0 ? (d.count / maxCount) * (chartHeight - 20) : 0;
+        return (
+          <View key={i} style={[styles.barCol, { width: barWidth + 8 }]}>
+            <Text style={styles.barCount}>{d.count > 0 ? d.count : ""}</Text>
+            <View style={[styles.bar, { height: Math.max(barH, d.count > 0 ? 4 : 1), width: barWidth, backgroundColor: d.count > 0 ? Colors.light.tint : Colors.light.border }]} />
+            <Text style={styles.barLabel} numberOfLines={1}>{d.label.split(" ")[0]}</Text>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -90,7 +175,7 @@ function ConsumptionCard({
                   <Text style={styles.meta} numberOfLines={1}>{location}</Text>
                 ) : null}
                 {entry.varietal ? (
-                  <Text style={styles.meta}>{location ? " · " : ""}{entry.varietal}</Text>
+                  <Text style={styles.meta}>{location ? " \u00b7 " : ""}{entry.varietal}</Text>
                 ) : null}
               </View>
             ) : null}
@@ -125,6 +210,70 @@ function ConsumptionCard({
   );
 }
 
+function StatsSection({ stats }: { stats: ConsumptionStats }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const donutSize = 140;
+
+  return (
+    <Animated.View style={[styles.statsContainer, { opacity: fadeAnim }]}>
+      <View style={styles.topCards}>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{stats.totalBottles}</Text>
+          <Text style={styles.statLabel}>Bottles Consumed</Text>
+          <Text style={styles.statFun}>~{stats.totalGlasses} glasses poured</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>${stats.totalValue > 0 ? stats.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "0"}</Text>
+          <Text style={styles.statLabel}>Total Value Enjoyed</Text>
+          <Text style={styles.statFun}>{stats.totalBottles > 0 ? `~$${Math.round(stats.totalValue / stats.totalBottles)}/bottle avg` : ""}</Text>
+        </View>
+      </View>
+
+      {stats.colorBreakdown.length > 0 ? (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>What You've Been Drinking</Text>
+          <View style={styles.donutRow}>
+            <View style={styles.donutWrapper}>
+              <DonutChart data={stats.colorBreakdown} size={donutSize} />
+              <View style={[styles.donutCenter, { width: donutSize, height: donutSize }]}>
+                <Text style={styles.donutCenterNumber}>{stats.totalBottles}</Text>
+                <Text style={styles.donutCenterLabel}>total</Text>
+              </View>
+            </View>
+            <View style={styles.legendContainer}>
+              {stats.colorBreakdown.map((d) => (
+                <View key={d.color} style={styles.legendRow}>
+                  <View style={[styles.legendDot, { backgroundColor: WINE_COLORS[d.color] || Colors.light.tabIconDefault }]} />
+                  <Text style={styles.legendText}>{d.color}</Text>
+                  <Text style={styles.legendCount}>{d.count}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      {stats.monthlyTrend.length > 0 ? (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Monthly Trend</Text>
+          <View style={styles.barChartContainer}>
+            <BarChart data={stats.monthlyTrend} />
+          </View>
+        </View>
+      ) : null}
+    </Animated.View>
+  );
+}
+
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
@@ -135,6 +284,11 @@ export default function HistoryScreen() {
 
   const { data: entries, isLoading, refetch } = useQuery<ConsumptionEntry[]>({
     queryKey: ["/api/consumption"],
+  });
+
+  const { data: stats } = useQuery<ConsumptionStats>({
+    queryKey: ["/api/consumption/stats"],
+    enabled: !!(entries && entries.length > 0),
   });
 
   const toggleSelect = (id: number) => {
@@ -175,6 +329,7 @@ export default function HistoryScreen() {
             try {
               await apiRequest("DELETE", "/api/consumption", { ids: Array.from(selected) });
               queryClient.invalidateQueries({ queryKey: ["/api/consumption"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/consumption/stats"] });
               queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
               queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
               exitEditing();
@@ -190,6 +345,11 @@ export default function HistoryScreen() {
   };
 
   const allSelected = entries && entries.length > 0 && selected.size === entries.length;
+
+  const handleRefresh = () => {
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ["/api/consumption/stats"] });
+  };
 
   return (
     <View style={styles.screen}>
@@ -250,6 +410,11 @@ export default function HistoryScreen() {
           />
         )}
         keyExtractor={(item) => String(item.id)}
+        ListHeaderComponent={
+          stats && stats.totalBottles > 0 && !editing ? (
+            <StatsSection stats={stats} />
+          ) : null
+        }
         ListEmptyComponent={
           isLoading ? (
             <View style={styles.centered}>
@@ -264,7 +429,7 @@ export default function HistoryScreen() {
           )
         }
         refreshControl={
-          <RefreshControl refreshing={false} onRefresh={() => refetch()} tintColor={Colors.light.tint} />
+          <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={Colors.light.tint} />
         }
         contentContainerStyle={[
           styles.listContent,
@@ -347,6 +512,136 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.danger,
+  },
+  statsContainer: {
+    padding: 16,
+    gap: 12,
+  },
+  topCards: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.light.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    padding: 16,
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 32,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.tint,
+  },
+  statLabel: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.text,
+    marginTop: 2,
+    textAlign: "center",
+  },
+  statFun: {
+    fontSize: 11,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  chartCard: {
+    backgroundColor: Colors.light.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    padding: 16,
+  },
+  chartTitle: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+    marginBottom: 16,
+  },
+  donutRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+  },
+  donutWrapper: {
+    position: "relative",
+  },
+  donutCenter: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  donutCenterNumber: {
+    fontSize: 24,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.text,
+  },
+  donutCenterLabel: {
+    fontSize: 11,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: -2,
+  },
+  legendContainer: {
+    flex: 1,
+    gap: 6,
+  },
+  legendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.text,
+    flex: 1,
+  },
+  legendCount: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  barChartContainer: {
+    height: 150,
+    justifyContent: "flex-end",
+  },
+  barChartScroll: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 2,
+    paddingBottom: 4,
+  },
+  barCol: {
+    alignItems: "center",
+    gap: 4,
+  },
+  bar: {
+    borderRadius: 4,
+    minHeight: 1,
+  },
+  barCount: {
+    fontSize: 10,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.tint,
+    height: 14,
+  },
+  barLabel: {
+    fontSize: 9,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    textAlign: "center",
   },
   listContent: {
     flexGrow: 1,

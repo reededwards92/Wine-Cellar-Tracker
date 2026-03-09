@@ -120,6 +120,7 @@ export default function WineDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/consumption"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/consumption/stats"] });
     },
     onError: (err) => {
       Alert.alert("Error", err.message);
