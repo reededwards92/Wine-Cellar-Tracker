@@ -11,6 +11,8 @@ import {
   Linking,
   Image,
   Alert,
+  Animated,
+  Easing,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -363,6 +365,45 @@ export default function SommelierScreen() {
     );
   };
 
+  const dotAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+
+  useEffect(() => {
+    if (!showTyping || activeTools.length > 0) return;
+
+    const animations = dotAnims.map((anim, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 200),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 400,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 400,
+            easing: Easing.in(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.delay((2 - i) * 200),
+        ])
+      )
+    );
+
+    const composite = Animated.parallel(animations);
+    composite.start();
+
+    return () => {
+      composite.stop();
+      dotAnims.forEach((a) => a.setValue(0));
+    };
+  }, [showTyping, activeTools.length]);
+
   const renderTypingIndicator = () => {
     if (!showTyping) return null;
     return (
@@ -382,9 +423,34 @@ export default function SommelierScreen() {
             </View>
           ) : (
             <View style={styles.typingDots}>
-              <View style={[styles.dot, styles.dot1]} />
-              <View style={[styles.dot, styles.dot2]} />
-              <View style={[styles.dot, styles.dot3]} />
+              {dotAnims.map((anim, i) => (
+                <Animated.View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    {
+                      opacity: anim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.3, 1],
+                      }),
+                      transform: [
+                        {
+                          translateY: anim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, -6],
+                          }),
+                        },
+                        {
+                          scale: anim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.85, 1.15],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                />
+              ))}
             </View>
           )}
         </View>
@@ -730,14 +796,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: Colors.light.tabIconDefault,
   },
-  dot1: { opacity: 0.4 },
-  dot2: { opacity: 0.6 },
-  dot3: { opacity: 0.8 },
   inputContainer: {
     borderTopWidth: 1,
     borderTopColor: Colors.light.border,

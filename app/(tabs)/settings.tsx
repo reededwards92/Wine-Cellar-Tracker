@@ -99,8 +99,8 @@ export default function SettingsScreen() {
         if (!res.ok) throw new Error("Export failed");
         const blob = await res.blob();
 
-        const { File, Paths } = await import("expo-file-system/next");
-        const filePath = new File(Paths.cache, "vin-cellar-export.xlsx");
+        const FileSystemLegacy = await import("expo-file-system/legacy");
+        const fileUri = FileSystemLegacy.cacheDirectory + "vin-cellar-export.xlsx";
         const reader = new FileReader();
         const base64 = await new Promise<string>((resolve, reject) => {
           reader.onload = () => {
@@ -110,11 +110,13 @@ export default function SettingsScreen() {
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
-        filePath.write(base64, { encoding: "base64" });
+        await FileSystemLegacy.writeAsStringAsync(fileUri, base64, {
+          encoding: FileSystemLegacy.EncodingType.Base64,
+        });
 
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
-          await Sharing.shareAsync(filePath.uri, {
+          await Sharing.shareAsync(fileUri, {
             mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             dialogTitle: "Export Cellar Data",
           });
