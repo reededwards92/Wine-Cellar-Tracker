@@ -148,6 +148,50 @@ export function registerAuthRoutes(app: any) {
     res.json({ message: "Logged out" });
   });
 
+  app.patch("/api/auth/profile", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const { display_name } = req.body;
+    if (display_name === undefined || display_name === null) {
+      return res.status(400).json({ message: "Display name is required" });
+    }
+
+    const trimmed = String(display_name).trim();
+    if (trimmed.length === 0) {
+      return res.status(400).json({ message: "Display name cannot be empty" });
+    }
+
+    db.prepare("UPDATE users SET display_name = ? WHERE id = ?").run(trimmed, userId);
+    const user = db.prepare("SELECT id, email, display_name FROM users WHERE id = ?").get(userId) as any;
+    res.json({ user });
+  });
+
+  app.post("/api/auth/change-password", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ message: "Current and new password are required" });
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters" });
+    }
+
+    const user = db.prepare("SELECT password_hash, google_id FROM users WHERE id = ?").get(userId) as any;
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const valid = bcrypt.compareSync(current_password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    const hash = bcrypt.hashSync(new_password, 10);
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hash, userId);
+    res.json({ message: "Password updated" });
+  });
+
   app.delete("/api/auth/account", requireAuth, (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: "Authentication required" });

@@ -1130,10 +1130,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   manualEntryBtn: {
+    flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    width: 80,
-    gap: 4,
+    gap: 6,
   },
   manualEntryText: {
     fontSize: 12,

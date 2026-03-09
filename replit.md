@@ -27,7 +27,7 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - Auth token injected into all API requests via `lib/auth-token.ts` module
 - Auth gating uses Expo Router `<Redirect>` pattern in `_layout.tsx` (NOT conditional Stack.Screen rendering)
 - All data routes protected by `requireAuth` middleware and scoped by `user_id`
-- Auth routes: POST /api/auth/register, POST /api/auth/login, POST /api/auth/google, GET /api/auth/me, POST /api/auth/logout
+- Auth routes: POST /api/auth/register, POST /api/auth/login, POST /api/auth/google, GET /api/auth/me, POST /api/auth/logout, PATCH /api/auth/profile, POST /api/auth/change-password, DELETE /api/auth/account
 - Seeded accounts: `reededwards92@gmail.com` / `winefan1992` (Reed), `apple@review.com` / `AppleReview2025!` (Apple Reviewer with 5 sample wines)
 
 ## Database Tables
@@ -83,6 +83,8 @@ All data routes require `Authorization: Bearer <token>` header:
 - `app/(auth)/` - Auth screens (login, register)
 - `app/(tabs)/` - Tab screens (index, add/scan, sommelier, history, settings)
 - `app/wine/[id].tsx` - Wine detail screen
+- `app/account.tsx` - Account management (profile, password, delete)
+- `app/import-guide.tsx` - Import guide with CellarTracker/Vivino step-by-step instructions
 - `contexts/AuthContext.tsx` - Auth state management
 - `lib/auth-token.ts` - Shared auth token module (breaks circular dep)
 - `lib/query-client.ts` - React Query client with auth headers
