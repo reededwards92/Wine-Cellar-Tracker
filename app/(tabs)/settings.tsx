@@ -196,6 +196,12 @@ export default function SettingsScreen() {
 
         <SettingsSection title="Cellar">
           <SettingsRow
+            icon="location-outline"
+            label="Storage Locations"
+            subtitle="Set up your racks, fridges, and more"
+            onPress={() => router.push("/storage-locations")}
+          />
+          <SettingsRow
             icon="cloud-upload-outline"
             label="Import Wine Data"
             subtitle="Upload a CSV from any wine app"

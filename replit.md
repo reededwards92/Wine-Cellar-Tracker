@@ -47,6 +47,7 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - Cellar list view with stats, filtering, sorting, and search
 - Add wine form with grouped sections
 - Wine detail view with bottle management
+- Customizable storage locations (Rack, Fridge, Cabinet, Closet, Cellar, Wine Bar, Garage, Off-site, Other with custom names)
 - Consumption tracking with ratings and notes
 - Drink window status indicators (in window/approaching/past peak)
 - Support page at /support, Privacy policy at /privacy for Apple App Store
@@ -76,6 +77,8 @@ All data routes require `Authorization: Bearer <token>` header:
 - `GET /api/export` - Excel export (.xlsx)
 - `GET /api/stats` - Dashboard statistics
 - `GET /api/filters` - Available filter options
+- `GET /api/storage-locations` - User's configured storage locations
+- `PUT /api/storage-locations` - Update storage locations (with rename migration)
 - `GET /api/consumption` - Consumption history
 - `GET /api/consumption/stats` - Consumption analytics (totals, color breakdown, monthly trend)
 - `DELETE /api/consumption` - Bulk delete consumption records (body: {ids: number[]})
@@ -88,6 +91,7 @@ All data routes require `Authorization: Bearer <token>` header:
 - `app/wine/[id].tsx` - Wine detail screen
 - `app/account.tsx` - Account management (profile, password, delete)
 - `app/import-guide.tsx` - Import guide with CellarTracker/Vivino step-by-step instructions
+- `app/storage-locations.tsx` - Storage location management (add/remove/rename locations)
 - `contexts/AuthContext.tsx` - Auth state management
 - `lib/auth-token.ts` - Shared auth token module (breaks circular dep)
 - `lib/biometrics.ts` - Biometric authentication utilities (Face ID/fingerprint)

@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
@@ -30,9 +30,12 @@ function InfoRow({ label, value }: { label: string; value: string | number | nul
   );
 }
 
-const LOCATION_OPTIONS = ["Rack", "Cabinet", "Fridge"];
+interface StorageLocation {
+  name: string;
+  type: string;
+}
 
-function BottleCard({ bottle, onConsume, onLocationChange }: { bottle: Bottle; onConsume: () => void; onLocationChange: (location: string | null) => void }) {
+function BottleCard({ bottle, onConsume, onLocationChange, storageLocations }: { bottle: Bottle; onConsume: () => void; onLocationChange: (location: string | null) => void; storageLocations: string[] }) {
   return (
     <View style={styles.bottleCard}>
       <View style={styles.bottleHeader}>
@@ -47,9 +50,9 @@ function BottleCard({ bottle, onConsume, onLocationChange }: { bottle: Bottle; o
         </View>
         <Text style={styles.bottleSize}>{bottle.size}</Text>
       </View>
-      {bottle.status === "in_cellar" ? (
+      {bottle.status === "in_cellar" && storageLocations.length > 0 ? (
         <View style={styles.locationPickerRow}>
-          {LOCATION_OPTIONS.map((opt) => (
+          {storageLocations.map((opt) => (
             <Pressable
               key={opt}
               style={[styles.locationPill, bottle.location === opt && styles.locationPillActive]}
@@ -59,6 +62,10 @@ function BottleCard({ bottle, onConsume, onLocationChange }: { bottle: Bottle; o
             </Pressable>
           ))}
         </View>
+      ) : bottle.status === "in_cellar" ? (
+        <Text style={styles.bottleMeta}>
+          <Ionicons name="location-outline" size={12} color={Colors.light.textSecondary} /> No locations set up
+        </Text>
       ) : bottle.location ? (
         <Text style={styles.bottleMeta}>
           <Ionicons name="location-outline" size={12} color={Colors.light.textSecondary} /> {bottle.location}
@@ -100,6 +107,12 @@ export default function WineDetailScreen() {
   const { data: wine, isLoading } = useQuery<WineDetail>({
     queryKey: ["/api/wines", id],
   });
+
+  const { data: storageLocs } = useQuery<StorageLocation[]>({
+    queryKey: ["/api/storage-locations"],
+  });
+
+  const locationNames = (storageLocs || []).map((l) => l.name);
 
   const consumeMutation = useMutation({
     mutationFn: async () => {
@@ -217,6 +230,7 @@ export default function WineDetailScreen() {
             <BottleCard
               key={bottle.id}
               bottle={bottle}
+              storageLocations={locationNames}
               onConsume={() => {
                 setConsumeBottleId(bottle.id);
                 setConsumeModal(true);
@@ -474,12 +488,14 @@ const styles = StyleSheet.create({
   },
   locationPickerRow: {
     flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
     gap: 6,
     marginTop: 6,
   },
   locationPill: {
-    flex: 1,
+    minWidth: 60,
     paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: Colors.light.border,

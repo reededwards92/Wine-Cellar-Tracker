@@ -13,7 +13,7 @@ import {
   Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -101,6 +101,11 @@ export default function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
+
+  const { data: storageLocs } = useQuery<{ name: string; type: string }[]>({
+    queryKey: ["/api/storage-locations"],
+  });
+  const locationOptions = (storageLocs || []).map((l) => l.name);
 
   const update = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
 
@@ -630,15 +635,17 @@ export default function ScanScreen() {
               </FormField>
             </View>
           </View>
-          <FormField label="Location">
-            <View style={styles.locationRow}>
-              {["Rack", "Cabinet", "Fridge"].map((opt) => (
-                <Pressable key={opt} style={[styles.locationOption, form.location === opt && styles.locationOptionActive]} onPress={() => update("location", form.location === opt ? "" : opt)}>
-                  <Text style={[styles.locationOptionText, form.location === opt && styles.locationOptionTextActive]}>{opt}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </FormField>
+          {locationOptions.length > 0 ? (
+            <FormField label="Location">
+              <View style={styles.locationRow}>
+                {locationOptions.map((opt) => (
+                  <Pressable key={opt} style={[styles.locationOption, form.location === opt && styles.locationOptionActive]} onPress={() => update("location", form.location === opt ? "" : opt)}>
+                    <Text style={[styles.locationOptionText, form.location === opt && styles.locationOptionTextActive]} numberOfLines={1}>{opt}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </FormField>
+          ) : null}
           <FormField label="Notes">
             <TextInput style={[styles.input, styles.textArea]} value={form.notes} onChangeText={(v) => update("notes", v)} placeholder="Tasting notes, purchase details..." placeholderTextColor={Colors.light.tabIconDefault} multiline numberOfLines={3} textAlignVertical="top" />
           </FormField>
@@ -966,11 +973,13 @@ const styles = StyleSheet.create({
   },
   locationRow: {
     flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
     gap: 8,
   },
   locationOption: {
-    flex: 1,
+    minWidth: 70,
     paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.light.border,

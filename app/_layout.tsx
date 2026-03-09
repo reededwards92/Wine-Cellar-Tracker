@@ -53,6 +53,7 @@ function AuthGate() {
       <Stack.Screen name="wine/[id]" />
       <Stack.Screen name="account" />
       <Stack.Screen name="import-guide" />
+      <Stack.Screen name="storage-locations" />
     </Stack>
   );
 }

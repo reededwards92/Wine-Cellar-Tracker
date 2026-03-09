@@ -466,6 +466,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ deleted: entries.length });
   });
 
+  app.get("/api/storage-locations", requireAuth, (req: AuthRequest, res: Response) => {
+    const locations = db.prepare(
+      "SELECT * FROM storage_locations WHERE user_id = ? ORDER BY sort_order ASC, id ASC"
+    ).all(req.userId);
+    res.json(locations);
+  });
+
+  app.put("/api/storage-locations", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    const { locations, renames } = req.body;
+    if (!locations || !Array.isArray(locations)) {
+      return res.status(400).json({ error: "locations array required" });
+    }
+
+    const renameMap: Record<string, string> = renames || {};
+
+    const updateLocations = db.transaction(() => {
+      const existing = db.prepare("SELECT name FROM storage_locations WHERE user_id = ?").all(userId) as any[];
+      const oldNames = new Set(existing.map((e: any) => e.name));
+
+      db.prepare("DELETE FROM storage_locations WHERE user_id = ?").run(userId);
+
+      const insert = db.prepare(
+        "INSERT INTO storage_locations (user_id, name, type, sort_order) VALUES (?, ?, ?, ?)"
+      );
+
+      const newNames = new Set<string>();
+      locations.forEach((loc: { name: string; type: string }, idx: number) => {
+        if (loc.name && loc.name.trim()) {
+          const name = loc.name.trim();
+          if (!newNames.has(name)) {
+            insert.run(userId, name, loc.type || "other", idx);
+            newNames.add(name);
+          }
+        }
+      });
+
+      for (const [oldName, newName] of Object.entries(renameMap)) {
+        if (oldName !== newName && newNames.has(newName)) {
+          db.prepare(
+            "UPDATE bottles SET location = ? WHERE location = ? AND user_id = ?"
+          ).run(newName, oldName, userId);
+        }
+      }
+
+      for (const oldName of oldNames) {
+        if (!newNames.has(oldName) && !renameMap[oldName]) {
+          db.prepare(
+            "UPDATE bottles SET location = NULL WHERE location = ? AND user_id = ? AND status = 'in_cellar'"
+          ).run(oldName, userId);
+        }
+      }
+    });
+
+    updateLocations();
+
+    const updated = db.prepare(
+      "SELECT * FROM storage_locations WHERE user_id = ? ORDER BY sort_order ASC, id ASC"
+    ).all(userId);
+    res.json(updated);
+  });
+
   app.get("/api/filters", requireAuth, (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const colors = db.prepare("SELECT DISTINCT color FROM wines WHERE color IS NOT NULL AND user_id = ? ORDER BY color").all(userId);

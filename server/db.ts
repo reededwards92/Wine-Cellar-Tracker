@@ -76,6 +76,17 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS storage_locations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_storage_locations_user_id ON storage_locations(user_id);
+
   CREATE UNIQUE INDEX IF NOT EXISTS idx_wines_ct_wine_id_user ON wines(ct_wine_id, user_id) WHERE ct_wine_id IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_wines_user_id ON wines(user_id);
   CREATE INDEX IF NOT EXISTS idx_bottles_wine_id ON bottles(wine_id);
