@@ -30,7 +30,9 @@ function InfoRow({ label, value }: { label: string; value: string | number | nul
   );
 }
 
-function BottleCard({ bottle, onConsume }: { bottle: Bottle; onConsume: () => void }) {
+const LOCATION_OPTIONS = ["Rack", "Cabinet", "Fridge"];
+
+function BottleCard({ bottle, onConsume, onLocationChange }: { bottle: Bottle; onConsume: () => void; onLocationChange: (location: string | null) => void }) {
   return (
     <View style={styles.bottleCard}>
       <View style={styles.bottleHeader}>
@@ -45,7 +47,19 @@ function BottleCard({ bottle, onConsume }: { bottle: Bottle; onConsume: () => vo
         </View>
         <Text style={styles.bottleSize}>{bottle.size}</Text>
       </View>
-      {bottle.location ? (
+      {bottle.status === "in_cellar" ? (
+        <View style={styles.locationPickerRow}>
+          {LOCATION_OPTIONS.map((opt) => (
+            <Pressable
+              key={opt}
+              style={[styles.locationPill, bottle.location === opt && styles.locationPillActive]}
+              onPress={() => onLocationChange(bottle.location === opt ? null : opt)}
+            >
+              <Text style={[styles.locationPillText, bottle.location === opt && styles.locationPillTextActive]}>{opt}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : bottle.location ? (
         <Text style={styles.bottleMeta}>
           <Ionicons name="location-outline" size={12} color={Colors.light.textSecondary} /> {bottle.location}
         </Text>
@@ -109,6 +123,16 @@ export default function WineDetailScreen() {
     },
     onError: (err) => {
       Alert.alert("Error", err.message);
+    },
+  });
+
+  const locationMutation = useMutation({
+    mutationFn: async ({ bottleId, location }: { bottleId: number; location: string | null }) => {
+      const res = await apiRequest("PUT", `/api/bottles/${bottleId}`, { location });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/wines", id] });
     },
   });
 
@@ -196,6 +220,7 @@ export default function WineDetailScreen() {
                 setConsumeBottleId(bottle.id);
                 setConsumeModal(true);
               }}
+              onLocationChange={(location) => locationMutation.mutate({ bottleId: bottle.id, location })}
             />
           ))}
         </View>
@@ -445,6 +470,32 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginTop: 4,
     fontStyle: "italic" as const,
+  },
+  locationPickerRow: {
+    flexDirection: "row" as const,
+    gap: 6,
+    marginTop: 6,
+  },
+  locationPill: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.cardBackground,
+    alignItems: "center" as const,
+  },
+  locationPillActive: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  locationPillText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: Colors.light.text,
+  },
+  locationPillTextActive: {
+    color: "#fff",
   },
   consumeBtn: {
     flexDirection: "row",
