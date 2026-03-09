@@ -23,7 +23,7 @@ function NativeTabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="sommelier">
         <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
-        <Label>Sommelier</Label>
+        <Label>AI</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "wineglass", selected: "wineglass.fill" }} />
@@ -78,7 +78,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="sommelier"
         options={{
-          title: "Sommelier",
+          title: "AI",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="sparkles" size={size} color={color} />
           ),

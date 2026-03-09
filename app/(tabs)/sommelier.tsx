@@ -434,7 +434,7 @@ export default function SommelierScreen() {
           { paddingTop: Platform.OS !== "web" ? insets.top + 8 : 8 },
         ]}
       >
-        <Text style={styles.headerTitle}>Sommelier</Text>
+        <Text style={styles.headerTitle}>AI Somm</Text>
         {messages.length > 0 && (
           <Pressable
             onPress={() => {
