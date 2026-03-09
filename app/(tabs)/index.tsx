@@ -129,7 +129,6 @@ function SectionScrubber({
   const [containerHeight, setContainerHeight] = useState(0);
   const [activeIndex, setActiveIndex] = useState(-1);
   const bubbleOpacity = useRef(new Animated.Value(0)).current;
-  const bubbleY = useRef(new Animated.Value(0)).current;
   const lastIndex = useRef(-1);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
@@ -152,16 +151,13 @@ function SectionScrubber({
       lastIndex.current = idx;
       setActiveIndex(idx);
       onSectionPress(idx);
-      const itemHeight = containerHeight / sections.length;
-      const yPos = idx * itemHeight + itemHeight / 2 - 20;
-      bubbleY.setValue(yPos);
       Animated.timing(bubbleOpacity, {
         toValue: 1,
         duration: 100,
         useNativeDriver: true,
       }).start();
     },
-    [containerHeight, sections.length, onSectionPress, bubbleOpacity, bubbleY]
+    [onSectionPress, bubbleOpacity]
   );
 
   const hideBubble = useCallback(() => {
@@ -193,38 +189,28 @@ function SectionScrubber({
   if (sections.length <= 1) return null;
 
   return (
-    <View style={styles.scrubberOuter}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.scrubberBubble,
-          {
-            opacity: bubbleOpacity,
-            transform: [{ translateY: bubbleY as unknown as number }],
-          },
-        ]}
-      >
-        <Text style={styles.scrubberBubbleText}>
-          {activeIndex >= 0 && activeIndex < sections.length
-            ? sections[activeIndex].title
-            : ""}
-        </Text>
-        <View style={styles.scrubberBubbleArrow} />
-      </Animated.View>
-
-      <View
-        style={styles.scrubberContainer}
-        onLayout={onLayout}
-        {...panResponder.panHandlers}
-      >
-        {sections.map((section, i) => (
+    <View
+      style={styles.scrubberContainer}
+      onLayout={onLayout}
+      {...panResponder.panHandlers}
+    >
+      {sections.map((section, i) => (
+        <View key={section.title} style={styles.scrubberItem}>
+          {activeIndex === i && (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.scrubberBubble, { opacity: bubbleOpacity }]}
+            >
+              <Text style={styles.scrubberBubbleText}>{section.title}</Text>
+              <View style={styles.scrubberBubbleArrow} />
+            </Animated.View>
+          )}
           <Pressable
-            key={section.title}
-            style={styles.scrubberItem}
             onPress={() => {
               showBubble(i);
               setTimeout(hideBubble, 600);
             }}
+            hitSlop={{ left: 10, right: 10, top: 2, bottom: 2 }}
           >
             <Text
               style={[
@@ -235,8 +221,8 @@ function SectionScrubber({
               {section.shortLabel}
             </Text>
           </Pressable>
-        ))}
-      </View>
+        </View>
+      ))}
     </View>
   );
 }
@@ -458,28 +444,21 @@ const styles = StyleSheet.create({
     textTransform: "uppercase" as const,
     letterSpacing: 0.8,
   },
-  scrubberOuter: {
+  scrubberContainer: {
     position: "absolute" as const,
-    right: 2,
+    right: 0,
     top: 0,
     bottom: 0,
-    width: 50,
-    alignItems: "flex-end" as const,
-    justifyContent: "center" as const,
-  },
-  scrubberContainer: {
-    width: 20,
+    width: 22,
     alignItems: "center" as const,
     justifyContent: "center" as const,
     paddingVertical: 8,
-    alignSelf: "flex-end" as const,
   },
   scrubberItem: {
-    paddingVertical: 1,
-    paddingHorizontal: 4,
+    flex: 1,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    minHeight: 16,
+    minHeight: 14,
   },
   scrubberText: {
     fontSize: 9,
@@ -492,12 +471,11 @@ const styles = StyleSheet.create({
   },
   scrubberBubble: {
     position: "absolute" as const,
-    right: 28,
+    right: 30,
     backgroundColor: Colors.light.tint,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    minWidth: 44,
+    borderRadius: 20,
+    width: 44,
+    height: 44,
     alignItems: "center" as const,
     justifyContent: "center" as const,
     zIndex: 10,
@@ -509,9 +487,8 @@ const styles = StyleSheet.create({
   },
   scrubberBubbleArrow: {
     position: "absolute" as const,
-    right: -6,
-    top: "50%" as unknown as number,
-    marginTop: -6,
+    right: -5,
+    top: 16,
     width: 0,
     height: 0,
     borderTopWidth: 6,

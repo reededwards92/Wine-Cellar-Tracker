@@ -85,7 +85,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 32,
     paddingVertical: 14,
   },
   pressed: {
