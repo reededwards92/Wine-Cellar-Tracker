@@ -98,9 +98,11 @@ export default function ImportGuideScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
 
+      queryClient.invalidateQueries({ queryKey: ["/api/consumption"] });
+
       Alert.alert(
         "Import Complete",
-        `${data.wines_created} wines and ${data.bottles_created} bottles imported.${data.skipped > 0 ? ` ${data.skipped} duplicates skipped.` : ""}${data.errors?.length > 0 ? `\n${data.errors.length} rows had errors.` : ""}`,
+        `${data.wines_created} wines and ${data.bottles_created} bottles imported.${data.consumed > 0 ? ` ${data.consumed} marked as consumed.` : ""}${data.skipped > 0 ? ` ${data.skipped} duplicates skipped.` : ""}${data.errors?.length > 0 ? `\n${data.errors.length} rows had errors.` : ""}`,
         [{ text: "Done", onPress: () => router.back() }]
       );
     } catch (err: any) {

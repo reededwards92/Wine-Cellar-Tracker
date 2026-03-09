@@ -442,6 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       size: string | null;
       purchase_date: string | null;
       quantity: string | null;
+      consumed_date: string | null;
     }
 
     let mapping: ColumnMapping;
@@ -510,6 +511,7 @@ Map to these database fields (return the CSV column name that best matches each,
 - size: Bottle size
 - purchase_date: Date purchased
 - quantity: Number of bottles (if a single row represents multiple bottles)
+- consumed_date: Date the wine was consumed/drunk (indicates bottle is no longer in cellar)
 
 Return ONLY a valid JSON object with the field names as keys and CSV column names (or null) as values. No explanation.`;
 
@@ -544,6 +546,7 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
 
     let winesCreated = 0;
     let bottlesCreated = 0;
+    let consumedCount = 0;
     let skipped = 0;
     const errors: string[] = [];
 
@@ -554,8 +557,13 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
     `);
 
     const insertBottle = db.prepare(`
-      INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, location, size, user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, location, size, user_id, status, consumed_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertConsumption = db.prepare(`
+      INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, user_id)
+      VALUES (?, ?, ?, ?)
     `);
 
     const winesByCtId = new Map<string, number>();
@@ -638,8 +646,10 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
 
             const price = parseNumber(row.Price);
             const barcode = cleanValue(row.Barcode) || cleanValue(row.WineBarcode);
+            const consumedDate = parseDate(row.Consumed) || parseDate(row.ConsumeDate);
+            const isConsumed = !!consumedDate;
 
-            insertBottle.run(
+            const bottleResult = insertBottle.run(
               wineId,
               parseInteger(row.iInventory),
               barcode,
@@ -648,9 +658,17 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
               parseNumber(row.Value),
               cleanValue(row.Location),
               cleanValue(row.Size) || "750ml",
-              userId
+              userId,
+              isConsumed ? "consumed" : "in_cellar",
+              consumedDate
             );
             bottlesCreated++;
+
+            if (isConsumed) {
+              const bottleId = Number(bottleResult.lastInsertRowid);
+              insertConsumption.run(bottleId, wineId, consumedDate, userId);
+              consumedCount++;
+            }
           } else {
             const producer = getField(row, mapping.producer) || "Unknown";
             const wineName = getField(row, mapping.wine_name) || "Unknown";
@@ -681,7 +699,10 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
 
             for (let q = 0; q < quantity; q++) {
               const price = mapping.price ? parseNumber(row[mapping.price]) : null;
-              insertBottle.run(
+              const consumedDate = mapping.consumed_date ? parseDate(row[mapping.consumed_date]) : null;
+              const isConsumed = !!consumedDate;
+
+              const bottleResult = insertBottle.run(
                 wineId,
                 null,
                 null,
@@ -690,9 +711,17 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
                 mapping.value ? parseNumber(row[mapping.value]) : null,
                 getField(row, mapping.location),
                 getField(row, mapping.size) || "750ml",
-                userId
+                userId,
+                isConsumed ? "consumed" : "in_cellar",
+                consumedDate
               );
               bottlesCreated++;
+
+              if (isConsumed) {
+                const bottleId = Number(bottleResult.lastInsertRowid);
+                insertConsumption.run(bottleId, wineId, consumedDate, userId);
+                consumedCount++;
+              }
             }
           }
         } catch (err: any) {
@@ -710,6 +739,7 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
     res.json({
       wines_created: winesCreated,
       bottles_created: bottlesCreated,
+      consumed: consumedCount,
       skipped,
       errors,
       total_rows: records.length,
