@@ -16,6 +16,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { fetch } from "expo/fetch";
+import Markdown from "react-native-markdown-display";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
@@ -322,16 +323,22 @@ export default function SommelierScreen() {
             />
           )}
           {!!item.content && (
-            <Text
-              style={[
-                styles.bubbleText,
-                isUser ? styles.bubbleTextUser : styles.bubbleTextAssistant,
-                item.imageUri ? styles.bubbleTextWithImage : null,
-              ]}
-              selectable
-            >
-              {item.content}
-            </Text>
+            isUser ? (
+              <Text
+                style={[
+                  styles.bubbleText,
+                  styles.bubbleTextUser,
+                  item.imageUri ? styles.bubbleTextWithImage : null,
+                ]}
+                selectable
+              >
+                {item.content}
+              </Text>
+            ) : (
+              <Markdown style={markdownStyles}>
+                {item.content}
+              </Markdown>
+            )
           )}
         </View>
       </View>
@@ -544,6 +551,75 @@ export default function SommelierScreen() {
   );
 }
 
+const markdownStyles = {
+  body: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.text,
+  },
+  text: {
+    fontFamily: "Outfit_400Regular",
+  },
+  strong: {
+    fontFamily: "Outfit_600SemiBold",
+  },
+  em: {
+    fontFamily: "Outfit_400Regular",
+    fontStyle: "italic" as const,
+  },
+  heading1: {
+    fontSize: 20,
+    fontFamily: "LibreBaskerville_700Bold",
+    color: Colors.light.text,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  heading2: {
+    fontSize: 18,
+    fontFamily: "LibreBaskerville_700Bold",
+    color: Colors.light.text,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heading3: {
+    fontSize: 16,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  bullet_list: {
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  ordered_list: {
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  list_item: {
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  bullet_list_content: {
+    fontFamily: "Outfit_400Regular",
+  },
+  ordered_list_content: {
+    fontFamily: "Outfit_400Regular",
+  },
+  textgroup: {
+    fontFamily: "Outfit_400Regular",
+  },
+  paragraph: {
+    marginTop: 0,
+    marginBottom: 6,
+  },
+  link: {
+    color: Colors.light.tint,
+    textDecorationLine: "underline" as const,
+  },
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -616,9 +692,6 @@ const styles = StyleSheet.create({
   },
   bubbleTextUser: {
     color: Colors.light.white,
-  },
-  bubbleTextAssistant: {
-    color: Colors.light.text,
   },
   toolIndicator: {
     flexDirection: "row" as const,
