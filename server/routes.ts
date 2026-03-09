@@ -5,6 +5,7 @@ import multer from "multer";
 import { parse } from "csv-parse/sync";
 import iconv from "iconv-lite";
 import Anthropic from "@anthropic-ai/sdk";
+import ExcelJS from "exceljs";
 import { CELLAR_TOOLS, executeTool } from "./ai-tools";
 import { requireAuth, type AuthRequest } from "./auth";
 
@@ -383,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.post("/api/import", requireAuth, upload.single("file"), (req: AuthRequest, res: Response) => {
+  app.post("/api/import", requireAuth, upload.single("file"), async (req: AuthRequest, res: Response) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const decoded = iconv.decode(req.file.buffer, "latin1");
@@ -401,21 +402,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ error: `CSV parse error: ${err.message}` });
     }
 
+    if (!records.length) {
+      return res.status(400).json({ error: "CSV file is empty" });
+    }
+
     const preview = req.query.preview === "true";
     if (preview) {
       return res.json({
         total_rows: records.length,
         preview: records.slice(0, 10),
-        unique_wines: new Set(records.map((r) => r.iWine)).size,
+        unique_wines: new Set(records.map((r) => r.iWine || r.Wine || r.wine_name || "")).size,
       });
     }
+
+    const csvColumns = Object.keys(records[0]);
+    const cellarTrackerColumns = ["iWine", "Wine", "Producer"];
+    const isCellarTracker = cellarTrackerColumns.every((col) => csvColumns.includes(col));
+
+    interface ColumnMapping {
+      producer: string | null;
+      wine_name: string | null;
+      vintage: string | null;
+      country: string | null;
+      region: string | null;
+      sub_region: string | null;
+      appellation: string | null;
+      varietal: string | null;
+      color: string | null;
+      wine_type: string | null;
+      category: string | null;
+      designation: string | null;
+      vineyard: string | null;
+      drink_window_start: string | null;
+      drink_window_end: string | null;
+      score: string | null;
+      price: string | null;
+      value: string | null;
+      location: string | null;
+      size: string | null;
+      purchase_date: string | null;
+      quantity: string | null;
+    }
+
+    let mapping: ColumnMapping;
+
+    if (isCellarTracker) {
+      mapping = {
+        producer: "Producer",
+        wine_name: "Wine",
+        vintage: "Vintage",
+        country: "Country",
+        region: "Region",
+        sub_region: "SubRegion",
+        appellation: "Appellation",
+        varietal: "Varietal",
+        color: "Color",
+        wine_type: "Type",
+        category: "Category",
+        designation: "Designation",
+        vineyard: "Vineyard",
+        drink_window_start: "BeginConsume",
+        drink_window_end: "EndConsume",
+        score: "CScore",
+        price: "Price",
+        value: "Value",
+        location: "Location",
+        size: "Size",
+        purchase_date: "PurchaseDate",
+        quantity: null,
+      };
+    } else {
+      const sampleRows = records.slice(0, 5).map((r: any) => {
+        const obj: any = {};
+        for (const key of csvColumns) {
+          obj[key] = r[key];
+        }
+        return obj;
+      });
+
+      const aiPrompt = `You are a wine data mapping assistant. Given CSV column headers and sample data from a wine collection export, map each CSV column to the appropriate wine database field.
+
+CSV columns: ${JSON.stringify(csvColumns)}
+
+Sample data (first ${sampleRows.length} rows):
+${JSON.stringify(sampleRows, null, 2)}
+
+Map to these database fields (return the CSV column name that best matches each, or null if no match):
+- producer: The wine producer/winery/maker name
+- wine_name: The wine name/label/cuvee
+- vintage: The vintage year
+- country: Country of origin
+- region: Wine region
+- sub_region: Sub-region
+- appellation: Appellation/AOC/AVA
+- varietal: Grape variety/varietal
+- color: Wine color (Red, White, Rosé, Sparkling, etc.)
+- wine_type: Type of wine
+- category: Category
+- designation: Designation/classification
+- vineyard: Vineyard name
+- drink_window_start: Start of drink window (year)
+- drink_window_end: End of drink window (year)
+- score: Rating/score
+- price: Purchase price
+- value: Estimated value
+- location: Storage location
+- size: Bottle size
+- purchase_date: Date purchased
+- quantity: Number of bottles (if a single row represents multiple bottles)
+
+Return ONLY a valid JSON object with the field names as keys and CSV column names (or null) as values. No explanation.`;
+
+      try {
+        const aiResponse = await callAnthropic({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1024,
+          system: "You are a data mapping assistant. Return only valid JSON.",
+          messages: [{ role: "user", content: aiPrompt }],
+        });
+
+        const textBlock = aiResponse.content.find((b: any) => b.type === "text");
+        const jsonStr = (textBlock as any)?.text || "{}";
+        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+        mapping = jsonMatch ? JSON.parse(jsonMatch[0]) : {} as ColumnMapping;
+
+        if (!mapping.producer && !mapping.wine_name) {
+          return res.status(400).json({
+            error: "Could not identify wine data columns in this CSV. Please ensure it contains at least producer/winery and wine name columns."
+          });
+        }
+      } catch (err: any) {
+        return res.status(500).json({ error: `Failed to analyze CSV format: ${err.message}` });
+      }
+    }
+
+    const getField = (row: any, field: string | null): string | null => {
+      if (!field || !row[field]) return null;
+      const val = String(row[field]).trim();
+      return val === "" ? null : val;
+    };
 
     let winesCreated = 0;
     let bottlesCreated = 0;
     let skipped = 0;
     const errors: string[] = [];
-
-    const winesByCtId = new Map<string, number>();
 
     const userId = req.userId;
     const insertWine = db.prepare(`
@@ -428,41 +558,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    const winesByCtId = new Map<string, number>();
     const findWineByCt = db.prepare("SELECT id FROM wines WHERE ct_wine_id = ? AND user_id = ?");
     const findBottleByCt = db.prepare("SELECT id FROM bottles WHERE ct_inventory_id = ? AND user_id = ?");
-
-    const requiredColumns = ["iWine", "Wine", "Producer"];
-    const missingColumns = requiredColumns.filter((col) => !(col in records[0]));
-    if (missingColumns.length > 0) {
-      return res.status(400).json({ error: `Missing required columns: ${missingColumns.join(", ")}` });
-    }
 
     const importAll = db.transaction(() => {
       for (let i = 0; i < records.length; i++) {
         const row = records[i];
         try {
-          const ctInventoryId = parseInteger(row.iInventory);
-          if (ctInventoryId) {
-            const existingBottle = findBottleByCt.get(ctInventoryId, userId);
-            if (existingBottle) {
-              skipped++;
-              continue;
+          if (isCellarTracker) {
+            const ctInventoryId = parseInteger(row.iInventory);
+            if (ctInventoryId) {
+              const existingBottle = findBottleByCt.get(ctInventoryId, userId);
+              if (existingBottle) {
+                skipped++;
+                continue;
+              }
             }
-          }
 
-          const ctWineId = parseInteger(row.iWine);
-          let wineId: number;
+            const ctWineId = parseInteger(row.iWine);
+            let wineId: number;
 
-          if (ctWineId && winesByCtId.has(String(ctWineId))) {
-            wineId = winesByCtId.get(String(ctWineId))!;
-          } else if (ctWineId) {
-            const existingWine = findWineByCt.get(ctWineId, userId) as any;
-            if (existingWine) {
-              wineId = existingWine.id;
-              winesByCtId.set(String(ctWineId), wineId);
+            if (ctWineId && winesByCtId.has(String(ctWineId))) {
+              wineId = winesByCtId.get(String(ctWineId))!;
+            } else if (ctWineId) {
+              const existingWine = findWineByCt.get(ctWineId, userId) as any;
+              if (existingWine) {
+                wineId = existingWine.id;
+                winesByCtId.set(String(ctWineId), wineId);
+              } else {
+                const result = insertWine.run(
+                  ctWineId,
+                  row.Producer || "Unknown",
+                  row.Wine || "Unknown",
+                  parseInteger(row.Vintage),
+                  cleanValue(row.Country),
+                  cleanValue(row.Region),
+                  cleanValue(row.SubRegion),
+                  cleanValue(row.Appellation),
+                  cleanValue(row.Varietal),
+                  cleanValue(row.Color),
+                  cleanValue(row.Type),
+                  cleanValue(row.Category),
+                  cleanValue(row.Designation),
+                  cleanValue(row.Vineyard),
+                  parseInteger(row.BeginConsume),
+                  parseInteger(row.EndConsume),
+                  parseNumber(row.CScore),
+                  userId
+                );
+                wineId = Number(result.lastInsertRowid);
+                winesByCtId.set(String(ctWineId), wineId);
+                winesCreated++;
+              }
             } else {
               const result = insertWine.run(
-                ctWineId,
+                null,
                 row.Producer || "Unknown",
                 row.Wine || "Unknown",
                 parseInteger(row.Vintage),
@@ -482,49 +633,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 userId
               );
               wineId = Number(result.lastInsertRowid);
-              winesByCtId.set(String(ctWineId), wineId);
               winesCreated++;
             }
-          } else {
-            const result = insertWine.run(
-              null,
-              row.Producer || "Unknown",
-              row.Wine || "Unknown",
-              parseInteger(row.Vintage),
-              cleanValue(row.Country),
-              cleanValue(row.Region),
-              cleanValue(row.SubRegion),
-              cleanValue(row.Appellation),
-              cleanValue(row.Varietal),
-              cleanValue(row.Color),
-              cleanValue(row.Type),
-              cleanValue(row.Category),
-              cleanValue(row.Designation),
-              cleanValue(row.Vineyard),
-              parseInteger(row.BeginConsume),
-              parseInteger(row.EndConsume),
-              parseNumber(row.CScore),
+
+            const price = parseNumber(row.Price);
+            const barcode = cleanValue(row.Barcode) || cleanValue(row.WineBarcode);
+
+            insertBottle.run(
+              wineId,
+              parseInteger(row.iInventory),
+              barcode,
+              parseDate(row.PurchaseDate),
+              price && price > 0 ? price : null,
+              parseNumber(row.Value),
+              cleanValue(row.Location),
+              cleanValue(row.Size) || "750ml",
               userId
             );
-            wineId = Number(result.lastInsertRowid);
+            bottlesCreated++;
+          } else {
+            const producer = getField(row, mapping.producer) || "Unknown";
+            const wineName = getField(row, mapping.wine_name) || "Unknown";
+            const quantity = mapping.quantity ? (parseInteger(row[mapping.quantity]) || 1) : 1;
+
+            const result = insertWine.run(
+              null,
+              producer,
+              wineName,
+              mapping.vintage ? parseInteger(row[mapping.vintage]) : null,
+              getField(row, mapping.country),
+              getField(row, mapping.region),
+              getField(row, mapping.sub_region),
+              getField(row, mapping.appellation),
+              getField(row, mapping.varietal),
+              getField(row, mapping.color),
+              getField(row, mapping.wine_type),
+              getField(row, mapping.category),
+              getField(row, mapping.designation),
+              getField(row, mapping.vineyard),
+              mapping.drink_window_start ? parseInteger(row[mapping.drink_window_start]) : null,
+              mapping.drink_window_end ? parseInteger(row[mapping.drink_window_end]) : null,
+              mapping.score ? parseNumber(row[mapping.score]) : null,
+              userId
+            );
+            const wineId = Number(result.lastInsertRowid);
             winesCreated++;
+
+            for (let q = 0; q < quantity; q++) {
+              const price = mapping.price ? parseNumber(row[mapping.price]) : null;
+              insertBottle.run(
+                wineId,
+                null,
+                null,
+                mapping.purchase_date ? parseDate(row[mapping.purchase_date]) : null,
+                price && price > 0 ? price : null,
+                mapping.value ? parseNumber(row[mapping.value]) : null,
+                getField(row, mapping.location),
+                getField(row, mapping.size) || "750ml",
+                userId
+              );
+              bottlesCreated++;
+            }
           }
-
-          const price = parseNumber(row.Price);
-          const barcode = cleanValue(row.Barcode) || cleanValue(row.WineBarcode);
-
-          insertBottle.run(
-            wineId,
-            ctInventoryId,
-            barcode,
-            parseDate(row.PurchaseDate),
-            price && price > 0 ? price : null,
-            parseNumber(row.Value),
-            cleanValue(row.Location),
-            cleanValue(row.Size) || "750ml",
-            userId
-          );
-          bottlesCreated++;
         } catch (err: any) {
           errors.push(`Row ${i + 1}: ${err.message}`);
         }
@@ -544,6 +714,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
       errors,
       total_rows: records.length,
     });
+  });
+
+  const sanitizeCell = (val: any): any => {
+    if (typeof val !== "string") return val;
+    if (/^[=+\-@]/.test(val)) return "'" + val;
+    return val;
+  };
+
+  app.get("/api/export", requireAuth, async (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+
+    const wines = db.prepare(`
+      SELECT w.*,
+        COUNT(CASE WHEN b.status = 'in_cellar' THEN 1 END) as bottle_count,
+        COALESCE(SUM(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) as total_value
+      FROM wines w
+      LEFT JOIN bottles b ON w.id = b.wine_id AND b.user_id = w.user_id
+      WHERE w.user_id = ?
+      GROUP BY w.id
+      ORDER BY w.producer ASC
+    `).all(userId) as any[];
+
+    const bottles = db.prepare(`
+      SELECT b.*, w.producer, w.wine_name, w.vintage, w.color, w.varietal, w.region,
+        w.country, w.sub_region, w.appellation, w.wine_type, w.category,
+        w.designation, w.vineyard, w.drink_window_start, w.drink_window_end,
+        w.ct_community_score
+      FROM bottles b
+      JOIN wines w ON b.wine_id = w.id
+      WHERE b.user_id = ?
+      ORDER BY w.producer ASC, b.created_at DESC
+    `).all(userId) as any[];
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Vin Wine Cellar";
+    workbook.created = new Date();
+
+    const wineSheet = workbook.addWorksheet("Wines");
+    wineSheet.columns = [
+      { header: "Producer", key: "producer", width: 25 },
+      { header: "Wine Name", key: "wine_name", width: 30 },
+      { header: "Vintage", key: "vintage", width: 10 },
+      { header: "Color", key: "color", width: 12 },
+      { header: "Varietal", key: "varietal", width: 25 },
+      { header: "Country", key: "country", width: 18 },
+      { header: "Region", key: "region", width: 20 },
+      { header: "Sub Region", key: "sub_region", width: 20 },
+      { header: "Appellation", key: "appellation", width: 20 },
+      { header: "Type", key: "wine_type", width: 15 },
+      { header: "Category", key: "category", width: 15 },
+      { header: "Designation", key: "designation", width: 20 },
+      { header: "Vineyard", key: "vineyard", width: 20 },
+      { header: "Drink Window Start", key: "drink_window_start", width: 18 },
+      { header: "Drink Window End", key: "drink_window_end", width: 16 },
+      { header: "Community Score", key: "ct_community_score", width: 16 },
+      { header: "Bottles In Cellar", key: "bottle_count", width: 16 },
+      { header: "Total Value", key: "total_value", width: 12 },
+    ];
+
+    const headerStyle: Partial<ExcelJS.Style> = {
+      font: { bold: true, color: { argb: "FFFFFFFF" } },
+      fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF722F37" } },
+      alignment: { horizontal: "center" },
+    };
+
+    wineSheet.getRow(1).eachCell((cell) => {
+      cell.style = headerStyle as ExcelJS.Style;
+    });
+
+    for (const wine of wines) {
+      wineSheet.addRow({
+        producer: sanitizeCell(wine.producer),
+        wine_name: sanitizeCell(wine.wine_name),
+        vintage: wine.vintage,
+        color: sanitizeCell(wine.color),
+        varietal: sanitizeCell(wine.varietal),
+        country: sanitizeCell(wine.country),
+        region: sanitizeCell(wine.region),
+        sub_region: sanitizeCell(wine.sub_region),
+        appellation: sanitizeCell(wine.appellation),
+        wine_type: sanitizeCell(wine.wine_type),
+        category: sanitizeCell(wine.category),
+        designation: sanitizeCell(wine.designation),
+        vineyard: sanitizeCell(wine.vineyard),
+        drink_window_start: wine.drink_window_start,
+        drink_window_end: wine.drink_window_end,
+        ct_community_score: wine.ct_community_score,
+        bottle_count: wine.bottle_count,
+        total_value: wine.total_value,
+      });
+    }
+
+    const bottleSheet = workbook.addWorksheet("Bottles");
+    bottleSheet.columns = [
+      { header: "Producer", key: "producer", width: 25 },
+      { header: "Wine Name", key: "wine_name", width: 30 },
+      { header: "Vintage", key: "vintage", width: 10 },
+      { header: "Color", key: "color", width: 12 },
+      { header: "Varietal", key: "varietal", width: 25 },
+      { header: "Country", key: "country", width: 18 },
+      { header: "Region", key: "region", width: 20 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Location", key: "location", width: 18 },
+      { header: "Size", key: "size", width: 10 },
+      { header: "Purchase Date", key: "purchase_date", width: 14 },
+      { header: "Purchase Price", key: "purchase_price", width: 14 },
+      { header: "Estimated Value", key: "estimated_value", width: 14 },
+      { header: "Consumed Date", key: "consumed_date", width: 14 },
+      { header: "Rating", key: "rating", width: 8 },
+      { header: "Notes", key: "notes", width: 30 },
+    ];
+
+    bottleSheet.getRow(1).eachCell((cell) => {
+      cell.style = headerStyle as ExcelJS.Style;
+    });
+
+    for (const bottle of bottles) {
+      bottleSheet.addRow({
+        producer: sanitizeCell(bottle.producer),
+        wine_name: sanitizeCell(bottle.wine_name),
+        vintage: bottle.vintage,
+        color: sanitizeCell(bottle.color),
+        varietal: sanitizeCell(bottle.varietal),
+        country: sanitizeCell(bottle.country),
+        region: sanitizeCell(bottle.region),
+        status: sanitizeCell(bottle.status),
+        location: sanitizeCell(bottle.location),
+        size: sanitizeCell(bottle.size),
+        purchase_date: bottle.purchase_date,
+        purchase_price: bottle.purchase_price,
+        estimated_value: bottle.estimated_value,
+        consumed_date: bottle.consumed_date,
+        rating: bottle.rating,
+        notes: sanitizeCell(bottle.notes),
+      });
+    }
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=vin-cellar-export.xlsx");
+
+    await workbook.xlsx.write(res);
+    res.end();
   });
 
   const SYSTEM_PROMPT = `You are a knowledgeable and personable sommelier who manages the user's wine cellar. You have direct access to their wine database and can search, add, update, and track wines and bottles.

@@ -10,6 +10,8 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - **Auth**: JWT tokens (30d expiry, SESSION_SECRET env var), bcryptjs for password hashing, expo-secure-store for token storage
 - **Styling**: React Native StyleSheet with wine-burgundy (#722F37) accent color
 - **Typography**: Outfit (sans-serif, weights 300-700) as primary font; Libre Baskerville (serif) for wine names and main headings
+- **Camera**: expo-camera (CameraView) for in-app wine label scanning with overlay guide frame
+- **Import/Export**: AI-powered CSV import (any format), Excel export via exceljs
 
 ## Architecture
 - **Frontend** runs on port 8081 (Expo dev server)
@@ -23,6 +25,7 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 ## Authentication
 - JWT-based auth with tokens stored in expo-secure-store (web: localStorage)
 - Auth token injected into all API requests via `lib/auth-token.ts` module
+- Auth gating uses Expo Router `<Redirect>` pattern in `_layout.tsx` (NOT conditional Stack.Screen rendering)
 - All data routes protected by `requireAuth` middleware and scoped by `user_id`
 - Auth routes: POST /api/auth/register, POST /api/auth/login, POST /api/auth/google, GET /api/auth/me, POST /api/auth/logout
 - Seeded accounts: `reededwards92@gmail.com` / `winefan1992` (Reed), `apple@review.com` / `AppleReview2025!` (Apple Reviewer with 5 sample wines)
@@ -36,15 +39,16 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 ## Key Features
 - Multi-user authentication (email/password + Google SSO ready)
 - AI Sommelier chat: natural language cellar management, recommendations, consumption tracking, wine bottle photo recognition (vision)
-- Scan tab (center): camera-first wine scanning with AI label analysis; shows results card with 3 actions (Get Info -> Sommelier, View in Cellar, Add to Cellar)
+- Scan tab (center): in-app camera with label guide frame overlay, "Enter Manually" button; AI label analysis; results card with 3 actions (Get Info, View in Cellar, Add to Cellar)
 - 5-tab layout: Sommelier | Cellar | Scan (raised camera button) | History | Settings
-- CellarTracker CSV import with latin-1 encoding support
+- AI-powered CSV import: auto-detects CellarTracker format (fast path) or uses Claude AI to map columns from any wine app CSV
+- Excel export: full cellar data with Wines and Bottles sheets via exceljs
 - Cellar list view with stats, filtering, sorting, and search
 - Add wine form with grouped sections
 - Wine detail view with bottle management
 - Consumption tracking with ratings and notes
 - Drink window status indicators (in window/approaching/past peak)
-- Support page at /support for Apple App Store
+- Support page at /support, Privacy policy at /privacy for Apple App Store
 
 ## AI Tools (server/ai-tools.ts)
 The sommelier can execute these database operations via tool-calling (all scoped by user_id):
@@ -67,7 +71,8 @@ All data routes require `Authorization: Bearer <token>` header:
 - `POST /api/wines/:id/bottles` - Add bottles to wine
 - `PUT /api/bottles/:id` - Update bottle
 - `PATCH /api/bottles/:id/consume` - Mark bottle consumed
-- `POST /api/import` - CSV import (multipart form)
+- `POST /api/import` - CSV import (multipart form, AI-powered column mapping)
+- `GET /api/export` - Excel export (.xlsx)
 - `GET /api/stats` - Dashboard statistics
 - `GET /api/filters` - Available filter options
 - `GET /api/consumption` - Consumption history
@@ -85,7 +90,7 @@ All data routes require `Authorization: Bearer <token>` header:
 - `server/db.ts` - SQLite database setup with user seeding
 - `server/routes.ts` - All API endpoints + chat endpoint
 - `server/ai-tools.ts` - AI tool definitions and executors
-- `server/templates/` - Landing page and support page HTML
+- `server/templates/` - Landing page, support page, and privacy policy HTML
 - `components/` - Reusable UI components
 - `lib/api.ts` - API types and helpers
 - `constants/colors.ts` - Theme colors

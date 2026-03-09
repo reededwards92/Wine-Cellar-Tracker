@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Colors from "@/constants/colors";
@@ -22,8 +24,13 @@ import { apiRequest, getApiUrl } from "@/lib/query-client";
 import { queryClient } from "@/lib/query-client";
 
 const COLOR_OPTIONS = ["Red", "White", "Ros\u00e9", "Sparkling", "Dessert", "Fortified"];
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const FRAME_WIDTH = SCREEN_WIDTH * 0.75;
+const FRAME_HEIGHT = FRAME_WIDTH * 1.35;
+const CORNER_SIZE = 28;
+const CORNER_THICKNESS = 3;
 
-type ScanPhase = "idle" | "analyzing" | "results" | "add_form";
+type ScanPhase = "idle" | "camera" | "analyzing" | "results" | "add_form";
 
 interface ScanResult {
   producer: string;
@@ -91,6 +98,9 @@ export default function ScanScreen() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const hasLaunched = useRef(false);
+  const cameraRef = useRef<CameraView>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const update = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
 
@@ -100,31 +110,57 @@ export default function ScanScreen() {
     setScanResult(null);
     setForm({ ...EMPTY_FORM });
     hasLaunched.current = false;
+    setIsCapturing(false);
   };
 
-  const launchCamera = async () => {
-    const current = await ImagePicker.getCameraPermissionsAsync();
-    if (current.status !== "granted") {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
+  const openCamera = async () => {
+    if (isWeb) {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        quality: 0.7,
+        base64: true,
+        allowsEditing: false,
+      });
+      if (result.canceled || !result.assets[0]?.base64) return;
+      const asset = result.assets[0];
+      setPhotoUri(asset.uri);
+      analyzeImage(asset.base64, asset.mimeType || "image/jpeg");
+      return;
+    }
+
+    if (!cameraPermission?.granted) {
+      const { granted } = await requestCameraPermission();
+      if (!granted) {
         Alert.alert("Camera access needed", "Please enable camera access in your device settings to scan wine bottles.");
         return;
       }
     }
+    setPhase("camera");
+  };
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["images"],
-      quality: 0.7,
-      base64: true,
-      allowsEditing: false,
-    });
+  const capturePhoto = async () => {
+    if (!cameraRef.current || isCapturing) return;
+    setIsCapturing(true);
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.7,
+        base64: true,
+      });
+      if (!photo || !photo.base64) {
+        setIsCapturing(false);
+        return;
+      }
+      setPhotoUri(photo.uri);
+      analyzeImage(photo.base64, "image/jpeg");
+    } catch {
+      setIsCapturing(false);
+      Alert.alert("Error", "Failed to capture photo. Please try again.");
+    }
+  };
 
-    if (result.canceled || !result.assets[0]?.base64) return;
-
-    const asset = result.assets[0];
-    setPhotoUri(asset.uri);
+  const analyzeImage = async (base64: string, mimeType: string) => {
     setPhase("analyzing");
-
+    setIsCapturing(false);
     try {
       const baseUrl = getApiUrl();
       const { currentAuthToken } = await import("@/lib/auth-token");
@@ -132,10 +168,7 @@ export default function ScanScreen() {
       const resp = await fetch(new URL("/api/analyze-wine-image", baseUrl).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({
-          image: asset.base64,
-          mimeType: asset.mimeType || "image/jpeg",
-        }),
+        body: JSON.stringify({ image: base64, mimeType }),
       });
 
       if (!resp.ok) throw new Error("Analysis failed");
@@ -179,7 +212,7 @@ export default function ScanScreen() {
     useCallback(() => {
       if (!hasLaunched.current && phase === "idle") {
         hasLaunched.current = true;
-        const timer = setTimeout(() => launchCamera(), 400);
+        const timer = setTimeout(() => openCamera(), 400);
         return () => clearTimeout(timer);
       }
       return () => {
@@ -272,11 +305,73 @@ export default function ScanScreen() {
           </View>
           <Text style={styles.idleTitle}>Scan a Wine Label</Text>
           <Text style={styles.idleText}>Take a photo of a wine bottle label to identify it</Text>
-          <Pressable style={styles.scanBtn} onPress={launchCamera} testID="open-camera">
+          <Pressable style={styles.scanBtn} onPress={openCamera} testID="open-camera">
             <Ionicons name="camera" size={22} color="#fff" />
             <Text style={styles.scanBtnText}>Open Camera</Text>
           </Pressable>
+          <Pressable style={styles.manualEntryBtnOutline} onPress={() => setPhase("add_form")} testID="enter-manually-idle">
+            <Ionicons name="create-outline" size={18} color={Colors.light.tint} />
+            <Text style={styles.manualEntryBtnOutlineText}>Enter Manually</Text>
+          </Pressable>
         </View>
+      </View>
+    );
+  }
+
+  if (phase === "camera") {
+    return (
+      <View style={styles.cameraContainer}>
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing="back"
+        >
+          <View style={styles.cameraOverlay}>
+            <View style={[styles.cameraTopBar, { paddingTop: insets.top + 8 }]}>
+              <Pressable onPress={resetAll} style={styles.cameraCloseBtn}>
+                <Ionicons name="close" size={28} color="#fff" />
+              </Pressable>
+              <Text style={styles.cameraTitle}>Scan Wine Label</Text>
+              <View style={{ width: 40 }} />
+            </View>
+
+            <View style={styles.cameraFrameContainer}>
+              <View style={styles.cameraFrame}>
+                <View style={[styles.corner, styles.cornerTL]} />
+                <View style={[styles.corner, styles.cornerTR]} />
+                <View style={[styles.corner, styles.cornerBL]} />
+                <View style={[styles.corner, styles.cornerBR]} />
+              </View>
+              <Text style={styles.cameraHint}>Align the wine label within the frame</Text>
+            </View>
+
+            <View style={[styles.cameraBottomBar, { paddingBottom: insets.bottom + 20 }]}>
+              <Pressable
+                style={styles.manualEntryBtn}
+                onPress={() => setPhase("add_form")}
+                testID="enter-manually"
+              >
+                <Ionicons name="create-outline" size={20} color="#fff" />
+                <Text style={styles.manualEntryText}>Enter Manually</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.captureBtn}
+                onPress={capturePhoto}
+                disabled={isCapturing}
+                testID="capture-photo"
+              >
+                <View style={styles.captureBtnInner}>
+                  {isCapturing ? (
+                    <ActivityIndicator color={Colors.light.tint} />
+                  ) : null}
+                </View>
+              </Pressable>
+
+              <View style={{ width: 80 }} />
+            </View>
+          </View>
+        </CameraView>
       </View>
     );
   }
@@ -394,7 +489,7 @@ export default function ScanScreen() {
           </View>
 
           <View style={styles.bottomActions}>
-            <Pressable style={styles.retakeBtn} onPress={() => { resetAll(); setTimeout(launchCamera, 200); }} testID="retake-photo">
+            <Pressable style={styles.retakeBtn} onPress={() => { resetAll(); setTimeout(openCamera, 200); }} testID="retake-photo">
               <Ionicons name="camera" size={18} color={Colors.light.tint} />
               <Text style={styles.retakeBtnText}>Scan Another</Text>
             </Pressable>
@@ -929,5 +1024,138 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.textSecondary,
+  },
+  manualEntryBtnOutline: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: Colors.light.tint,
+  },
+  manualEntryBtnOutlineText: {
+    fontSize: 15,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
+  },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  camera: {
+    flex: 1,
+  },
+  cameraOverlay: {
+    flex: 1,
+    justifyContent: "space-between" as const,
+  },
+  cameraTopBar: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "space-between" as const,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  cameraCloseBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  cameraTitle: {
+    fontSize: 17,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#fff",
+  },
+  cameraFrameContainer: {
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  cameraFrame: {
+    width: FRAME_WIDTH,
+    height: FRAME_HEIGHT,
+    position: "relative" as const,
+  },
+  corner: {
+    position: "absolute" as const,
+    width: CORNER_SIZE,
+    height: CORNER_SIZE,
+  },
+  cornerTL: {
+    top: 0,
+    left: 0,
+    borderTopWidth: CORNER_THICKNESS,
+    borderLeftWidth: CORNER_THICKNESS,
+    borderColor: "rgba(255,255,255,0.8)",
+    borderTopLeftRadius: 8,
+  },
+  cornerTR: {
+    top: 0,
+    right: 0,
+    borderTopWidth: CORNER_THICKNESS,
+    borderRightWidth: CORNER_THICKNESS,
+    borderColor: "rgba(255,255,255,0.8)",
+    borderTopRightRadius: 8,
+  },
+  cornerBL: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: CORNER_THICKNESS,
+    borderLeftWidth: CORNER_THICKNESS,
+    borderColor: "rgba(255,255,255,0.8)",
+    borderBottomLeftRadius: 8,
+  },
+  cornerBR: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: CORNER_THICKNESS,
+    borderRightWidth: CORNER_THICKNESS,
+    borderColor: "rgba(255,255,255,0.8)",
+    borderBottomRightRadius: 8,
+  },
+  cameraHint: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center" as const,
+    marginTop: 16,
+  },
+  cameraBottomBar: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "space-between" as const,
+    paddingHorizontal: 24,
+  },
+  manualEntryBtn: {
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    width: 80,
+    gap: 4,
+  },
+  manualEntryText: {
+    fontSize: 12,
+    fontFamily: "Outfit_500Medium",
+    color: "#fff",
+  },
+  captureBtn: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 4,
+    borderColor: "#fff",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    padding: 3,
+  },
+  captureBtnInner: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#fff",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
   },
 });

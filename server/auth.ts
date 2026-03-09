@@ -147,4 +147,23 @@ export function registerAuthRoutes(app: any) {
   app.post("/api/auth/logout", (_req: Request, res: Response) => {
     res.json({ message: "Logged out" });
   });
+
+  app.delete("/api/auth/account", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const deleteAccount = db.transaction(() => {
+      db.prepare("DELETE FROM consumption_log WHERE user_id = ?").run(userId);
+      db.prepare("DELETE FROM bottles WHERE user_id = ?").run(userId);
+      db.prepare("DELETE FROM wines WHERE user_id = ?").run(userId);
+      db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+    });
+
+    try {
+      deleteAccount();
+      res.json({ message: "Account and all data deleted" });
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
 }
