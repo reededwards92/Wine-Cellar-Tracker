@@ -334,6 +334,8 @@ export default function CellarScreen() {
         <Text style={styles.title}>Cellar</Text>
       </View>
 
+      <StatsBar stats={stats} isLoading={statsLoading} />
+
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={18} color={Colors.light.tabIconDefault} />
@@ -354,6 +356,14 @@ export default function CellarScreen() {
         </View>
       </View>
 
+      <FilterPanel
+        filters={filters}
+        onChange={setFilters}
+        options={filterOptions}
+        isExpanded={filtersExpanded}
+        onToggle={() => setFiltersExpanded(!filtersExpanded)}
+      />
+
       <View style={styles.listWrapper}>
         <SectionList
           ref={sectionListRef}
@@ -362,18 +372,6 @@ export default function CellarScreen() {
           renderSectionHeader={renderSectionHeader}
           keyExtractor={keyExtractor}
           stickySectionHeadersEnabled={false}
-          ListHeaderComponent={
-            <>
-              <StatsBar stats={stats} isLoading={statsLoading} />
-              <FilterPanel
-                filters={filters}
-                onChange={setFilters}
-                options={filterOptions}
-                isExpanded={filtersExpanded}
-                onToggle={() => setFiltersExpanded(!filtersExpanded)}
-              />
-            </>
-          }
           ListEmptyComponent={
             isLoading ? (
               <View style={styles.centered}>
