@@ -386,6 +386,15 @@ export default function AddWineScreen() {
               </>
             )}
           </Pressable>
+          <Pressable
+            style={styles.cancelBtn}
+            onPress={() => {
+              setForm({ ...EMPTY_FORM });
+              setPhotoUri(null);
+            }}
+          >
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
         </View>
       </KeyboardAwareScrollViewCompat>
     </View>
@@ -563,5 +572,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
     color: "#fff",
+  },
+  cancelBtn: {
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.white,
+  },
+  cancelText: {
+    fontSize: 16,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.textSecondary,
   },
 });
