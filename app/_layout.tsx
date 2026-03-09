@@ -11,7 +11,7 @@ import {
 } from "@expo-google-fonts/libre-baskerville";
 import { useFonts } from "expo-font";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, Redirect, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
@@ -26,6 +26,7 @@ SplashScreen.preventAutoHideAsync();
 
 function AuthGate() {
   const { user, isLoading } = useAuth();
+  const segments = useSegments();
 
   if (isLoading) {
     return (
@@ -35,16 +36,21 @@ function AuthGate() {
     );
   }
 
+  const inAuthGroup = segments[0] === "(auth)";
+
+  if (!user && !inAuthGroup) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  if (user && inAuthGroup) {
+    return <Redirect href="/(tabs)" />;
+  }
+
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      {user ? (
-        <>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="wine/[id]" options={{ headerShown: false }} />
-        </>
-      ) : (
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      )}
+    <Stack screenOptions={{ headerShown: false, headerBackTitle: "Back" }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="wine/[id]" />
     </Stack>
   );
 }
