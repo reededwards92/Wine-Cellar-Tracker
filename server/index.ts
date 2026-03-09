@@ -185,12 +185,7 @@ function configureExpoAndLanding(app: express.Application) {
       return next();
     }
 
-    if (req.path === "/support") {
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(supportPageTemplate);
-    }
-
-    if (req.path !== "/" && req.path !== "/manifest") {
+    if (req.path !== "/" && req.path !== "/manifest" && req.path !== "/support" && req.path !== "/privacy") {
       return next();
     }
 
@@ -206,6 +201,11 @@ function configureExpoAndLanding(app: express.Application) {
         landingPageTemplate,
         appName,
       });
+    }
+
+    if (req.path === "/support" || req.path === "/privacy") {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send(supportPageTemplate);
     }
 
     next();
