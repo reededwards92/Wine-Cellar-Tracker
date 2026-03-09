@@ -416,8 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const csvColumns = Object.keys(records[0]);
-    const cellarTrackerColumns = ["iWine", "Wine", "Producer"];
-    const isCellarTracker = cellarTrackerColumns.every((col) => csvColumns.includes(col));
+    const isCellarTracker = csvColumns.includes("iWine") && csvColumns.includes("Wine");
 
     interface ColumnMapping {
       producer: string | null;
@@ -587,6 +586,11 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
             const ctWineId = parseInteger(row.iWine);
             let wineId: number;
 
+            const ctProducer = cleanValue(row.Producer);
+            const ctWineName = cleanValue(row.Wine) || "Unknown";
+            const producer = ctProducer || ctWineName;
+            const wineName = ctProducer ? ctWineName : ctWineName;
+
             if (ctWineId && winesByCtId.has(String(ctWineId))) {
               wineId = winesByCtId.get(String(ctWineId))!;
             } else if (ctWineId) {
@@ -597,8 +601,8 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
               } else {
                 const result = insertWine.run(
                   ctWineId,
-                  row.Producer || "Unknown",
-                  row.Wine || "Unknown",
+                  producer,
+                  wineName,
                   parseInteger(row.Vintage),
                   cleanValue(row.Country),
                   cleanValue(row.Region),
@@ -622,8 +626,8 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
             } else {
               const result = insertWine.run(
                 null,
-                row.Producer || "Unknown",
-                row.Wine || "Unknown",
+                producer,
+                wineName,
                 parseInteger(row.Vintage),
                 cleanValue(row.Country),
                 cleanValue(row.Region),
