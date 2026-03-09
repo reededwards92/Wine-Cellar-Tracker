@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation } from "@tanstack/react-query";
@@ -20,24 +21,24 @@ import Colors from "@/constants/colors";
 import { apiRequest, getApiUrl } from "@/lib/query-client";
 import { queryClient } from "@/lib/query-client";
 
-const COLOR_OPTIONS = ["Red", "White", "Rosé", "Sparkling", "Dessert", "Fortified"];
+const COLOR_OPTIONS = ["Red", "White", "Ros\u00e9", "Sparkling", "Dessert", "Fortified"];
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
+type ScanPhase = "idle" | "analyzing" | "results" | "add_form";
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      {children}
-    </View>
-  );
+interface ScanResult {
+  producer: string;
+  wine_name: string;
+  vintage: string;
+  color: string;
+  country: string;
+  region: string;
+  sub_region: string;
+  appellation: string;
+  varietal: string;
+  designation: string;
+  vineyard: string;
+  size: string;
+  cellar_wine_id: number | null;
 }
 
 const EMPTY_FORM = {
@@ -64,15 +65,42 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-export default function AddWineScreen() {
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const [form, setForm] = useState({ ...EMPTY_FORM });
-  const [analyzing, setAnalyzing] = useState(false);
+  const [phase, setPhase] = useState<ScanPhase>("idle");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
   const hasLaunched = useRef(false);
 
   const update = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
+
+  const resetAll = () => {
+    setPhase("idle");
+    setPhotoUri(null);
+    setScanResult(null);
+    setForm({ ...EMPTY_FORM });
+    hasLaunched.current = false;
+  };
 
   const launchCamera = async () => {
     const current = await ImagePicker.getCameraPermissionsAsync();
@@ -95,7 +123,7 @@ export default function AddWineScreen() {
 
     const asset = result.assets[0];
     setPhotoUri(asset.uri);
-    setAnalyzing(true);
+    setPhase("analyzing");
 
     try {
       const baseUrl = getApiUrl();
@@ -111,37 +139,84 @@ export default function AddWineScreen() {
       if (!resp.ok) throw new Error("Analysis failed");
 
       const data = await resp.json();
-      setForm((prev) => ({
-        ...prev,
-        producer: data.producer || prev.producer,
-        wine_name: data.wine_name || prev.wine_name,
-        vintage: data.vintage || prev.vintage,
-        color: COLOR_OPTIONS.includes(data.color) ? data.color : prev.color,
-        country: data.country || prev.country,
-        region: data.region || prev.region,
-        sub_region: data.sub_region || prev.sub_region,
-        appellation: data.appellation || prev.appellation,
-        varietal: data.varietal || prev.varietal,
-        designation: data.designation || prev.designation,
-        vineyard: data.vineyard || prev.vineyard,
-        size: data.size || prev.size,
-      }));
+
+      const searchResp = await fetch(
+        new URL(`/api/wines?search=${encodeURIComponent(data.producer || "")}&inStock=true`, baseUrl).toString()
+      );
+      const wines = searchResp.ok ? await searchResp.json() : [];
+      const match = wines.find((w: any) =>
+        w.producer?.toLowerCase() === (data.producer || "").toLowerCase() &&
+        (w.wine_name?.toLowerCase().includes((data.wine_name || "").toLowerCase()) ||
+          (data.wine_name || "").toLowerCase().includes(w.wine_name?.toLowerCase()))
+      );
+
+      setScanResult({
+        producer: data.producer || "",
+        wine_name: data.wine_name || "",
+        vintage: data.vintage || "",
+        color: data.color || "",
+        country: data.country || "",
+        region: data.region || "",
+        sub_region: data.sub_region || "",
+        appellation: data.appellation || "",
+        varietal: data.varietal || "",
+        designation: data.designation || "",
+        vineyard: data.vineyard || "",
+        size: data.size || "750ml",
+        cellar_wine_id: match?.id || null,
+      });
+      setPhase("results");
     } catch {
-      Alert.alert("Could not analyze", "The image could not be analyzed. You can fill in the details manually or try again.");
-    } finally {
-      setAnalyzing(false);
+      setScanResult(null);
+      setPhase("results");
     }
   };
 
   useFocusEffect(
     useCallback(() => {
-      if (!hasLaunched.current) {
+      if (!hasLaunched.current && phase === "idle") {
         hasLaunched.current = true;
         const timer = setTimeout(() => launchCamera(), 400);
         return () => clearTimeout(timer);
       }
-    }, [])
+      return () => {
+        if (phase === "idle") {
+          hasLaunched.current = false;
+        }
+      };
+    }, [phase])
   );
+
+  const handleGetInfo = () => {
+    if (!scanResult) return;
+    const query = `Tell me about ${scanResult.producer} ${scanResult.wine_name}${scanResult.vintage ? ` ${scanResult.vintage}` : ""}`;
+    router.navigate({ pathname: "/(tabs)/sommelier", params: { query } });
+  };
+
+  const handleViewInCellar = () => {
+    if (!scanResult?.cellar_wine_id) return;
+    router.push({ pathname: "/wine/[id]", params: { id: String(scanResult.cellar_wine_id) } });
+  };
+
+  const handleAddToCellar = () => {
+    if (!scanResult) return;
+    setForm((prev) => ({
+      ...prev,
+      producer: scanResult.producer || prev.producer,
+      wine_name: scanResult.wine_name || prev.wine_name,
+      vintage: scanResult.vintage || prev.vintage,
+      color: COLOR_OPTIONS.includes(scanResult.color) ? scanResult.color : prev.color,
+      country: scanResult.country || prev.country,
+      region: scanResult.region || prev.region,
+      sub_region: scanResult.sub_region || prev.sub_region,
+      appellation: scanResult.appellation || prev.appellation,
+      varietal: scanResult.varietal || prev.varietal,
+      designation: scanResult.designation || prev.designation,
+      vineyard: scanResult.vineyard || prev.vineyard,
+      size: scanResult.size || prev.size,
+    }));
+    setPhase("add_form");
+  };
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -175,9 +250,7 @@ export default function AddWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
-      setForm({ ...EMPTY_FORM });
-      setPhotoUri(null);
-      hasLaunched.current = false;
+      resetAll();
       router.navigate("/(tabs)");
     },
     onError: (err) => {
@@ -187,78 +260,185 @@ export default function AddWineScreen() {
 
   const canSubmit = form.producer.trim() !== "" && form.wine_name.trim() !== "";
 
+  if (phase === "idle") {
+    return (
+      <View style={styles.screen}>
+        <View style={[styles.centered, { paddingTop: isWeb ? 67 : insets.top + 40 }]}>
+          <View style={styles.cameraIconCircle}>
+            <Ionicons name="camera" size={48} color={Colors.light.tint} />
+          </View>
+          <Text style={styles.idleTitle}>Scan a Wine Label</Text>
+          <Text style={styles.idleText}>Take a photo of a wine bottle label to identify it</Text>
+          <Pressable style={styles.scanBtn} onPress={launchCamera} testID="open-camera">
+            <Ionicons name="camera" size={22} color="#fff" />
+            <Text style={styles.scanBtnText}>Open Camera</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  if (phase === "analyzing") {
+    return (
+      <View style={styles.screen}>
+        <View style={[styles.centered, { paddingTop: isWeb ? 67 : insets.top + 40 }]}>
+          {photoUri && (
+            <Image source={{ uri: photoUri }} style={styles.analyzePhoto} resizeMode="cover" />
+          )}
+          <ActivityIndicator size="large" color={Colors.light.tint} style={{ marginTop: 24 }} />
+          <Text style={styles.analyzingLabel}>Analyzing wine label...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (phase === "results") {
+    return (
+      <View style={styles.screen}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.resultsContent,
+            { paddingTop: isWeb ? 67 + 16 : insets.top + 16, paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
+          ]}
+        >
+          {photoUri && (
+            <View style={styles.resultsPhotoRow}>
+              <Image source={{ uri: photoUri }} style={styles.resultsPhoto} resizeMode="cover" />
+            </View>
+          )}
+
+          {scanResult ? (
+            <View style={styles.resultCard}>
+              <Text style={styles.resultProducer}>{scanResult.producer}</Text>
+              <Text style={styles.resultWine}>
+                {scanResult.wine_name}
+                {scanResult.vintage ? ` ${scanResult.vintage}` : ""}
+              </Text>
+              {(scanResult.region || scanResult.varietal) ? (
+                <Text style={styles.resultMeta}>
+                  {[scanResult.region, scanResult.varietal].filter(Boolean).join(" \u00B7 ")}
+                </Text>
+              ) : null}
+              {scanResult.color ? (
+                <View style={styles.resultColorRow}>
+                  <View style={styles.resultColorChip}>
+                    <Text style={styles.resultColorText}>{scanResult.color}</Text>
+                  </View>
+                  {scanResult.country ? (
+                    <Text style={styles.resultCountry}>{scanResult.country}</Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          ) : (
+            <View style={styles.resultCard}>
+              <Ionicons name="alert-circle-outline" size={32} color={Colors.light.textSecondary} />
+              <Text style={styles.noResultTitle}>Could not identify wine</Text>
+              <Text style={styles.noResultText}>Try taking another photo or add the wine manually</Text>
+            </View>
+          )}
+
+          <View style={styles.actionsContainer}>
+            {scanResult ? (
+              <>
+                <Pressable style={styles.actionBtn} onPress={handleGetInfo} testID="get-info">
+                  <View style={[styles.actionIcon, { backgroundColor: "#EDE7F6" }]}>
+                    <Ionicons name="sparkles" size={20} color="#7B1FA2" />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <Text style={styles.actionTitle}>Get Info</Text>
+                    <Text style={styles.actionSub}>Ask the sommelier about this wine</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.light.tabIconDefault} />
+                </Pressable>
+
+                {scanResult.cellar_wine_id ? (
+                  <Pressable style={styles.actionBtn} onPress={handleViewInCellar} testID="view-in-cellar">
+                    <View style={[styles.actionIcon, { backgroundColor: "#E8F5E9" }]}>
+                      <Ionicons name="wine" size={20} color="#2E7D32" />
+                    </View>
+                    <View style={styles.actionContent}>
+                      <Text style={styles.actionTitle}>View in Cellar</Text>
+                      <Text style={styles.actionSub}>Already in your collection</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={Colors.light.tabIconDefault} />
+                  </Pressable>
+                ) : null}
+
+                <Pressable style={styles.actionBtn} onPress={handleAddToCellar} testID="add-to-cellar">
+                  <View style={[styles.actionIcon, { backgroundColor: "#F3E8E9" }]}>
+                    <Ionicons name="add-circle" size={20} color={Colors.light.tint} />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <Text style={styles.actionTitle}>Add to Cellar</Text>
+                    <Text style={styles.actionSub}>Save this bottle to your collection</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.light.tabIconDefault} />
+                </Pressable>
+              </>
+            ) : (
+              <Pressable style={styles.actionBtn} onPress={() => { setPhase("add_form"); }}>
+                <View style={[styles.actionIcon, { backgroundColor: "#F3E8E9" }]}>
+                  <Ionicons name="create" size={20} color={Colors.light.tint} />
+                </View>
+                <View style={styles.actionContent}>
+                  <Text style={styles.actionTitle}>Add Manually</Text>
+                  <Text style={styles.actionSub}>Enter wine details by hand</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.light.tabIconDefault} />
+              </Pressable>
+            )}
+          </View>
+
+          <View style={styles.bottomActions}>
+            <Pressable style={styles.retakeBtn} onPress={() => { resetAll(); setTimeout(launchCamera, 200); }} testID="retake-photo">
+              <Ionicons name="camera" size={18} color={Colors.light.tint} />
+              <Text style={styles.retakeBtnText}>Scan Another</Text>
+            </Pressable>
+            <Pressable style={styles.cancelBtnSmall} onPress={resetAll}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
-        <Text style={styles.title}>Add Wine</Text>
-        <Pressable onPress={launchCamera} disabled={analyzing} style={styles.retakeButton} testID="retake-photo">
-          <Ionicons name="camera" size={22} color={Colors.light.tint} />
-          <Text style={styles.retakeText}>Scan</Text>
+        <Pressable onPress={() => setPhase(scanResult ? "results" : "idle")} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={22} color={Colors.light.tint} />
+          <Text style={styles.backText}>Back</Text>
         </Pressable>
+        <Text style={styles.headerTitle}>Add to Cellar</Text>
+        <View style={{ width: 60 }} />
       </View>
-
-      {analyzing && (
-        <View style={styles.analyzingBanner}>
-          <ActivityIndicator size="small" color={Colors.light.tint} />
-          <Text style={styles.analyzingText}>Analyzing wine label...</Text>
-        </View>
-      )}
 
       <KeyboardAwareScrollViewCompat
         bottomOffset={100}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: isWeb ? 84 + 34 : insets.bottom + 100 }}
       >
-        {photoUri && (
-          <View style={styles.photoSection}>
-            <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
-          </View>
-        )}
-
         <FormSection title="Wine Identity">
           <FormField label="Producer *">
-            <TextInput
-              style={styles.input}
-              value={form.producer}
-              onChangeText={(v) => update("producer", v)}
-              placeholder="e.g., Château Margaux"
-              placeholderTextColor={Colors.light.tabIconDefault}
-            />
+            <TextInput style={styles.input} value={form.producer} onChangeText={(v) => update("producer", v)} placeholder="e.g., Ch\u00e2teau Margaux" placeholderTextColor={Colors.light.tabIconDefault} />
           </FormField>
           <FormField label="Wine Name *">
-            <TextInput
-              style={styles.input}
-              value={form.wine_name}
-              onChangeText={(v) => update("wine_name", v)}
-              placeholder="e.g., Grand Vin"
-              placeholderTextColor={Colors.light.tabIconDefault}
-            />
+            <TextInput style={styles.input} value={form.wine_name} onChangeText={(v) => update("wine_name", v)} placeholder="e.g., Grand Vin" placeholderTextColor={Colors.light.tabIconDefault} />
           </FormField>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Vintage">
-                <TextInput
-                  style={styles.input}
-                  value={form.vintage}
-                  onChangeText={(v) => update("vintage", v)}
-                  placeholder="2020"
-                  placeholderTextColor={Colors.light.tabIconDefault}
-                  keyboardType="number-pad"
-                />
+                <TextInput style={styles.input} value={form.vintage} onChangeText={(v) => update("vintage", v)} placeholder="2020" placeholderTextColor={Colors.light.tabIconDefault} keyboardType="number-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Color">
                 <View style={styles.colorChips}>
                   {COLOR_OPTIONS.map((c) => (
-                    <Pressable
-                      key={c}
-                      style={[styles.colorChip, form.color === c && styles.colorChipActive]}
-                      onPress={() => update("color", c)}
-                    >
-                      <Text style={[styles.colorChipText, form.color === c && styles.colorChipTextActive]}>
-                        {c}
-                      </Text>
+                    <Pressable key={c} style={[styles.colorChip, form.color === c && styles.colorChipActive]} onPress={() => update("color", c)}>
+                      <Text style={[styles.colorChipText, form.color === c && styles.colorChipTextActive]}>{c}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -355,11 +535,7 @@ export default function AddWineScreen() {
           <FormField label="Location">
             <View style={styles.locationRow}>
               {["Rack", "Cabinet", "Fridge"].map((opt) => (
-                <Pressable
-                  key={opt}
-                  style={[styles.locationOption, form.location === opt && styles.locationOptionActive]}
-                  onPress={() => update("location", form.location === opt ? "" : opt)}
-                >
+                <Pressable key={opt} style={[styles.locationOption, form.location === opt && styles.locationOptionActive]} onPress={() => update("location", form.location === opt ? "" : opt)}>
                   <Text style={[styles.locationOptionText, form.location === opt && styles.locationOptionTextActive]}>{opt}</Text>
                 </Pressable>
               ))}
@@ -386,14 +562,8 @@ export default function AddWineScreen() {
               </>
             )}
           </Pressable>
-          <Pressable
-            style={styles.cancelBtn}
-            onPress={() => {
-              setForm({ ...EMPTY_FORM });
-              setPhotoUri(null);
-            }}
-          >
-            <Text style={styles.cancelText}>Cancel</Text>
+          <Pressable style={styles.cancelBtnOutline} onPress={() => setPhase(scanResult ? "results" : "idle")}>
+            <Text style={styles.cancelOutlineText}>Cancel</Text>
           </Pressable>
         </View>
       </KeyboardAwareScrollViewCompat>
@@ -406,6 +576,199 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.cardBackground,
   },
+  centered: {
+    flex: 1,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    padding: 32,
+  },
+  cameraIconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#F3E8E9",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    marginBottom: 24,
+  },
+  idleTitle: {
+    fontSize: 22,
+    fontFamily: "LibreBaskerville_700Bold",
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  idleText: {
+    fontSize: 15,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    textAlign: "center" as const,
+    marginBottom: 32,
+  },
+  scanBtn: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 8,
+    backgroundColor: Colors.light.tint,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 28,
+  },
+  scanBtnText: {
+    fontSize: 16,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#fff",
+  },
+  analyzePhoto: {
+    width: 140,
+    height: 190,
+    borderRadius: 12,
+  },
+  analyzingLabel: {
+    fontSize: 16,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
+    marginTop: 16,
+  },
+  resultsContent: {
+    padding: 16,
+  },
+  resultsPhotoRow: {
+    alignItems: "center" as const,
+    marginBottom: 16,
+  },
+  resultsPhoto: {
+    width: 100,
+    height: 140,
+    borderRadius: 10,
+  },
+  resultCard: {
+    backgroundColor: Colors.light.white,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    marginBottom: 16,
+  },
+  resultProducer: {
+    fontSize: 20,
+    fontFamily: "LibreBaskerville_700Bold",
+    color: Colors.light.text,
+  },
+  resultWine: {
+    fontSize: 15,
+    fontFamily: "LibreBaskerville_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: 4,
+  },
+  resultMeta: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: 8,
+  },
+  resultColorRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 8,
+    marginTop: 10,
+  },
+  resultColorChip: {
+    backgroundColor: "#F3E8E9",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  resultColorText: {
+    fontSize: 12,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
+  },
+  resultCountry: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+  },
+  noResultTitle: {
+    fontSize: 17,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+    marginTop: 8,
+  },
+  noResultText: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: 4,
+  },
+  actionsContainer: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  actionBtn: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: Colors.light.white,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    marginRight: 14,
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  actionSub: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: 1,
+  },
+  bottomActions: {
+    flexDirection: "row" as const,
+    gap: 12,
+  },
+  retakeBtn: {
+    flex: 1,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.light.tint,
+  },
+  retakeBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
+  },
+  cancelBtnSmall: {
+    flex: 1,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.textSecondary,
+  },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -416,43 +779,20 @@ const styles = StyleSheet.create({
     alignItems: "flex-end" as const,
     justifyContent: "space-between" as const,
   },
-  title: {
-    fontSize: 28,
-    fontFamily: "LibreBaskerville_700Bold",
-    color: Colors.light.text,
-  },
-  retakeButton: {
+  backBtn: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    gap: 4,
-    paddingVertical: 4,
+    width: 60,
   },
-  retakeText: {
+  backText: {
     fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.tint,
-  },
-  analyzingBanner: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    gap: 10,
-    paddingVertical: 12,
-    backgroundColor: "#F3E8E9",
-  },
-  analyzingText: {
-    fontSize: 14,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.tint,
   },
-  photoSection: {
-    alignItems: "center" as const,
-    paddingVertical: 16,
-  },
-  photoPreview: {
-    width: 120,
-    height: 160,
-    borderRadius: 10,
+  headerTitle: {
+    fontSize: 17,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
   },
   section: {
     backgroundColor: Colors.light.white,
@@ -485,14 +825,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     borderRadius: 6,
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === "web" ? 10 : 10,
+    paddingVertical: 10,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.cardBackground,
   },
   textArea: {
-    minHeight: 72,
+    minHeight: 70,
     textAlignVertical: "top" as const,
   },
   row: {
@@ -505,22 +845,21 @@ const styles = StyleSheet.create({
   colorChips: {
     flexDirection: "row" as const,
     flexWrap: "wrap" as const,
-    gap: 6,
+    gap: 4,
   },
   colorChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    backgroundColor: Colors.light.cardBackground,
   },
   colorChipActive: {
     backgroundColor: Colors.light.tint,
     borderColor: Colors.light.tint,
   },
   colorChipText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
@@ -533,19 +872,19 @@ const styles = StyleSheet.create({
   },
   locationOption: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    backgroundColor: Colors.light.cardBackground,
     alignItems: "center" as const,
+    backgroundColor: Colors.light.cardBackground,
   },
   locationOptionActive: {
     backgroundColor: Colors.light.tint,
     borderColor: Colors.light.tint,
   },
   locationOptionText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
   },
@@ -573,7 +912,7 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_600SemiBold",
     color: "#fff",
   },
-  cancelBtn: {
+  cancelBtnOutline: {
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: "center" as const,
@@ -583,7 +922,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     backgroundColor: Colors.light.white,
   },
-  cancelText: {
+  cancelOutlineText: {
     fontSize: 16,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.textSecondary,

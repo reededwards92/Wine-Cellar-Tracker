@@ -2,10 +2,21 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import Colors from "@/constants/colors";
+
+function ScanTabButton({ children, onPress, accessibilityState }: any) {
+  const focused = accessibilityState?.selected;
+  return (
+    <Pressable onPress={onPress} style={styles.scanButtonWrapper}>
+      <View style={[styles.scanButton, focused && styles.scanButtonFocused]}>
+        <Ionicons name="camera" size={26} color="#fff" />
+      </View>
+    </Pressable>
+  );
+}
 
 function NativeTabLayout() {
   return (
@@ -19,12 +30,16 @@ function NativeTabLayout() {
         <Label>Cellar</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="add">
-        <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
-        <Label>Add</Label>
+        <Icon sf={{ default: "camera", selected: "camera.fill" }} />
+        <Label>Scan</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="history">
         <Icon sf={{ default: "clock", selected: "clock.fill" }} />
         <Label>History</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+        <Label>Settings</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -81,10 +96,8 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="add"
         options={{
-          title: "Add",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle-outline" size={size} color={color} />
-          ),
+          title: "",
+          tabBarButton: (props) => <ScanTabButton {...props} />,
         }}
       />
       <Tabs.Screen
@@ -93,6 +106,15 @@ function ClassicTabLayout() {
           title: "History",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="time-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }}
       />
@@ -106,3 +128,28 @@ export default function TabLayout() {
   }
   return <ClassicTabLayout />;
 }
+
+const styles = StyleSheet.create({
+  scanButtonWrapper: {
+    flex: 1,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    top: -14,
+  },
+  scanButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.light.tint,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  scanButtonFocused: {
+    backgroundColor: "#5a1f28",
+  },
+});

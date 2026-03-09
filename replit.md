@@ -26,7 +26,8 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 
 ## Key Features
 - AI Sommelier chat: natural language cellar management, recommendations, consumption tracking, wine bottle photo recognition (vision)
-- Add Wine tab: auto-launches camera, AI analyzes wine label, auto-populates form for review before adding
+- Scan tab (center): camera-first wine scanning with AI label analysis; shows results card with 3 actions (Get Info → Sommelier, View in Cellar, Add to Cellar)
+- 5-tab layout: Sommelier | Cellar | Scan (raised camera button) | History | Settings
 - CellarTracker CSV import with latin-1 encoding support
 - Cellar list view with stats, filtering, sorting, and search
 - Add wine form with grouped sections
@@ -60,7 +61,7 @@ The sommelier can execute these database operations via tool-calling:
 - `POST /api/chat` - AI sommelier chat (SSE streaming)
 
 ## File Structure
-- `app/(tabs)/` - Tab screens (index, add, sommelier, history)
+- `app/(tabs)/` - Tab screens (index, add/scan, sommelier, history, settings)
 - `app/wine/[id].tsx` - Wine detail screen
 - `server/db.ts` - SQLite database setup
 - `server/routes.ts` - All API endpoints + chat endpoint

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { fetch } from "expo/fetch";
+import { useLocalSearchParams } from "expo-router";
 import Markdown from "react-native-markdown-display";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -40,6 +41,7 @@ function generateUniqueId(): string {
 export default function SommelierScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const params = useLocalSearchParams<{ query?: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -47,6 +49,7 @@ export default function SommelierScreen() {
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const inputRef = useRef<TextInput>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const pendingQueryRef = useRef<string | null>(null);
   const [pendingImage, setPendingImage] = useState<{
     uri: string;
     base64: string;
@@ -107,6 +110,19 @@ export default function SommelierScreen() {
       abortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (params.query && !isStreaming) {
+      const q = params.query as string;
+      if (pendingQueryRef.current !== q) {
+        pendingQueryRef.current = q;
+        setInputText(q);
+        setTimeout(() => {
+          pendingQueryRef.current = null;
+        }, 2000);
+      }
+    }
+  }, [params.query]);
 
   const pickImage = async (useCamera: boolean) => {
     if (isStreaming) return;
