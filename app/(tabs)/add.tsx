@@ -299,7 +299,7 @@ export default function ScanScreen() {
   if (phase === "idle") {
     return (
       <View style={styles.screen}>
-        <View style={[styles.centered, { paddingTop: isWeb ? 67 : insets.top + 40 }]}>
+        <View style={[styles.centered, { paddingTop: isWeb ? 67 : insets.top + 40, paddingBottom: isWeb ? 84 + 34 : insets.bottom + 80 }]}>
           <View style={styles.cameraIconCircle}>
             <Ionicons name="camera" size={48} color={Colors.light.tint} />
           </View>
@@ -345,7 +345,7 @@ export default function ScanScreen() {
               <Text style={styles.cameraHint}>Align the wine label within the frame</Text>
             </View>
 
-            <View style={[styles.cameraBottomBar, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={[styles.cameraBottomBar, { paddingBottom: insets.bottom + 90 }]}>
               <Pressable
                 style={styles.manualEntryBtn}
                 onPress={() => setPhase("add_form")}
