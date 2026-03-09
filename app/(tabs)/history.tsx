@@ -24,12 +24,12 @@ import type { ConsumptionEntry } from "@/lib/api";
 import { apiRequest, queryClient } from "@/lib/query-client";
 
 const WINE_COLORS: Record<string, string> = {
-  Red: "#722F37",
-  White: "#D4A843",
-  "Ros\u00e9": "#E8998D",
-  Sparkling: "#C5B358",
-  Dessert: "#B8860B",
-  Fortified: "#8B4513",
+  Red: Colors.light.colorRed,
+  White: Colors.light.colorWhite,
+  "Ros\u00e9": Colors.light.colorRose,
+  Sparkling: Colors.light.colorSparkling,
+  Dessert: Colors.light.colorDessert,
+  Fortified: Colors.light.colorFortified,
   Orange: "#D2691E",
 };
 
@@ -523,8 +523,8 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: Colors.light.white,
-    borderRadius: 12,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.light.border,
     padding: 16,
@@ -550,8 +550,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   chartCard: {
-    backgroundColor: Colors.light.white,
-    borderRadius: 12,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.light.border,
     padding: 16,
