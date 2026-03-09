@@ -42,6 +42,7 @@ const SORT_OPTIONS = [
   { value: "color", label: "Color" },
   { value: "region", label: "Region" },
   { value: "community_score", label: "Score" },
+  { value: "location", label: "Location" },
 ];
 
 export default function FilterPanel({ filters, onChange, options, isExpanded, onToggle }: FilterPanelProps) {

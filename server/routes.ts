@@ -189,6 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       color: "w.color",
       region: "w.region",
       community_score: "w.ct_community_score",
+      location: "primary_location",
     };
     const sortCol = validSorts[sort as string] || "w.producer";
     const sortOrder = order === "desc" ? "DESC" : "ASC";
@@ -201,7 +202,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         w.*,
         COUNT(CASE WHEN b.status = 'in_cellar' THEN 1 END) as bottle_count,
         COALESCE(AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) as avg_value,
-        COALESCE(SUM(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) as total_value
+        COALESCE(SUM(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) as total_value,
+        (SELECT b2.location FROM bottles b2 WHERE b2.wine_id = w.id AND b2.status = 'in_cellar' AND b2.location IS NOT NULL LIMIT 1) as primary_location
       FROM wines w
       LEFT JOIN bottles b ON w.id = b.wine_id
       ${whereStr}

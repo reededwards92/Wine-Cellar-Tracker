@@ -86,6 +86,11 @@ function getSectionKey(wine: WineListItem, sortField: string): { title: string; 
       if (s < 95) return { title: "90 – 94", shortLabel: "90" };
       return { title: "95+", shortLabel: "95+" };
     }
+    case "location": {
+      const loc = wine.primary_location;
+      if (!loc) return { title: "No Location", shortLabel: "N/A" };
+      return { title: loc, shortLabel: loc[0] };
+    }
     case "drink_window_start":
     case "drinkWindow": {
       const now = new Date().getFullYear();

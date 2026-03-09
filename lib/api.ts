@@ -22,6 +22,7 @@ export interface WineListItem {
   bottle_count: number;
   avg_value: number;
   total_value: number;
+  primary_location: string | null;
 }
 
 export interface Bottle {
