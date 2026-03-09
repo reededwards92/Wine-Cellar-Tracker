@@ -3,6 +3,13 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { getApiUrl, queryClient } from "@/lib/query-client";
 import { setAuthToken } from "@/lib/auth-token";
+import {
+  isBiometricsAvailable,
+  isBiometricsEnabled,
+  authenticateWithBiometrics,
+  setBiometricsEnabled,
+  getBiometricType,
+} from "@/lib/biometrics";
 
 interface User {
   id: number;
@@ -14,20 +21,28 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  biometricsAvailable: boolean;
+  biometricsEnabled: boolean;
+  biometricType: string;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   googleSignIn: (googleData: { email: string; name: string; google_id: string; id_token: string }) => Promise<void>;
   logout: () => Promise<void>;
+  toggleBiometrics: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   token: null,
   isLoading: true,
+  biometricsAvailable: false,
+  biometricsEnabled: false,
+  biometricType: "",
   login: async () => {},
   register: async () => {},
   googleSignIn: async () => {},
   logout: async () => {},
+  toggleBiometrics: async () => false,
 });
 
 const TOKEN_KEY = "vin_auth_token";
@@ -67,6 +82,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [biometricsAvailable, setBiometricsAvailableState] = useState(false);
+  const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
+  const [biometricType, setBiometricType] = useState("");
 
   const updateToken = useCallback(async (newToken: string | null) => {
     setAuthToken(newToken);
@@ -80,8 +98,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      const available = await isBiometricsAvailable();
+      setBiometricsAvailableState(available);
+      if (available) {
+        const type = await getBiometricType();
+        setBiometricType(type);
+        const enabled = await isBiometricsEnabled();
+        setBiometricsEnabledState(enabled);
+      }
+
       const stored = await getStoredToken();
       if (stored) {
+        const bioEnabled = await isBiometricsEnabled();
+
+        if (bioEnabled) {
+          if (available) {
+            const authenticated = await authenticateWithBiometrics();
+            if (!authenticated) {
+              setIsLoading(false);
+              return;
+            }
+          } else {
+            await setBiometricsEnabled(false);
+            setBiometricsEnabledState(false);
+            await removeStoredToken();
+            setIsLoading(false);
+            return;
+          }
+        }
+
         setAuthToken(stored);
         setToken(stored);
         try {
@@ -166,8 +211,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
   }, [updateToken]);
 
+  const toggleBiometrics = useCallback(async (): Promise<boolean> => {
+    if (!biometricsAvailable) return false;
+
+    if (biometricsEnabled) {
+      await setBiometricsEnabled(false);
+      setBiometricsEnabledState(false);
+      return false;
+    }
+
+    const success = await authenticateWithBiometrics("Verify to enable " + biometricType);
+    if (success) {
+      await setBiometricsEnabled(true);
+      setBiometricsEnabledState(true);
+      return true;
+    }
+    return false;
+  }, [biometricsAvailable, biometricsEnabled, biometricType]);
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, googleSignIn, logout }}>
+    <AuthContext.Provider value={{
+      user, token, isLoading,
+      biometricsAvailable, biometricsEnabled, biometricType,
+      login, register, googleSignIn, logout, toggleBiometrics,
+    }}>
       {children}
     </AuthContext.Provider>
   );

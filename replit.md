@@ -7,7 +7,7 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - **Frontend**: Expo SDK 54, React Native, Expo Router (file-based routing), React Query
 - **Backend**: Express.js, TypeScript, better-sqlite3 (SQLite)
 - **AI**: Claude Sonnet 4.6 (Anthropic via Replit AI Integrations) with tool-calling for database operations
-- **Auth**: JWT tokens (30d expiry, SESSION_SECRET env var), bcryptjs for password hashing, expo-secure-store for token storage
+- **Auth**: JWT tokens (30d expiry, SESSION_SECRET env var), bcryptjs for password hashing, expo-secure-store for token storage, expo-local-authentication for Face ID/fingerprint biometric login
 - **Styling**: React Native StyleSheet with wine-burgundy (#722F37) accent color
 - **Typography**: Outfit (sans-serif, weights 300-700) as primary font; Libre Baskerville (serif) for wine names and main headings
 - **Camera**: expo-camera (CameraView) for in-app wine label scanning with overlay guide frame
@@ -26,6 +26,7 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - JWT-based auth with tokens stored in expo-secure-store (web: localStorage)
 - Auth token injected into all API requests via `lib/auth-token.ts` module
 - Auth gating uses Expo Router `<Redirect>` pattern in `_layout.tsx` (NOT conditional Stack.Screen rendering)
+- Biometric login (Face ID / fingerprint) via expo-local-authentication: toggle in Settings, biometric challenge on app launch when enabled, fails closed if hardware unavailable
 - All data routes protected by `requireAuth` middleware and scoped by `user_id`
 - Auth routes: POST /api/auth/register, POST /api/auth/login, POST /api/auth/google, GET /api/auth/me, POST /api/auth/logout, PATCH /api/auth/profile, POST /api/auth/change-password, DELETE /api/auth/account
 - Seeded accounts: `reededwards92@gmail.com` / `winefan1992` (Reed), `apple@review.com` / `AppleReview2025!` (Apple Reviewer with 5 sample wines)
@@ -76,6 +77,8 @@ All data routes require `Authorization: Bearer <token>` header:
 - `GET /api/stats` - Dashboard statistics
 - `GET /api/filters` - Available filter options
 - `GET /api/consumption` - Consumption history
+- `GET /api/consumption/stats` - Consumption analytics (totals, color breakdown, monthly trend)
+- `DELETE /api/consumption` - Bulk delete consumption records (body: {ids: number[]})
 - `POST /api/chat` - AI sommelier chat (SSE streaming)
 - `POST /api/analyze-wine-image` - Wine label analysis
 
@@ -87,6 +90,7 @@ All data routes require `Authorization: Bearer <token>` header:
 - `app/import-guide.tsx` - Import guide with CellarTracker/Vivino step-by-step instructions
 - `contexts/AuthContext.tsx` - Auth state management
 - `lib/auth-token.ts` - Shared auth token module (breaks circular dep)
+- `lib/biometrics.ts` - Biometric authentication utilities (Face ID/fingerprint)
 - `lib/query-client.ts` - React Query client with auth headers
 - `server/auth.ts` - Auth middleware and routes
 - `server/db.ts` - SQLite database setup with user seeding

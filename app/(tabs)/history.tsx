@@ -227,9 +227,9 @@ function StatsSection({ stats }: { stats: ConsumptionStats }) {
     <Animated.View style={[styles.statsContainer, { opacity: fadeAnim }]}>
       <View style={styles.topCards}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.totalBottles}</Text>
-          <Text style={styles.statLabel}>Bottles Consumed</Text>
-          <Text style={styles.statFun}>~{stats.totalGlasses} glasses poured</Text>
+          <Text style={styles.statNumber}>~{stats.totalGlasses}</Text>
+          <Text style={styles.statLabel}>Glasses Poured</Text>
+          <Text style={styles.statFun}>{stats.totalBottles} bottle{stats.totalBottles !== 1 ? "s" : ""} consumed</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>${stats.totalValue > 0 ? stats.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "0"}</Text>

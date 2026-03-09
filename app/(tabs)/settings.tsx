@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   Alert,
+  Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -23,18 +24,24 @@ function SettingsRow({
   subtitle,
   onPress,
   destructive,
+  toggle,
+  toggleValue,
+  onToggle,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   subtitle?: string;
   onPress?: () => void;
   destructive?: boolean;
+  toggle?: boolean;
+  toggleValue?: boolean;
+  onToggle?: (val: boolean) => void;
 }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && onPress && styles.rowPressed]}
-      onPress={onPress}
-      disabled={!onPress}
+      onPress={toggle ? undefined : onPress}
+      disabled={!onPress && !toggle}
     >
       <View style={[styles.rowIcon, destructive && styles.rowIconDestructive]}>
         <Ionicons
@@ -49,7 +56,14 @@ function SettingsRow({
         </Text>
         {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
       </View>
-      {onPress ? (
+      {toggle ? (
+        <Switch
+          value={toggleValue}
+          onValueChange={onToggle}
+          trackColor={{ false: Colors.light.border, true: Colors.light.tint }}
+          thumbColor={Colors.light.white}
+        />
+      ) : onPress ? (
         <Ionicons name="chevron-forward" size={16} color={Colors.light.tabIconDefault} />
       ) : null}
     </Pressable>
@@ -68,8 +82,12 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { user, logout } = useAuth();
+  const { user, logout, biometricsAvailable, biometricsEnabled, biometricType, toggleBiometrics } = useAuth();
   const [exporting, setExporting] = useState(false);
+
+  const handleBiometricsToggle = async (_val: boolean) => {
+    await toggleBiometrics();
+  };
 
   const handleExport = async () => {
     if (exporting) return;
@@ -162,6 +180,19 @@ export default function SettingsScreen() {
             onPress={() => router.push("/account")}
           />
         </SettingsSection>
+
+        {biometricsAvailable ? (
+          <SettingsSection title="Security">
+            <SettingsRow
+              icon={biometricType === "Face ID" ? "scan-outline" : "finger-print-outline"}
+              label={biometricType || "Biometric Login"}
+              subtitle={biometricsEnabled ? "Enabled" : "Use " + (biometricType || "biometrics") + " to sign in"}
+              toggle
+              toggleValue={biometricsEnabled}
+              onToggle={handleBiometricsToggle}
+            />
+          </SettingsSection>
+        ) : null}
 
         <SettingsSection title="Cellar">
           <SettingsRow
