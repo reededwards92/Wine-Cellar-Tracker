@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
@@ -132,13 +132,15 @@ export default function AddWineScreen() {
     }
   };
 
-  useEffect(() => {
-    if (!hasLaunched.current) {
-      hasLaunched.current = true;
-      const timer = setTimeout(() => launchCamera(), 400);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasLaunched.current) {
+        hasLaunched.current = true;
+        const timer = setTimeout(() => launchCamera(), 400);
+        return () => clearTimeout(timer);
+      }
+    }, [])
+  );
 
   const createMutation = useMutation({
     mutationFn: async () => {
