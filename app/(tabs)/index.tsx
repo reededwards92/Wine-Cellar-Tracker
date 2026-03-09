@@ -126,23 +126,33 @@ function SectionScrubber({
   sections: Section[];
   onSectionPress: (index: number) => void;
 }) {
-  const [containerHeight, setContainerHeight] = useState(0);
   const [activeIndex, setActiveIndex] = useState(-1);
   const bubbleOpacity = useRef(new Animated.Value(0)).current;
   const lastIndex = useRef(-1);
+  const containerRef = useRef<View>(null);
+  const containerTop = useRef(0);
+  const containerHeight = useRef(0);
 
-  const onLayout = useCallback((e: LayoutChangeEvent) => {
-    setContainerHeight(e.nativeEvent.layout.height);
+  const measureContainer = useCallback(() => {
+    containerRef.current?.measureInWindow((_x, y, _w, h) => {
+      containerTop.current = y;
+      containerHeight.current = h;
+    });
   }, []);
 
-  const getIndexFromY = useCallback(
-    (y: number) => {
-      if (sections.length === 0 || containerHeight === 0) return -1;
-      const itemHeight = containerHeight / sections.length;
-      const idx = Math.floor(y / itemHeight);
+  const onLayout = useCallback(() => {
+    measureContainer();
+  }, [measureContainer]);
+
+  const getIndexFromPageY = useCallback(
+    (pageY: number) => {
+      if (sections.length === 0 || containerHeight.current === 0) return -1;
+      const relativeY = pageY - containerTop.current;
+      const ratio = relativeY / containerHeight.current;
+      const idx = Math.floor(ratio * sections.length);
       return Math.max(0, Math.min(idx, sections.length - 1));
     },
-    [sections.length, containerHeight]
+    [sections.length]
   );
 
   const showBubble = useCallback(
@@ -175,42 +185,40 @@ function SectionScrubber({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: (evt) => {
-          showBubble(getIndexFromY(evt.nativeEvent.locationY));
+          measureContainer();
+          showBubble(getIndexFromPageY(evt.nativeEvent.pageY));
         },
         onPanResponderMove: (evt) => {
-          showBubble(getIndexFromY(evt.nativeEvent.locationY));
+          showBubble(getIndexFromPageY(evt.nativeEvent.pageY));
         },
         onPanResponderRelease: () => hideBubble(),
         onPanResponderTerminate: () => hideBubble(),
       }),
-    [getIndexFromY, showBubble, hideBubble]
+    [getIndexFromPageY, showBubble, hideBubble, measureContainer]
   );
 
   if (sections.length <= 1) return null;
 
+  const ITEM_HEIGHT = 15;
+  const bubbleTopOffset = activeIndex >= 0 ? activeIndex * ITEM_HEIGHT + ITEM_HEIGHT / 2 - 22 : 0;
+
   return (
     <View
+      ref={containerRef}
       style={styles.scrubberContainer}
       onLayout={onLayout}
       {...panResponder.panHandlers}
     >
-      {sections.map((section, i) => (
-        <View key={section.title} style={styles.scrubberItem}>
-          {activeIndex === i && (
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.scrubberBubble, { opacity: bubbleOpacity }]}
-            >
-              <Text style={styles.scrubberBubbleText}>{section.title}</Text>
-              <View style={styles.scrubberBubbleArrow} />
-            </Animated.View>
-          )}
+      <View style={styles.scrubberLetters}>
+        {sections.map((section, i) => (
           <Pressable
+            key={section.title}
+            style={[styles.scrubberItem, { height: ITEM_HEIGHT }]}
             onPress={() => {
               showBubble(i);
               setTimeout(hideBubble, 600);
             }}
-            hitSlop={{ left: 10, right: 10, top: 2, bottom: 2 }}
+            hitSlop={{ left: 10, right: 10 }}
           >
             <Text
               style={[
@@ -221,8 +229,20 @@ function SectionScrubber({
               {section.shortLabel}
             </Text>
           </Pressable>
-        </View>
-      ))}
+        ))}
+        {activeIndex >= 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.scrubberBubble,
+              { opacity: bubbleOpacity, top: bubbleTopOffset },
+            ]}
+          >
+            <Text style={styles.scrubberBubbleText}>{sections[activeIndex]?.title}</Text>
+            <View style={styles.scrubberBubbleArrow} />
+          </Animated.View>
+        )}
+      </View>
     </View>
   );
 }
@@ -452,13 +472,13 @@ const styles = StyleSheet.create({
     width: 22,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    paddingVertical: 8,
+  },
+  scrubberLetters: {
+    alignItems: "center" as const,
   },
   scrubberItem: {
-    flex: 1,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    minHeight: 14,
   },
   scrubberText: {
     fontSize: 9,
@@ -471,9 +491,9 @@ const styles = StyleSheet.create({
   },
   scrubberBubble: {
     position: "absolute" as const,
-    right: 30,
+    right: 24,
     backgroundColor: Colors.light.tint,
-    borderRadius: 20,
+    borderRadius: 22,
     width: 44,
     height: 44,
     alignItems: "center" as const,
