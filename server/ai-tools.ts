@@ -175,27 +175,27 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-export async function executeTool(name: string, input: any): Promise<string> {
+export async function executeTool(name: string, input: any, userId?: number): Promise<string> {
   try {
     switch (name) {
       case "search_wines":
-        return searchWines(input);
+        return searchWines(input, userId);
       case "get_wine_details":
-        return getWineDetails(input);
+        return getWineDetails(input, userId);
       case "add_wine":
-        return addWine(input);
+        return addWine(input, userId);
       case "add_bottles":
-        return addBottles(input);
+        return addBottles(input, userId);
       case "update_wine":
-        return updateWine(input);
+        return updateWine(input, userId);
       case "update_bottle":
-        return updateBottle(input);
+        return updateBottle(input, userId);
       case "consume_bottle":
-        return consumeBottle(input);
+        return consumeBottle(input, userId);
       case "get_cellar_stats":
-        return getCellarStats();
+        return getCellarStats(userId);
       case "get_recommendations":
-        return getRecommendations(input);
+        return getRecommendations(input, userId);
       case "get_weather":
         return await getWeather(input);
       default:
@@ -206,9 +206,14 @@ export async function executeTool(name: string, input: any): Promise<string> {
   }
 }
 
-function searchWines(input: any): string {
+function searchWines(input: any, userId?: number): string {
   const conditions: string[] = [];
   const params: any[] = [];
+
+  if (userId) {
+    conditions.push("w.user_id = ?");
+    params.push(userId);
+  }
   const currentYear = new Date().getFullYear();
 
   if (input.query) {
@@ -269,61 +274,70 @@ function searchWines(input: any): string {
   return JSON.stringify({ wines, count: wines.length });
 }
 
-function getWineDetails(input: any): string {
-  const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(input.wine_id);
+function getWineDetails(input: any, userId?: number): string {
+  const wine = userId
+    ? db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(input.wine_id, userId)
+    : db.prepare("SELECT * FROM wines WHERE id = ?").get(input.wine_id);
   if (!wine) return JSON.stringify({ error: "Wine not found" });
-  const bottles = db.prepare("SELECT * FROM bottles WHERE wine_id = ? ORDER BY status, created_at DESC").all(input.wine_id);
+  const bottles = userId
+    ? db.prepare("SELECT * FROM bottles WHERE wine_id = ? AND user_id = ? ORDER BY status, created_at DESC").all(input.wine_id, userId)
+    : db.prepare("SELECT * FROM bottles WHERE wine_id = ? ORDER BY status, created_at DESC").all(input.wine_id);
   return JSON.stringify({ wine, bottles });
 }
 
-function addWine(input: any): string {
+function addWine(input: any, userId?: number): string {
   const result = db.prepare(`
-    INSERT INTO wines (producer, wine_name, vintage, color, country, region, sub_region, appellation, varietal, designation, vineyard, drink_window_start, drink_window_end)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO wines (producer, wine_name, vintage, color, country, region, sub_region, appellation, varietal, designation, vineyard, drink_window_start, drink_window_end, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     input.producer, input.wine_name, input.vintage || null,
     input.color || null, input.country || null, input.region || null,
     input.sub_region || null, input.appellation || null, input.varietal || null,
     input.designation || null, input.vineyard || null,
-    input.drink_window_start || null, input.drink_window_end || null
+    input.drink_window_start || null, input.drink_window_end || null,
+    userId || null
   );
 
   const wineId = Number(result.lastInsertRowid);
   const qty = input.quantity || 1;
 
   const bottleInsert = db.prepare(`
-    INSERT INTO bottles (wine_id, purchase_price, estimated_value, location, size, notes)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO bottles (wine_id, purchase_price, estimated_value, location, size, notes, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
   for (let i = 0; i < qty; i++) {
     bottleInsert.run(wineId, input.purchase_price || null, input.estimated_value || null,
-      input.location || null, input.size || "750ml", input.notes || null);
+      input.location || null, input.size || "750ml", input.notes || null, userId || null);
   }
 
   return JSON.stringify({ success: true, wine_id: wineId, bottles_added: qty, message: `Added ${input.producer} ${input.wine_name}${input.vintage ? ` ${input.vintage}` : ""} with ${qty} bottle(s)` });
 }
 
-function addBottles(input: any): string {
-  const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(input.wine_id) as any;
+function addBottles(input: any, userId?: number): string {
+  const wine = userId
+    ? db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(input.wine_id, userId) as any
+    : db.prepare("SELECT * FROM wines WHERE id = ?").get(input.wine_id) as any;
   if (!wine) return JSON.stringify({ error: "Wine not found" });
 
   const qty = input.quantity || 1;
   const bottleInsert = db.prepare(`
-    INSERT INTO bottles (wine_id, purchase_price, estimated_value, location, size, notes)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO bottles (wine_id, purchase_price, estimated_value, location, size, notes, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
   for (let i = 0; i < qty; i++) {
     bottleInsert.run(input.wine_id, input.purchase_price || null, input.estimated_value || null,
-      input.location || null, input.size || "750ml", input.notes || null);
+      input.location || null, input.size || "750ml", input.notes || null, userId || null);
   }
 
   return JSON.stringify({ success: true, message: `Added ${qty} bottle(s) of ${wine.producer} ${wine.wine_name}` });
 }
 
-function updateWine(input: any): string {
-  const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(input.wine_id);
+function updateWine(input: any, userId?: number): string {
+  const wine = userId
+    ? db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(input.wine_id, userId)
+    : db.prepare("SELECT * FROM wines WHERE id = ?").get(input.wine_id);
   if (!wine) return JSON.stringify({ error: "Wine not found" });
 
   const fields = ["producer", "wine_name", "vintage", "color", "country", "region", "sub_region", "appellation", "varietal", "designation", "vineyard", "drink_window_start", "drink_window_end", "ct_community_score"];
@@ -346,8 +360,10 @@ function updateWine(input: any): string {
   return JSON.stringify({ success: true, message: "Wine updated" });
 }
 
-function updateBottle(input: any): string {
-  const bottle = db.prepare("SELECT * FROM bottles WHERE id = ?").get(input.bottle_id);
+function updateBottle(input: any, userId?: number): string {
+  const bottle = userId
+    ? db.prepare("SELECT * FROM bottles WHERE id = ? AND user_id = ?").get(input.bottle_id, userId)
+    : db.prepare("SELECT * FROM bottles WHERE id = ?").get(input.bottle_id);
   if (!bottle) return JSON.stringify({ error: "Bottle not found" });
 
   const fields = ["location", "notes", "estimated_value", "purchase_price"];
@@ -369,8 +385,10 @@ function updateBottle(input: any): string {
   return JSON.stringify({ success: true, message: "Bottle updated" });
 }
 
-function consumeBottle(input: any): string {
-  const bottle = db.prepare("SELECT * FROM bottles WHERE id = ?").get(input.bottle_id) as any;
+function consumeBottle(input: any, userId?: number): string {
+  const bottle = (userId
+    ? db.prepare("SELECT * FROM bottles WHERE id = ? AND user_id = ?").get(input.bottle_id, userId)
+    : db.prepare("SELECT * FROM bottles WHERE id = ?").get(input.bottle_id)) as any;
   if (!bottle) return JSON.stringify({ error: "Bottle not found" });
   if (bottle.status !== "in_cellar") return JSON.stringify({ error: "This bottle is not in the cellar (already consumed/removed)" });
 
@@ -381,10 +399,10 @@ function consumeBottle(input: any): string {
     .run(consumeDate, input.occasion || null, input.rating || null, input.bottle_id);
 
   db.prepare(`
-    INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, occasion, paired_with, who_with, rating, tasting_notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, occasion, paired_with, who_with, rating, tasting_notes, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(input.bottle_id, bottle.wine_id, consumeDate, input.occasion || null, input.paired_with || null,
-    input.who_with || null, input.rating || null, input.tasting_notes || null);
+    input.who_with || null, input.rating || null, input.tasting_notes || null, userId || null);
 
   return JSON.stringify({
     success: true,
@@ -392,44 +410,54 @@ function consumeBottle(input: any): string {
   });
 }
 
-function getCellarStats(): string {
-  const basic = db.prepare(`
-    SELECT
-      (SELECT COUNT(*) FROM bottles WHERE status = 'in_cellar') as total_bottles,
-      (SELECT COALESCE(SUM(estimated_value), 0) FROM bottles WHERE status = 'in_cellar') as total_value,
-      (SELECT COUNT(DISTINCT wine_id) FROM bottles WHERE status = 'in_cellar') as unique_wines,
-      (SELECT COUNT(*) FROM bottles WHERE status = 'consumed') as consumed_bottles
-  `).get() as any;
+function getCellarStats(userId?: number): string {
+  const userParams = userId ? [userId] : [];
+
+  const totalBottles = userId
+    ? (db.prepare("SELECT COUNT(*) as c FROM bottles WHERE status = 'in_cellar' AND user_id = ?").get(userId) as any).c
+    : (db.prepare("SELECT COUNT(*) as c FROM bottles WHERE status = 'in_cellar'").get() as any).c;
+  const totalValue = userId
+    ? (db.prepare("SELECT COALESCE(SUM(estimated_value), 0) as v FROM bottles WHERE status = 'in_cellar' AND user_id = ?").get(userId) as any).v
+    : (db.prepare("SELECT COALESCE(SUM(estimated_value), 0) as v FROM bottles WHERE status = 'in_cellar'").get() as any).v;
+  const uniqueWines = userId
+    ? (db.prepare("SELECT COUNT(DISTINCT wine_id) as c FROM bottles WHERE status = 'in_cellar' AND user_id = ?").get(userId) as any).c
+    : (db.prepare("SELECT COUNT(DISTINCT wine_id) as c FROM bottles WHERE status = 'in_cellar'").get() as any).c;
+  const consumedBottles = userId
+    ? (db.prepare("SELECT COUNT(*) as c FROM bottles WHERE status = 'consumed' AND user_id = ?").get(userId) as any).c
+    : (db.prepare("SELECT COUNT(*) as c FROM bottles WHERE status = 'consumed'").get() as any).c;
+
+  const basic = { total_bottles: totalBottles, total_value: totalValue, unique_wines: uniqueWines, consumed_bottles: consumedBottles };
 
   const byColor = db.prepare(`
     SELECT w.color, COUNT(*) as count 
     FROM bottles b JOIN wines w ON b.wine_id = w.id 
-    WHERE b.status = 'in_cellar' AND w.color IS NOT NULL
+    WHERE b.status = 'in_cellar' AND w.color IS NOT NULL ${userId ? "AND b.user_id = ?" : ""}
     GROUP BY w.color ORDER BY count DESC
-  `).all();
+  `).all(...userParams);
 
   const topRegions = db.prepare(`
     SELECT w.region, COUNT(*) as count 
     FROM bottles b JOIN wines w ON b.wine_id = w.id 
-    WHERE b.status = 'in_cellar' AND w.region IS NOT NULL
+    WHERE b.status = 'in_cellar' AND w.region IS NOT NULL ${userId ? "AND b.user_id = ?" : ""}
     GROUP BY w.region ORDER BY count DESC LIMIT 10
-  `).all();
+  `).all(...userParams);
 
   const topVarietals = db.prepare(`
     SELECT w.varietal, COUNT(*) as count 
     FROM bottles b JOIN wines w ON b.wine_id = w.id 
-    WHERE b.status = 'in_cellar' AND w.varietal IS NOT NULL
+    WHERE b.status = 'in_cellar' AND w.varietal IS NOT NULL ${userId ? "AND b.user_id = ?" : ""}
     GROUP BY w.varietal ORDER BY count DESC LIMIT 10
-  `).all();
+  `).all(...userParams);
 
   return JSON.stringify({ ...basic, by_color: byColor, top_regions: topRegions, top_varietals: topVarietals });
 }
 
-function getRecommendations(input: any): string {
+function getRecommendations(input: any, userId?: number): string {
   const currentYear = new Date().getFullYear();
   const limit = input.limit || 5;
   let query = "";
   const params: any[] = [];
+  const userScope = userId ? "AND b.user_id = ?" : "";
 
   switch (input.criteria) {
     case "ready_to_drink":
@@ -439,12 +467,14 @@ function getRecommendations(input: any): string {
           AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END) as avg_value
         FROM wines w JOIN bottles b ON w.id = b.wine_id
         WHERE w.drink_window_start <= ? AND w.drink_window_end >= ? AND b.status = 'in_cellar'
+        ${userScope}
         ${input.color ? "AND w.color = ?" : ""}
         GROUP BY w.id HAVING bottle_count > 0
         ORDER BY w.ct_community_score DESC NULLS LAST
         LIMIT ?
       `;
       params.push(currentYear, currentYear);
+      if (userId) params.push(userId);
       if (input.color) params.push(input.color);
       params.push(limit);
       break;
@@ -455,11 +485,14 @@ function getRecommendations(input: any): string {
           AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END) as avg_value
         FROM wines w JOIN bottles b ON w.id = b.wine_id
         WHERE w.drink_window_end < ? AND w.drink_window_end IS NOT NULL AND b.status = 'in_cellar'
+        ${userScope}
         GROUP BY w.id HAVING bottle_count > 0
         ORDER BY w.drink_window_end ASC
         LIMIT ?
       `;
-      params.push(currentYear, limit);
+      params.push(currentYear);
+      if (userId) params.push(userId);
+      params.push(limit);
       break;
 
     case "best_value":
@@ -468,11 +501,13 @@ function getRecommendations(input: any): string {
           AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END) as avg_value
         FROM wines w JOIN bottles b ON w.id = b.wine_id
         WHERE b.status = 'in_cellar'
+        ${userScope}
         ${input.color ? "AND w.color = ?" : ""}
         GROUP BY w.id HAVING bottle_count > 0
         ORDER BY avg_value DESC
         LIMIT ?
       `;
+      if (userId) params.push(userId);
       if (input.color) params.push(input.color);
       params.push(limit);
       break;
@@ -483,11 +518,13 @@ function getRecommendations(input: any): string {
           AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END) as avg_value
         FROM wines w JOIN bottles b ON w.id = b.wine_id
         WHERE b.status = 'in_cellar' AND w.ct_community_score IS NOT NULL
+        ${userScope}
         ${input.color ? "AND w.color = ?" : ""}
         GROUP BY w.id HAVING bottle_count > 0
         ORDER BY w.ct_community_score DESC
         LIMIT ?
       `;
+      if (userId) params.push(userId);
       if (input.color) params.push(input.color);
       params.push(limit);
       break;
@@ -498,11 +535,14 @@ function getRecommendations(input: any): string {
           AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END) as avg_value
         FROM wines w JOIN bottles b ON w.id = b.wine_id
         WHERE b.status = 'in_cellar' AND w.color = ?
+        ${userScope}
         GROUP BY w.id HAVING bottle_count > 0
         ORDER BY w.ct_community_score DESC NULLS LAST
         LIMIT ?
       `;
-      params.push(input.color || "Red", limit);
+      params.push(input.color || "Red");
+      if (userId) params.push(userId);
+      params.push(limit);
       break;
 
     default:
@@ -511,10 +551,12 @@ function getRecommendations(input: any): string {
           AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END) as avg_value
         FROM wines w JOIN bottles b ON w.id = b.wine_id
         WHERE b.status = 'in_cellar'
+        ${userScope}
         GROUP BY w.id HAVING bottle_count > 0
         ORDER BY w.ct_community_score DESC NULLS LAST
         LIMIT ?
       `;
+      if (userId) params.push(userId);
       params.push(limit);
   }
 

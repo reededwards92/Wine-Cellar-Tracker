@@ -127,9 +127,11 @@ export default function ScanScreen() {
 
     try {
       const baseUrl = getApiUrl();
+      const { currentAuthToken } = await import("@/lib/auth-token");
+      const authHeaders = currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {};
       const resp = await fetch(new URL("/api/analyze-wine-image", baseUrl).toString(), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           image: asset.base64,
           mimeType: asset.mimeType || "image/jpeg",
@@ -141,7 +143,8 @@ export default function ScanScreen() {
       const data = await resp.json();
 
       const searchResp = await fetch(
-        new URL(`/api/wines?search=${encodeURIComponent(data.producer || "")}&inStock=true`, baseUrl).toString()
+        new URL(`/api/wines?search=${encodeURIComponent(data.producer || "")}&inStock=true`, baseUrl).toString(),
+        { headers: authHeaders }
       );
       const wines = searchResp.ok ? await searchResp.json() : [];
       const match = wines.find((w: any) =>

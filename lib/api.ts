@@ -125,6 +125,7 @@ export function getColorDot(color: string | null): string {
 }
 
 export async function uploadCsvForImport(fileUri: string, fileName: string, preview: boolean = false): Promise<ImportPreview | ImportResult> {
+  const { currentAuthToken } = await import("@/lib/auth-token");
   const baseUrl = getApiUrl();
   const url = new URL(`/api/import${preview ? "?preview=true" : ""}`, baseUrl);
 
@@ -135,8 +136,14 @@ export async function uploadCsvForImport(fileUri: string, fileName: string, prev
     type: "text/csv",
   } as any);
 
+  const headers: Record<string, string> = {};
+  if (currentAuthToken) {
+    headers["Authorization"] = `Bearer ${currentAuthToken}`;
+  }
+
   const res = await fetch(url.toString(), {
     method: "POST",
+    headers,
     body: formData,
   });
 

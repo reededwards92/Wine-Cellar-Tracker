@@ -1,3 +1,12 @@
+export interface User {
+  id: number;
+  email: string;
+  password_hash: string;
+  display_name: string | null;
+  google_id: string | null;
+  created_at: string;
+}
+
 export interface Wine {
   id: number;
   ct_wine_id: number | null;
@@ -18,6 +27,7 @@ export interface Wine {
   drink_window_end: number | null;
   ct_community_score: number | null;
   critic_scores: string | null;
+  user_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +49,7 @@ export interface Bottle {
   consumed_date: string | null;
   occasion: string | null;
   rating: number | null;
+  user_id: number | null;
   created_at: string;
 }
 
@@ -52,5 +63,6 @@ export interface ConsumptionLog {
   who_with: string | null;
   rating: number | null;
   tasting_notes: string | null;
+  user_id: number | null;
   created_at: string;
 }

@@ -201,11 +201,13 @@ export default function SommelierScreen() {
       const controller = new AbortController();
       abortRef.current = controller;
 
+      const { currentAuthToken } = await import("@/lib/auth-token");
       const response = await fetch(new URL("/api/chat", baseUrl).toString(), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
+          ...(currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {}),
         },
         body: JSON.stringify({
           messages: chatHistory,

@@ -6,6 +6,7 @@ import { parse } from "csv-parse/sync";
 import iconv from "iconv-lite";
 import Anthropic from "@anthropic-ai/sdk";
 import { CELLAR_TOOLS, executeTool } from "./ai-tools";
+import { requireAuth, type AuthRequest } from "./auth";
 
 async function callAnthropic(params: {
   model: string;
@@ -92,18 +93,20 @@ function parseInteger(val: string | undefined | null): number | null {
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
-  app.get("/api/stats", (_req: Request, res: Response) => {
+  app.get("/api/stats", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
     const stats = db.prepare(`
       SELECT
-        (SELECT COUNT(*) FROM bottles WHERE status = 'in_cellar') as total_bottles,
-        (SELECT COALESCE(SUM(estimated_value), 0) FROM bottles WHERE status = 'in_cellar') as total_value,
-        (SELECT COUNT(DISTINCT wine_id) FROM bottles WHERE status = 'in_cellar') as unique_wines,
-        (SELECT COUNT(*) FROM bottles WHERE status = 'consumed') as consumed_bottles
-    `).get() as any;
+        (SELECT COUNT(*) FROM bottles WHERE status = 'in_cellar' AND user_id = ?) as total_bottles,
+        (SELECT COALESCE(SUM(estimated_value), 0) FROM bottles WHERE status = 'in_cellar' AND user_id = ?) as total_value,
+        (SELECT COUNT(DISTINCT wine_id) FROM bottles WHERE status = 'in_cellar' AND user_id = ?) as unique_wines,
+        (SELECT COUNT(*) FROM bottles WHERE status = 'consumed' AND user_id = ?) as consumed_bottles
+    `).get(userId, userId, userId, userId) as any;
     res.json(stats);
   });
 
-  app.get("/api/wines", (req: Request, res: Response) => {
+  app.get("/api/wines", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
     const {
       sort = "producer",
       order = "asc",
@@ -119,8 +122,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       search,
     } = req.query;
 
-    let whereClauses: string[] = [];
-    let params: any[] = [];
+    let whereClauses: string[] = ["w.user_id = ?"];
+    let params: any[] = [userId];
 
     if (color) {
       const colors = (color as string).split(",");
@@ -225,19 +228,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(wines);
   });
 
-  app.get("/api/wines/:id", (req: Request, res: Response) => {
-    const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(req.params.id);
+  app.get("/api/wines/:id", requireAuth, (req: AuthRequest, res: Response) => {
+    const wine = db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(req.params.id, req.userId);
     if (!wine) return res.status(404).json({ error: "Wine not found" });
-    const bottles = db.prepare("SELECT * FROM bottles WHERE wine_id = ? ORDER BY created_at DESC").all(req.params.id);
+    const bottles = db.prepare("SELECT * FROM bottles WHERE wine_id = ? AND user_id = ? ORDER BY created_at DESC").all(req.params.id, req.userId);
     res.json({ ...(wine as any), bottles });
   });
 
-  app.post("/api/wines", (req: Request, res: Response) => {
+  app.post("/api/wines", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
     const { quantity = 1, purchase_date, purchase_price, estimated_value, location, size, notes, ...wineData } = req.body;
 
     const wineInsert = db.prepare(`
-      INSERT INTO wines (producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, critic_scores)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO wines (producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, critic_scores, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = wineInsert.run(
@@ -246,26 +250,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       wineData.appellation || null, wineData.varietal || null, wineData.color || null,
       wineData.wine_type || null, wineData.category || null, wineData.designation || null,
       wineData.vineyard || null, wineData.drink_window_start || null, wineData.drink_window_end || null,
-      wineData.ct_community_score || null, wineData.critic_scores || null
+      wineData.ct_community_score || null, wineData.critic_scores || null, userId
     );
 
     const wineId = result.lastInsertRowid;
 
     const bottleInsert = db.prepare(`
-      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (let i = 0; i < (quantity || 1); i++) {
-      bottleInsert.run(wineId, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null);
+      bottleInsert.run(wineId, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null, userId);
     }
 
     const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(wineId);
     res.status(201).json(wine);
   });
 
-  app.put("/api/wines/:id", (req: Request, res: Response) => {
-    const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(req.params.id);
+  app.put("/api/wines/:id", requireAuth, (req: AuthRequest, res: Response) => {
+    const wine = db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(req.params.id, req.userId);
     if (!wine) return res.status(404).json({ error: "Wine not found" });
 
     const fields = ["producer", "wine_name", "vintage", "country", "region", "sub_region", "appellation", "varietal", "color", "wine_type", "category", "designation", "vineyard", "drink_window_start", "drink_window_end", "ct_community_score", "critic_scores"];
@@ -289,26 +293,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(updated);
   });
 
-  app.post("/api/wines/:id/bottles", (req: Request, res: Response) => {
-    const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(req.params.id);
+  app.post("/api/wines/:id/bottles", requireAuth, (req: AuthRequest, res: Response) => {
+    const wine = db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(req.params.id, req.userId);
     if (!wine) return res.status(404).json({ error: "Wine not found" });
 
     const { quantity = 1, purchase_date, purchase_price, estimated_value, location, size, notes } = req.body;
 
     const bottleInsert = db.prepare(`
-      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (let i = 0; i < quantity; i++) {
-      bottleInsert.run(req.params.id, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null);
+      bottleInsert.run(req.params.id, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null, req.userId);
     }
 
     res.status(201).json({ message: `Added ${quantity} bottle(s)` });
   });
 
-  app.put("/api/bottles/:id", (req: Request, res: Response) => {
-    const bottle = db.prepare("SELECT * FROM bottles WHERE id = ?").get(req.params.id);
+  app.put("/api/bottles/:id", requireAuth, (req: AuthRequest, res: Response) => {
+    const bottle = db.prepare("SELECT * FROM bottles WHERE id = ? AND user_id = ?").get(req.params.id, req.userId);
     if (!bottle) return res.status(404).json({ error: "Bottle not found" });
 
     const fields = ["purchase_date", "purchase_price", "estimated_value", "location", "size", "notes", "status"];
@@ -331,8 +335,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(updated);
   });
 
-  app.patch("/api/bottles/:id/consume", (req: Request, res: Response) => {
-    const bottle = db.prepare("SELECT * FROM bottles WHERE id = ?").get(req.params.id) as any;
+  app.patch("/api/bottles/:id/consume", requireAuth, (req: AuthRequest, res: Response) => {
+    const bottle = db.prepare("SELECT * FROM bottles WHERE id = ? AND user_id = ?").get(req.params.id, req.userId) as any;
     if (!bottle) return res.status(404).json({ error: "Bottle not found" });
 
     const { consumed_date, occasion, paired_with, who_with, rating, tasting_notes } = req.body;
@@ -342,14 +346,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .run(consumeDate, occasion || null, rating || null, req.params.id);
 
     db.prepare(`
-      INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, occasion, paired_with, who_with, rating, tasting_notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(req.params.id, bottle.wine_id, consumeDate, occasion || null, paired_with || null, who_with || null, rating || null, tasting_notes || null);
+      INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, occasion, paired_with, who_with, rating, tasting_notes, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(req.params.id, bottle.wine_id, consumeDate, occasion || null, paired_with || null, who_with || null, rating || null, tasting_notes || null, req.userId);
 
     res.json({ message: "Bottle consumed" });
   });
 
-  app.get("/api/consumption", (_req: Request, res: Response) => {
+  app.get("/api/consumption", requireAuth, (req: AuthRequest, res: Response) => {
     const logs = db.prepare(`
       SELECT cl.*, w.producer, w.wine_name, w.vintage, w.color, w.varietal, w.region,
         w.sub_region, w.appellation, w.ct_community_score, w.drink_window_start, w.drink_window_end,
@@ -357,17 +361,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       FROM consumption_log cl
       JOIN wines w ON cl.wine_id = w.id
       LEFT JOIN bottles b ON cl.bottle_id = b.id
+      WHERE cl.user_id = ?
       ORDER BY cl.consumed_date DESC
-    `).all();
+    `).all(req.userId);
     res.json(logs);
   });
 
-  app.get("/api/filters", (_req: Request, res: Response) => {
-    const colors = db.prepare("SELECT DISTINCT color FROM wines WHERE color IS NOT NULL ORDER BY color").all();
-    const regions = db.prepare("SELECT DISTINCT region FROM wines WHERE region IS NOT NULL ORDER BY region").all();
-    const countries = db.prepare("SELECT DISTINCT country FROM wines WHERE country IS NOT NULL ORDER BY country").all();
-    const varietals = db.prepare("SELECT DISTINCT varietal FROM wines WHERE varietal IS NOT NULL ORDER BY varietal").all();
-    const locations = db.prepare("SELECT DISTINCT location FROM bottles WHERE location IS NOT NULL AND status = 'in_cellar' ORDER BY location").all();
+  app.get("/api/filters", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    const colors = db.prepare("SELECT DISTINCT color FROM wines WHERE color IS NOT NULL AND user_id = ? ORDER BY color").all(userId);
+    const regions = db.prepare("SELECT DISTINCT region FROM wines WHERE region IS NOT NULL AND user_id = ? ORDER BY region").all(userId);
+    const countries = db.prepare("SELECT DISTINCT country FROM wines WHERE country IS NOT NULL AND user_id = ? ORDER BY country").all(userId);
+    const varietals = db.prepare("SELECT DISTINCT varietal FROM wines WHERE varietal IS NOT NULL AND user_id = ? ORDER BY varietal").all(userId);
+    const locations = db.prepare("SELECT DISTINCT location FROM bottles WHERE location IS NOT NULL AND status = 'in_cellar' AND user_id = ? ORDER BY location").all(userId);
     res.json({
       colors: (colors as any[]).map((c) => c.color),
       regions: (regions as any[]).map((r) => r.region),
@@ -377,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.post("/api/import", upload.single("file"), (req: Request, res: Response) => {
+  app.post("/api/import", requireAuth, upload.single("file"), (req: AuthRequest, res: Response) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const decoded = iconv.decode(req.file.buffer, "latin1");
@@ -411,18 +417,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const winesByCtId = new Map<string, number>();
 
+    const userId = req.userId;
     const insertWine = db.prepare(`
-      INSERT INTO wines (ct_wine_id, producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO wines (ct_wine_id, producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertBottle = db.prepare(`
-      INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, location, size)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, location, size, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const findWineByCt = db.prepare("SELECT id FROM wines WHERE ct_wine_id = ?");
-    const findBottleByCt = db.prepare("SELECT id FROM bottles WHERE ct_inventory_id = ?");
+    const findWineByCt = db.prepare("SELECT id FROM wines WHERE ct_wine_id = ? AND user_id = ?");
+    const findBottleByCt = db.prepare("SELECT id FROM bottles WHERE ct_inventory_id = ? AND user_id = ?");
 
     const requiredColumns = ["iWine", "Wine", "Producer"];
     const missingColumns = requiredColumns.filter((col) => !(col in records[0]));
@@ -436,7 +443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const ctInventoryId = parseInteger(row.iInventory);
           if (ctInventoryId) {
-            const existingBottle = findBottleByCt.get(ctInventoryId);
+            const existingBottle = findBottleByCt.get(ctInventoryId, userId);
             if (existingBottle) {
               skipped++;
               continue;
@@ -449,7 +456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (ctWineId && winesByCtId.has(String(ctWineId))) {
             wineId = winesByCtId.get(String(ctWineId))!;
           } else if (ctWineId) {
-            const existingWine = findWineByCt.get(ctWineId) as any;
+            const existingWine = findWineByCt.get(ctWineId, userId) as any;
             if (existingWine) {
               wineId = existingWine.id;
               winesByCtId.set(String(ctWineId), wineId);
@@ -471,7 +478,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 cleanValue(row.Vineyard),
                 parseInteger(row.BeginConsume),
                 parseInteger(row.EndConsume),
-                parseNumber(row.CScore)
+                parseNumber(row.CScore),
+                userId
               );
               wineId = Number(result.lastInsertRowid);
               winesByCtId.set(String(ctWineId), wineId);
@@ -495,7 +503,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               cleanValue(row.Vineyard),
               parseInteger(row.BeginConsume),
               parseInteger(row.EndConsume),
-              parseNumber(row.CScore)
+              parseNumber(row.CScore),
+              userId
             );
             wineId = Number(result.lastInsertRowid);
             winesCreated++;
@@ -512,7 +521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price && price > 0 ? price : null,
             parseNumber(row.Value),
             cleanValue(row.Location),
-            cleanValue(row.Size) || "750ml"
+            cleanValue(row.Size) || "750ml",
+            userId
           );
           bottlesCreated++;
         } catch (err: any) {
@@ -558,7 +568,7 @@ Key behaviors:
 
 Current date: ${new Date().toISOString().split("T")[0]}`;
 
-  app.post("/api/analyze-wine-image", async (req: Request, res: Response) => {
+  app.post("/api/analyze-wine-image", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const { image, mimeType } = req.body;
       if (!image) {
@@ -643,7 +653,7 @@ Be accurate — only include what you can clearly read from the label. For color
 
   const MAX_TOOL_ITERATIONS = 8;
 
-  app.post("/api/chat", async (req: Request, res: Response) => {
+  app.post("/api/chat", requireAuth, async (req: AuthRequest, res: Response) => {
     let clientDisconnected = false;
     res.on("close", () => {
       clientDisconnected = true;
@@ -722,7 +732,7 @@ Be accurate — only include what you can clearly read from the label. For color
             res.write(`data: ${JSON.stringify({ content: block.text })}\n\n`);
           } else if (block.type === "tool_use") {
             res.write(`data: ${JSON.stringify({ tool_call: block.name })}\n\n`);
-            const result = await executeTool(block.name, block.input);
+            const result = await executeTool(block.name, block.input, (req as AuthRequest).userId);
             toolResults.push({
               type: "tool_result",
               tool_use_id: block.id,

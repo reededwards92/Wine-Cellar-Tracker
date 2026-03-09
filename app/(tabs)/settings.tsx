@@ -6,21 +6,25 @@ import {
   ScrollView,
   Platform,
   Pressable,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/contexts/AuthContext";
 
 function SettingsRow({
   icon,
   label,
   subtitle,
   onPress,
+  destructive,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   subtitle?: string;
   onPress?: () => void;
+  destructive?: boolean;
 }) {
   return (
     <Pressable
@@ -28,11 +32,17 @@ function SettingsRow({
       onPress={onPress}
       disabled={!onPress}
     >
-      <View style={styles.rowIcon}>
-        <Ionicons name={icon} size={20} color={Colors.light.tint} />
+      <View style={[styles.rowIcon, destructive && styles.rowIconDestructive]}>
+        <Ionicons
+          name={icon}
+          size={20}
+          color={destructive ? Colors.light.danger : Colors.light.tint}
+        />
       </View>
       <View style={styles.rowContent}>
-        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>
+          {label}
+        </Text>
         {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
       </View>
       {onPress ? (
@@ -54,6 +64,18 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    if (Platform.OS === "web") {
+      logout();
+      return;
+    }
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: () => logout() },
+    ]);
+  };
 
   return (
     <View style={styles.screen}>
@@ -67,6 +89,14 @@ export default function SettingsScreen() {
           { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
         ]}
       >
+        <SettingsSection title="Account">
+          <SettingsRow
+            icon="person-outline"
+            label={user?.display_name || user?.email || "Account"}
+            subtitle={user?.display_name ? user.email : undefined}
+          />
+        </SettingsSection>
+
         <SettingsSection title="Cellar">
           <SettingsRow
             icon="cloud-upload-outline"
@@ -90,6 +120,15 @@ export default function SettingsScreen() {
             icon="information-circle-outline"
             label="Version"
             subtitle="1.0.0"
+          />
+        </SettingsSection>
+
+        <SettingsSection title="">
+          <SettingsRow
+            icon="log-out-outline"
+            label="Sign Out"
+            onPress={handleLogout}
+            destructive
           />
         </SettingsSection>
       </ScrollView>
@@ -157,6 +196,9 @@ const styles = StyleSheet.create({
     justifyContent: "center" as const,
     marginRight: 12,
   },
+  rowIconDestructive: {
+    backgroundColor: "#FEF2F2",
+  },
   rowContent: {
     flex: 1,
   },
@@ -164,6 +206,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
+  },
+  rowLabelDestructive: {
+    color: Colors.light.danger,
   },
   rowSubtitle: {
     fontSize: 13,
