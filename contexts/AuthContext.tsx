@@ -25,6 +25,7 @@ interface AuthContextType {
   biometricsEnabled: boolean;
   biometricType: string;
   hasStoredSession: boolean;
+  biometricFailed: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithBiometrics: () => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
@@ -41,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   biometricsEnabled: false,
   biometricType: "",
   hasStoredSession: false,
+  biometricFailed: false,
   login: async () => {},
   loginWithBiometrics: async () => {},
   register: async () => {},
@@ -106,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
   const [biometricType, setBiometricType] = useState("");
   const [hasStoredSession, setHasStoredSession] = useState(false);
+  const [biometricFailed, setBiometricFailed] = useState(false);
   const [storedToken, setStoredTokenState] = useState<string | null>(null);
 
   const updateToken = useCallback(async (newToken: string | null) => {
@@ -137,8 +140,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const bioEnabled = await isBiometricsEnabled();
 
         if (bioEnabled && available) {
-          setStoredTokenState(stored);
-          setHasStoredSession(true);
+          const authenticated = await authenticateWithBiometrics();
+          if (authenticated) {
+            const restoredUser = await restoreSession(stored);
+            if (restoredUser) {
+              setToken(stored);
+              setStoredTokenState(stored);
+              setUser(restoredUser);
+              setHasStoredSession(true);
+              setIsLoading(false);
+              return;
+            }
+            await removeStoredToken();
+          } else {
+            setStoredTokenState(stored);
+            setHasStoredSession(true);
+            setBiometricFailed(true);
+          }
           setIsLoading(false);
           return;
         }
@@ -167,6 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (restoredUser) {
       setToken(storedToken);
       setUser(restoredUser);
+      setBiometricFailed(false);
       queryClient.clear();
     } else {
       await removeStoredToken();
@@ -192,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await resp.json();
     await updateToken(data.token);
     setUser(data.user);
+    setBiometricFailed(false);
     queryClient.clear();
   }, [updateToken]);
 
@@ -236,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await updateToken(null);
     setUser(null);
+    setBiometricFailed(false);
     queryClient.clear();
   }, [updateToken]);
 
@@ -260,7 +281,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, token, isLoading,
-      biometricsAvailable, biometricsEnabled, biometricType, hasStoredSession,
+      biometricsAvailable, biometricsEnabled, biometricType,
+      hasStoredSession, biometricFailed,
       login, loginWithBiometrics, register, googleSignIn, logout, toggleBiometrics,
     }}>
       {children}

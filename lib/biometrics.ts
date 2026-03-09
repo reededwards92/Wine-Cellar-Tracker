@@ -54,7 +54,8 @@ export async function authenticateWithBiometrics(promptMessage?: string): Promis
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: promptMessage || "Sign in to Vin",
       cancelLabel: "Use Password",
-      disableDeviceFallback: false,
+      disableDeviceFallback: true,
+      fallbackLabel: "",
     });
     return result.success;
   } catch {
