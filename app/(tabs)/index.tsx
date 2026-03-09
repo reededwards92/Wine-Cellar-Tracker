@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   PanResponder,
   LayoutChangeEvent,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -125,8 +126,11 @@ function SectionScrubber({
   sections: Section[];
   onSectionPress: (index: number) => void;
 }) {
-  const containerRef = useRef<View>(null);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const bubbleOpacity = useRef(new Animated.Value(0)).current;
+  const bubbleY = useRef(new Animated.Value(0)).current;
+  const lastIndex = useRef(-1);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     setContainerHeight(e.nativeEvent.layout.height);
@@ -142,43 +146,97 @@ function SectionScrubber({
     [sections.length, containerHeight]
   );
 
+  const showBubble = useCallback(
+    (idx: number) => {
+      if (idx < 0 || idx === lastIndex.current) return;
+      lastIndex.current = idx;
+      setActiveIndex(idx);
+      onSectionPress(idx);
+      const itemHeight = containerHeight / sections.length;
+      const yPos = idx * itemHeight + itemHeight / 2 - 20;
+      bubbleY.setValue(yPos);
+      Animated.timing(bubbleOpacity, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }).start();
+    },
+    [containerHeight, sections.length, onSectionPress, bubbleOpacity, bubbleY]
+  );
+
+  const hideBubble = useCallback(() => {
+    lastIndex.current = -1;
+    Animated.timing(bubbleOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setActiveIndex(-1));
+  }, [bubbleOpacity]);
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: (evt) => {
-          const y = evt.nativeEvent.locationY;
-          const idx = getIndexFromY(y);
-          if (idx >= 0) onSectionPress(idx);
+          showBubble(getIndexFromY(evt.nativeEvent.locationY));
         },
         onPanResponderMove: (evt) => {
-          const y = evt.nativeEvent.locationY;
-          const idx = getIndexFromY(y);
-          if (idx >= 0) onSectionPress(idx);
+          showBubble(getIndexFromY(evt.nativeEvent.locationY));
         },
+        onPanResponderRelease: () => hideBubble(),
+        onPanResponderTerminate: () => hideBubble(),
       }),
-    [getIndexFromY, onSectionPress]
+    [getIndexFromY, showBubble, hideBubble]
   );
 
   if (sections.length <= 1) return null;
 
   return (
-    <View
-      ref={containerRef}
-      style={styles.scrubberContainer}
-      onLayout={onLayout}
-      {...panResponder.panHandlers}
-    >
-      {sections.map((section, i) => (
-        <Pressable
-          key={section.title}
-          style={styles.scrubberItem}
-          onPress={() => onSectionPress(i)}
-        >
-          <Text style={styles.scrubberText}>{section.shortLabel}</Text>
-        </Pressable>
-      ))}
+    <View style={styles.scrubberOuter}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.scrubberBubble,
+          {
+            opacity: bubbleOpacity,
+            transform: [{ translateY: bubbleY as unknown as number }],
+          },
+        ]}
+      >
+        <Text style={styles.scrubberBubbleText}>
+          {activeIndex >= 0 && activeIndex < sections.length
+            ? sections[activeIndex].title
+            : ""}
+        </Text>
+        <View style={styles.scrubberBubbleArrow} />
+      </Animated.View>
+
+      <View
+        style={styles.scrubberContainer}
+        onLayout={onLayout}
+        {...panResponder.panHandlers}
+      >
+        {sections.map((section, i) => (
+          <Pressable
+            key={section.title}
+            style={styles.scrubberItem}
+            onPress={() => {
+              showBubble(i);
+              setTimeout(hideBubble, 600);
+            }}
+          >
+            <Text
+              style={[
+                styles.scrubberText,
+                activeIndex === i && styles.scrubberTextActive,
+              ]}
+            >
+              {section.shortLabel}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
@@ -400,26 +458,68 @@ const styles = StyleSheet.create({
     textTransform: "uppercase" as const,
     letterSpacing: 0.8,
   },
-  scrubberContainer: {
+  scrubberOuter: {
     position: "absolute" as const,
-    right: 0,
+    right: 2,
     top: 0,
     bottom: 0,
-    width: 28,
+    width: 50,
+    alignItems: "flex-end" as const,
+    justifyContent: "center" as const,
+  },
+  scrubberContainer: {
+    width: 20,
     alignItems: "center" as const,
     justifyContent: "center" as const,
     paddingVertical: 8,
+    alignSelf: "flex-end" as const,
   },
   scrubberItem: {
-    flex: 1,
+    paddingVertical: 1,
+    paddingHorizontal: 4,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    minHeight: 14,
+    minHeight: 16,
   },
   scrubberText: {
     fontSize: 9,
     fontFamily: "Outfit_500Medium",
+    color: Colors.light.textSecondary,
+  },
+  scrubberTextActive: {
     color: Colors.light.tint,
+    fontFamily: "Outfit_700Bold",
+  },
+  scrubberBubble: {
+    position: "absolute" as const,
+    right: 28,
+    backgroundColor: Colors.light.tint,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 44,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    zIndex: 10,
+  },
+  scrubberBubbleText: {
+    fontSize: 18,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
+  },
+  scrubberBubbleArrow: {
+    position: "absolute" as const,
+    right: -6,
+    top: "50%" as unknown as number,
+    marginTop: -6,
+    width: 0,
+    height: 0,
+    borderTopWidth: 6,
+    borderBottomWidth: 6,
+    borderLeftWidth: 6,
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: Colors.light.tint,
   },
   centered: {
     flex: 1,
