@@ -7,9 +7,11 @@ import {
   Platform,
   RefreshControl,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import { getColorDot } from "@/lib/api";
@@ -30,9 +32,26 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function ConsumptionCard({ entry }: { entry: ConsumptionEntry }) {
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const month = months[parseInt(parts[1], 10) - 1] || parts[1];
+    return `${month} ${parseInt(parts[2], 10)}, ${parts[0]}`;
+  }
+  return dateStr;
+}
+
+function ConsumptionCard({ entry, onPress }: { entry: ConsumptionEntry; onPress: () => void }) {
+  const location = entry.sub_region || entry.appellation || entry.region || "";
+  const price = entry.estimated_value || entry.purchase_price;
+
   return (
-    <View style={styles.card}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={onPress}
+    >
       <View style={styles.cardHeader}>
         <View style={[styles.colorDot, { backgroundColor: getColorDot(entry.color) }]} />
         <View style={styles.cardContent}>
@@ -41,8 +60,26 @@ function ConsumptionCard({ entry }: { entry: ConsumptionEntry }) {
             {entry.wine_name}
             {entry.vintage ? ` ${entry.vintage}` : ""}
           </Text>
+          {(location || entry.varietal) ? (
+            <View style={styles.metaRow}>
+              {location ? (
+                <Text style={styles.meta} numberOfLines={1}>{location}</Text>
+              ) : null}
+              {entry.varietal ? (
+                <Text style={styles.meta}>{location ? " · " : ""}{entry.varietal}</Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
-        <Text style={styles.cardDate}>{entry.consumed_date}</Text>
+        <View style={styles.right}>
+          <Text style={styles.cardDate}>{formatDate(entry.consumed_date)}</Text>
+          {price ? (
+            <Text style={styles.value}>${Math.round(price)}</Text>
+          ) : null}
+          {entry.ct_community_score ? (
+            <Text style={styles.score}>{entry.ct_community_score.toFixed(1)}</Text>
+          ) : null}
+        </View>
       </View>
       <View style={styles.cardMeta}>
         {entry.rating ? <StarRating rating={entry.rating} /> : null}
@@ -59,13 +96,17 @@ function ConsumptionCard({ entry }: { entry: ConsumptionEntry }) {
           <Text style={styles.pairingText}>{entry.paired_with}</Text>
         </View>
       ) : null}
-    </View>
+      <View style={styles.chevronRow}>
+        <Ionicons name="chevron-forward" size={16} color={Colors.light.tabIconDefault} />
+      </View>
+    </Pressable>
   );
 }
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const router = useRouter();
 
   const { data: entries, isLoading, refetch } = useQuery<ConsumptionEntry[]>({
     queryKey: ["/api/consumption"],
@@ -75,11 +116,19 @@ export default function HistoryScreen() {
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
         <Text style={styles.title}>History</Text>
+        {entries && entries.length > 0 ? (
+          <Text style={styles.subtitle}>{entries.length} bottle{entries.length !== 1 ? "s" : ""} consumed</Text>
+        ) : null}
       </View>
 
       <FlatList
         data={entries || []}
-        renderItem={({ item }) => <ConsumptionCard entry={item} />}
+        renderItem={({ item }) => (
+          <ConsumptionCard
+            entry={item}
+            onPress={() => router.push({ pathname: "/wine/[id]", params: { id: String(item.wine_id) } })}
+          />
+        )}
         keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={
           isLoading ? (
@@ -124,17 +173,24 @@ const styles = StyleSheet.create({
     fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
   },
+  subtitle: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: 2,
+  },
   listContent: {
     flexGrow: 1,
-    padding: 16,
-    gap: 10,
   },
   card: {
     backgroundColor: Colors.light.white,
-    borderRadius: 8,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  cardPressed: {
+    backgroundColor: Colors.light.cardBackground,
   },
   cardHeader: {
     flexDirection: "row",
@@ -161,11 +217,35 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     marginTop: 1,
   },
+  metaRow: {
+    flexDirection: "row",
+    marginTop: 3,
+    flexWrap: "wrap",
+  },
+  meta: {
+    fontSize: 12,
+    fontFamily: "Outfit_300Light",
+    color: Colors.light.textSecondary,
+  },
+  right: {
+    alignItems: "flex-end",
+    marginLeft: 12,
+    gap: 2,
+  },
   cardDate: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
-    marginLeft: 8,
+  },
+  value: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.text,
+  },
+  score: {
+    fontSize: 12,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
   },
   cardMeta: {
     flexDirection: "row",
@@ -202,6 +282,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
+  },
+  chevronRow: {
+    position: "absolute" as const,
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
   },
   centered: {
     flex: 1,

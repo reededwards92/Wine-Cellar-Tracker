@@ -75,6 +75,14 @@ export interface ConsumptionEntry {
   color: string | null;
   varietal: string | null;
   region: string | null;
+  sub_region: string | null;
+  appellation: string | null;
+  ct_community_score: number | null;
+  drink_window_start: number | null;
+  drink_window_end: number | null;
+  purchase_price: number | null;
+  estimated_value: number | null;
+  bottle_location: string | null;
 }
 
 export interface ImportResult {

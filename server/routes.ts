@@ -340,9 +340,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/consumption", (_req: Request, res: Response) => {
     const logs = db.prepare(`
-      SELECT cl.*, w.producer, w.wine_name, w.vintage, w.color, w.varietal, w.region
+      SELECT cl.*, w.producer, w.wine_name, w.vintage, w.color, w.varietal, w.region,
+        w.sub_region, w.appellation, w.ct_community_score, w.drink_window_start, w.drink_window_end,
+        b.purchase_price, b.estimated_value, b.location AS bottle_location
       FROM consumption_log cl
       JOIN wines w ON cl.wine_id = w.id
+      LEFT JOIN bottles b ON cl.bottle_id = b.id
       ORDER BY cl.consumed_date DESC
     `).all();
     res.json(logs);
