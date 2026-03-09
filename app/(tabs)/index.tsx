@@ -1,14 +1,16 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   TextInput,
   Platform,
   RefreshControl,
   Pressable,
   ActivityIndicator,
+  PanResponder,
+  LayoutChangeEvent,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -34,12 +36,160 @@ const DEFAULT_FILTERS: FilterState = {
   order: "asc",
 };
 
+interface Section {
+  title: string;
+  shortLabel: string;
+  data: WineListItem[];
+}
+
+function getSectionKey(wine: WineListItem, sortField: string): { title: string; shortLabel: string } {
+  switch (sortField) {
+    case "producer": {
+      const letter = (wine.producer || "?")[0].toUpperCase();
+      return { title: letter, shortLabel: letter };
+    }
+    case "color": {
+      const c = wine.color || "Unknown";
+      return { title: c, shortLabel: c.slice(0, 3) };
+    }
+    case "region": {
+      const r = wine.region || "Unknown";
+      const short = r.length > 6 ? r.slice(0, 5) + "." : r;
+      return { title: r, shortLabel: short };
+    }
+    case "vintage": {
+      const v = wine.vintage ? String(wine.vintage) : "N/A";
+      return { title: v, shortLabel: v.slice(-2) || v };
+    }
+    case "value": {
+      const val = wine.avg_value || 0;
+      if (val <= 25) return { title: "$0 – $25", shortLabel: "<25" };
+      if (val <= 50) return { title: "$25 – $50", shortLabel: "<50" };
+      if (val <= 100) return { title: "$50 – $100", shortLabel: "<100" };
+      if (val <= 200) return { title: "$100 – $200", shortLabel: "<200" };
+      return { title: "$200+", shortLabel: "200+" };
+    }
+    case "quantity": {
+      const q = wine.bottle_count || 0;
+      if (q <= 1) return { title: "1 Bottle", shortLabel: "1" };
+      if (q <= 3) return { title: "2 – 3 Bottles", shortLabel: "2-3" };
+      if (q <= 6) return { title: "4 – 6 Bottles", shortLabel: "4-6" };
+      return { title: "7+ Bottles", shortLabel: "7+" };
+    }
+    case "community_score":
+    case "score": {
+      const s = wine.ct_community_score || 0;
+      if (s === 0) return { title: "Unrated", shortLabel: "N/A" };
+      if (s < 85) return { title: "Under 85", shortLabel: "<85" };
+      if (s < 90) return { title: "85 – 89", shortLabel: "85" };
+      if (s < 95) return { title: "90 – 94", shortLabel: "90" };
+      return { title: "95+", shortLabel: "95+" };
+    }
+    case "drink_window_start":
+    case "drinkWindow": {
+      const now = new Date().getFullYear();
+      const start = wine.drink_window_start;
+      const end = wine.drink_window_end;
+      if (!start && !end) return { title: "No Window", shortLabel: "N/A" };
+      if (end && end < now) return { title: "Past Peak", shortLabel: "Past" };
+      if (start && start > now) return { title: "Too Early", shortLabel: "Wait" };
+      return { title: "In Window", shortLabel: "Now" };
+    }
+    default: {
+      const letter = (wine.producer || "?")[0].toUpperCase();
+      return { title: letter, shortLabel: letter };
+    }
+  }
+}
+
+function groupWinesIntoSections(wines: WineListItem[], sortField: string): Section[] {
+  const sectionMap = new Map<string, Section>();
+  const order: string[] = [];
+
+  for (const wine of wines) {
+    const { title, shortLabel } = getSectionKey(wine, sortField);
+    if (!sectionMap.has(title)) {
+      sectionMap.set(title, { title, shortLabel, data: [] });
+      order.push(title);
+    }
+    sectionMap.get(title)!.data.push(wine);
+  }
+
+  return order.map((key) => sectionMap.get(key)!);
+}
+
+function SectionScrubber({
+  sections,
+  onSectionPress,
+}: {
+  sections: Section[];
+  onSectionPress: (index: number) => void;
+}) {
+  const containerRef = useRef<View>(null);
+  const [containerHeight, setContainerHeight] = useState(0);
+
+  const onLayout = useCallback((e: LayoutChangeEvent) => {
+    setContainerHeight(e.nativeEvent.layout.height);
+  }, []);
+
+  const getIndexFromY = useCallback(
+    (y: number) => {
+      if (sections.length === 0 || containerHeight === 0) return -1;
+      const itemHeight = containerHeight / sections.length;
+      const idx = Math.floor(y / itemHeight);
+      return Math.max(0, Math.min(idx, sections.length - 1));
+    },
+    [sections.length, containerHeight]
+  );
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (evt) => {
+          const y = evt.nativeEvent.locationY;
+          const idx = getIndexFromY(y);
+          if (idx >= 0) onSectionPress(idx);
+        },
+        onPanResponderMove: (evt) => {
+          const y = evt.nativeEvent.locationY;
+          const idx = getIndexFromY(y);
+          if (idx >= 0) onSectionPress(idx);
+        },
+      }),
+    [getIndexFromY, onSectionPress]
+  );
+
+  if (sections.length <= 1) return null;
+
+  return (
+    <View
+      ref={containerRef}
+      style={styles.scrubberContainer}
+      onLayout={onLayout}
+      {...panResponder.panHandlers}
+    >
+      {sections.map((section, i) => (
+        <Pressable
+          key={section.title}
+          style={styles.scrubberItem}
+          onPress={() => onSectionPress(i)}
+        >
+          <Text style={styles.scrubberText}>{section.shortLabel}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 export default function CellarScreen() {
   const insets = useSafeAreaInsets();
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [searchText, setSearchText] = useState("");
   const isWeb = Platform.OS === "web";
+  const sectionListRef = useRef<SectionList>(null);
 
   const buildQueryString = useCallback(() => {
     const params = new URLSearchParams();
@@ -71,6 +221,11 @@ export default function CellarScreen() {
     queryKey: ["/api/filters"],
   });
 
+  const sections = useMemo(() => {
+    if (!wines || wines.length === 0) return [];
+    return groupWinesIntoSections(wines, filters.sort);
+  }, [wines, filters.sort]);
+
   const handleSearchSubmit = useCallback(() => {
     setFilters((prev) => ({ ...prev, search: searchText }));
   }, [searchText]);
@@ -87,7 +242,27 @@ export default function CellarScreen() {
     />
   ), []);
 
+  const renderSectionHeader = useCallback(({ section }: { section: Section }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionHeaderText}>{section.title}</Text>
+    </View>
+  ), []);
+
   const keyExtractor = useCallback((item: WineListItem) => String(item.id), []);
+
+  const handleScrubberPress = useCallback(
+    (sectionIndex: number) => {
+      if (sectionListRef.current && sectionIndex < sections.length) {
+        sectionListRef.current.scrollToLocation({
+          sectionIndex,
+          itemIndex: 0,
+          viewOffset: 0,
+          animated: false,
+        });
+      }
+    },
+    [sections.length]
+  );
 
   return (
     <View style={styles.screen}>
@@ -115,44 +290,51 @@ export default function CellarScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={wines || []}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={
-          <>
-            <StatsBar stats={stats} isLoading={statsLoading} />
-            <FilterPanel
-              filters={filters}
-              onChange={setFilters}
-              options={filterOptions}
-              isExpanded={filtersExpanded}
-              onToggle={() => setFiltersExpanded(!filtersExpanded)}
-            />
-          </>
-        }
-        ListEmptyComponent={
-          isLoading ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color={Colors.light.tint} />
-            </View>
-          ) : (
-            <View style={styles.centered}>
-              <Ionicons name="wine-outline" size={48} color={Colors.light.tabIconDefault} />
-              <Text style={styles.emptyTitle}>No wines found</Text>
-              <Text style={styles.emptyText}>Import your CellarTracker CSV or add wines manually</Text>
-            </View>
-          )
-        }
-        refreshControl={
-          <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={Colors.light.tint} />
-        }
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
-        ]}
-        scrollEnabled={!!(wines && wines.length > 0)}
-      />
+      <View style={styles.listWrapper}>
+        <SectionList
+          ref={sectionListRef}
+          sections={sections}
+          renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
+          keyExtractor={keyExtractor}
+          stickySectionHeadersEnabled={false}
+          ListHeaderComponent={
+            <>
+              <StatsBar stats={stats} isLoading={statsLoading} />
+              <FilterPanel
+                filters={filters}
+                onChange={setFilters}
+                options={filterOptions}
+                isExpanded={filtersExpanded}
+                onToggle={() => setFiltersExpanded(!filtersExpanded)}
+              />
+            </>
+          }
+          ListEmptyComponent={
+            isLoading ? (
+              <View style={styles.centered}>
+                <ActivityIndicator size="large" color={Colors.light.tint} />
+              </View>
+            ) : (
+              <View style={styles.centered}>
+                <Ionicons name="wine-outline" size={48} color={Colors.light.tabIconDefault} />
+                <Text style={styles.emptyTitle}>No wines found</Text>
+                <Text style={styles.emptyText}>Import your CellarTracker CSV or add wines manually</Text>
+              </View>
+            )
+          }
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={Colors.light.tint} />
+          }
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
+          ]}
+          scrollEnabled={sections.length > 0}
+          onScrollToIndexFailed={() => {}}
+        />
+        <SectionScrubber sections={sections} onSectionPress={handleScrubberPress} />
+      </View>
     </View>
   );
 }
@@ -199,8 +381,45 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     padding: 0,
   },
+  listWrapper: {
+    flex: 1,
+  },
   listContent: {
     flexGrow: 1,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+    backgroundColor: Colors.light.background,
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.tint,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.8,
+  },
+  scrubberContainer: {
+    position: "absolute" as const,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 28,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    paddingVertical: 8,
+  },
+  scrubberItem: {
+    flex: 1,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    minHeight: 14,
+  },
+  scrubberText: {
+    fontSize: 9,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
   },
   centered: {
     flex: 1,
