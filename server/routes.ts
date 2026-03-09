@@ -112,6 +112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       country,
       varietal,
       drinkWindow,
+      location_filter,
       minValue,
       maxValue,
       inStock = "true",
@@ -165,6 +166,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (dwClauses.length > 0) {
         whereClauses.push(`(${dwClauses.join(" OR ")})`);
       }
+    }
+
+    if (location_filter) {
+      const locs = (location_filter as string).split(",");
+      whereClauses.push(
+        `w.id IN (SELECT b3.wine_id FROM bottles b3 WHERE b3.status = 'in_cellar' AND b3.location IN (${locs.map(() => "?").join(",")}))`
+      );
+      params.push(...locs);
     }
 
     const havingClauses: string[] = [];
@@ -358,10 +367,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const regions = db.prepare("SELECT DISTINCT region FROM wines WHERE region IS NOT NULL ORDER BY region").all();
     const countries = db.prepare("SELECT DISTINCT country FROM wines WHERE country IS NOT NULL ORDER BY country").all();
     const varietals = db.prepare("SELECT DISTINCT varietal FROM wines WHERE varietal IS NOT NULL ORDER BY varietal").all();
+    const locations = db.prepare("SELECT DISTINCT location FROM bottles WHERE location IS NOT NULL AND status = 'in_cellar' ORDER BY location").all();
     res.json({
       colors: (colors as any[]).map((c) => c.color),
       regions: (regions as any[]).map((r) => r.region),
       countries: (countries as any[]).map((c) => c.country),
+      locations: (locations as any[]).map((l) => l.location),
       varietals: (varietals as any[]).map((v) => v.varietal),
     });
   });

@@ -10,6 +10,7 @@ export interface FilterState {
   country: string;
   varietal: string;
   drinkWindow: string[];
+  locations: string[];
   minValue: string;
   maxValue: string;
   inStock: boolean;
@@ -42,7 +43,6 @@ const SORT_OPTIONS = [
   { value: "color", label: "Color" },
   { value: "region", label: "Region" },
   { value: "community_score", label: "Score" },
-  { value: "location", label: "Location" },
 ];
 
 export default function FilterPanel({ filters, onChange, options, isExpanded, onToggle }: FilterPanelProps) {
@@ -60,12 +60,22 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
     onChange({ ...filters, drinkWindow: next });
   };
 
+  const toggleLocation = (v: string) => {
+    const next = filters.locations.includes(v)
+      ? filters.locations.filter((x) => x !== v)
+      : [...filters.locations, v];
+    onChange({ ...filters, locations: next });
+  };
+
+  const locationOptions = options?.locations || [];
+
   const activeCount =
     filters.colors.length +
     (filters.region ? 1 : 0) +
     (filters.country ? 1 : 0) +
     (filters.varietal ? 1 : 0) +
     filters.drinkWindow.length +
+    filters.locations.length +
     (filters.minValue ? 1 : 0) +
     (filters.maxValue ? 1 : 0) +
     (!filters.inStock ? 1 : 0);
@@ -116,6 +126,23 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
               </Pressable>
             ))}
           </View>
+
+          {locationOptions.length > 0 ? (
+            <>
+              <Text style={styles.sectionLabel}>Location</Text>
+              <View style={styles.chipRow}>
+                {locationOptions.map((loc) => (
+                  <Pressable
+                    key={loc}
+                    style={[styles.chip, filters.locations.includes(loc) && styles.chipActive]}
+                    onPress={() => toggleLocation(loc)}
+                  >
+                    <Text style={[styles.chipText, filters.locations.includes(loc) && styles.chipTextActive]}>{loc}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
 
           <Text style={styles.sectionLabel}>Value Range</Text>
           <View style={styles.rangeRow}>
@@ -174,7 +201,7 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
               style={styles.clearBtn}
               onPress={() => onChange({
                 colors: [], region: "", country: "", varietal: "",
-                drinkWindow: [], minValue: "", maxValue: "", inStock: true,
+                drinkWindow: [], locations: [], minValue: "", maxValue: "", inStock: true,
                 search: filters.search, sort: "producer", order: "asc",
               })}
             >

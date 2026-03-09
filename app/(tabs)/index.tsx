@@ -29,6 +29,7 @@ const DEFAULT_FILTERS: FilterState = {
   country: "",
   varietal: "",
   drinkWindow: [],
+  locations: [],
   minValue: "",
   maxValue: "",
   inStock: true,
@@ -85,11 +86,6 @@ function getSectionKey(wine: WineListItem, sortField: string): { title: string; 
       if (s < 90) return { title: "85 – 89", shortLabel: "85" };
       if (s < 95) return { title: "90 – 94", shortLabel: "90" };
       return { title: "95+", shortLabel: "95+" };
-    }
-    case "location": {
-      const loc = wine.primary_location;
-      if (!loc) return { title: "No Location", shortLabel: "N/A" };
-      return { title: loc, shortLabel: loc[0] };
     }
     case "drink_window_start":
     case "drinkWindow": {
@@ -270,6 +266,7 @@ export default function CellarScreen() {
     if (filters.country) params.set("country", filters.country);
     if (filters.varietal) params.set("varietal", filters.varietal);
     if (filters.drinkWindow.length > 0) params.set("drinkWindow", filters.drinkWindow.join(","));
+    if (filters.locations.length > 0) params.set("location_filter", filters.locations.join(","));
     if (filters.minValue) params.set("minValue", filters.minValue);
     if (filters.maxValue) params.set("maxValue", filters.maxValue);
     if (filters.search) params.set("search", filters.search);

@@ -58,6 +58,7 @@ export interface FilterOptions {
   regions: string[];
   countries: string[];
   varietals: string[];
+  locations: string[];
 }
 
 export interface ConsumptionEntry {
