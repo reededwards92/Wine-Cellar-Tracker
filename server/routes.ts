@@ -368,6 +368,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(logs);
   });
 
+  app.delete("/api/consumption", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "ids array required" });
+    }
+
+    const placeholders = ids.map(() => "?").join(",");
+    const entries = db.prepare(
+      `SELECT id, bottle_id FROM consumption_log WHERE id IN (${placeholders}) AND user_id = ?`
+    ).all(...ids, userId) as any[];
+
+    if (entries.length === 0) {
+      return res.status(404).json({ error: "No matching entries found" });
+    }
+
+    const deleteEntries = db.transaction(() => {
+      db.prepare(
+        `DELETE FROM consumption_log WHERE id IN (${placeholders}) AND user_id = ?`
+      ).run(...ids, userId);
+
+      for (const entry of entries) {
+        if (entry.bottle_id) {
+          db.prepare(
+            `DELETE FROM bottles WHERE id = ? AND user_id = ? AND status = 'consumed'`
+          ).run(entry.bottle_id, userId);
+        }
+      }
+    });
+
+    deleteEntries();
+    res.json({ deleted: entries.length });
+  });
+
   app.get("/api/filters", requireAuth, (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const colors = db.prepare("SELECT DISTINCT color FROM wines WHERE color IS NOT NULL AND user_id = ? ORDER BY color").all(userId);
