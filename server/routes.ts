@@ -174,9 +174,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (location_filter) {
       const locs = (location_filter as string).split(",");
       whereClauses.push(
-        `w.id IN (SELECT b3.wine_id FROM bottles b3 WHERE b3.status = 'in_cellar' AND b3.location IN (${locs.map(() => "?").join(",")}))`
+        `w.id IN (SELECT b3.wine_id FROM bottles b3 WHERE b3.status = 'in_cellar' AND b3.user_id = ? AND b3.location IN (${locs.map(() => "?").join(",")}))`
       );
-      params.push(...locs);
+      params.push(userId, ...locs);
     }
 
     const havingClauses: string[] = [];
@@ -215,9 +215,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         COUNT(CASE WHEN b.status = 'in_cellar' THEN 1 END) as bottle_count,
         COALESCE(AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) as avg_value,
         COALESCE(SUM(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) as total_value,
-        (SELECT b2.location FROM bottles b2 WHERE b2.wine_id = w.id AND b2.status = 'in_cellar' AND b2.location IS NOT NULL LIMIT 1) as primary_location
+        (SELECT b2.location FROM bottles b2 WHERE b2.wine_id = w.id AND b2.status = 'in_cellar' AND b2.user_id = w.user_id AND b2.location IS NOT NULL LIMIT 1) as primary_location
       FROM wines w
-      LEFT JOIN bottles b ON w.id = b.wine_id
+      LEFT JOIN bottles b ON w.id = b.wine_id AND b.user_id = w.user_id
       ${whereStr}
       GROUP BY w.id
       ${havingStr}

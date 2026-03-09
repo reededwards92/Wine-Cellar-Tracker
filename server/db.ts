@@ -20,7 +20,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS wines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ct_wine_id INTEGER UNIQUE,
+    ct_wine_id INTEGER,
     producer TEXT NOT NULL,
     wine_name TEXT NOT NULL,
     vintage INTEGER,
@@ -46,7 +46,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS bottles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     wine_id INTEGER NOT NULL REFERENCES wines(id),
-    ct_inventory_id INTEGER UNIQUE,
+    ct_inventory_id INTEGER,
     ct_barcode TEXT,
     purchase_date TEXT,
     purchase_price REAL,
@@ -76,11 +76,11 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE INDEX IF NOT EXISTS idx_wines_ct_wine_id ON wines(ct_wine_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_wines_ct_wine_id_user ON wines(ct_wine_id, user_id) WHERE ct_wine_id IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_wines_user_id ON wines(user_id);
   CREATE INDEX IF NOT EXISTS idx_bottles_wine_id ON bottles(wine_id);
   CREATE INDEX IF NOT EXISTS idx_bottles_status ON bottles(status);
-  CREATE INDEX IF NOT EXISTS idx_bottles_ct_inventory_id ON bottles(ct_inventory_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_bottles_ct_inventory_id_user ON bottles(ct_inventory_id, user_id) WHERE ct_inventory_id IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_bottles_user_id ON bottles(user_id);
   CREATE INDEX IF NOT EXISTS idx_consumption_log_wine_id ON consumption_log(wine_id);
   CREATE INDEX IF NOT EXISTS idx_consumption_log_user_id ON consumption_log(user_id);
