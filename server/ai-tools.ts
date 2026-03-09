@@ -55,9 +55,7 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
         quantity: { type: "number", description: "Number of bottles to add (default 1)" },
         purchase_price: { type: "number" },
         estimated_value: { type: "number" },
-        store: { type: "string", description: "Where purchased" },
-        location: { type: "string", description: "Storage location" },
-        bin: { type: "string", description: "Specific bin/slot" },
+        location: { type: "string", description: "Storage location: Rack, Cabinet, or Fridge" },
         size: { type: "string", description: "Bottle size (default 750ml)" },
         notes: { type: "string" },
       },
@@ -74,9 +72,7 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
         quantity: { type: "number", description: "Number of bottles to add (default 1)" },
         purchase_price: { type: "number" },
         estimated_value: { type: "number" },
-        store: { type: "string" },
-        location: { type: "string" },
-        bin: { type: "string" },
+        location: { type: "string", description: "Storage location: Rack, Cabinet, or Fridge" },
         size: { type: "string" },
         notes: { type: "string" },
       },
@@ -110,17 +106,15 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "update_bottle",
-    description: "Update a specific bottle's details (location, bin, notes, etc.).",
+    description: "Update a specific bottle's details (location, notes, etc.).",
     input_schema: {
       type: "object" as const,
       properties: {
         bottle_id: { type: "number", description: "The bottle ID to update" },
-        location: { type: "string" },
-        bin: { type: "string" },
+        location: { type: "string", description: "Storage location: Rack, Cabinet, or Fridge" },
         notes: { type: "string" },
         estimated_value: { type: "number" },
         purchase_price: { type: "number" },
-        store: { type: "string" },
       },
       required: ["bottle_id"],
     },
@@ -298,14 +292,13 @@ function addWine(input: any): string {
   const qty = input.quantity || 1;
 
   const bottleInsert = db.prepare(`
-    INSERT INTO bottles (wine_id, purchase_price, estimated_value, store, location, bin, size, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO bottles (wine_id, purchase_price, estimated_value, location, size, notes)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   for (let i = 0; i < qty; i++) {
     bottleInsert.run(wineId, input.purchase_price || null, input.estimated_value || null,
-      input.store || null, input.location || null, input.bin || null,
-      input.size || "750ml", input.notes || null);
+      input.location || null, input.size || "750ml", input.notes || null);
   }
 
   return JSON.stringify({ success: true, wine_id: wineId, bottles_added: qty, message: `Added ${input.producer} ${input.wine_name}${input.vintage ? ` ${input.vintage}` : ""} with ${qty} bottle(s)` });
@@ -317,14 +310,13 @@ function addBottles(input: any): string {
 
   const qty = input.quantity || 1;
   const bottleInsert = db.prepare(`
-    INSERT INTO bottles (wine_id, purchase_price, estimated_value, store, location, bin, size, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO bottles (wine_id, purchase_price, estimated_value, location, size, notes)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   for (let i = 0; i < qty; i++) {
     bottleInsert.run(input.wine_id, input.purchase_price || null, input.estimated_value || null,
-      input.store || null, input.location || null, input.bin || null,
-      input.size || "750ml", input.notes || null);
+      input.location || null, input.size || "750ml", input.notes || null);
   }
 
   return JSON.stringify({ success: true, message: `Added ${qty} bottle(s) of ${wine.producer} ${wine.wine_name}` });
@@ -358,7 +350,7 @@ function updateBottle(input: any): string {
   const bottle = db.prepare("SELECT * FROM bottles WHERE id = ?").get(input.bottle_id);
   if (!bottle) return JSON.stringify({ error: "Bottle not found" });
 
-  const fields = ["location", "bin", "notes", "estimated_value", "purchase_price", "store"];
+  const fields = ["location", "notes", "estimated_value", "purchase_price"];
   const updates: string[] = [];
   const values: any[] = [];
 

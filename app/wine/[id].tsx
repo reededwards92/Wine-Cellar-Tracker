@@ -48,7 +48,6 @@ function BottleCard({ bottle, onConsume }: { bottle: Bottle; onConsume: () => vo
       {bottle.location ? (
         <Text style={styles.bottleMeta}>
           <Ionicons name="location-outline" size={12} color={Colors.light.textSecondary} /> {bottle.location}
-          {bottle.bin ? ` / ${bottle.bin}` : ""}
         </Text>
       ) : null}
       {bottle.estimated_value ? (
@@ -56,9 +55,6 @@ function BottleCard({ bottle, onConsume }: { bottle: Bottle; onConsume: () => vo
       ) : null}
       {bottle.purchase_date ? (
         <Text style={styles.bottleMeta}>Purchased: {bottle.purchase_date}</Text>
-      ) : null}
-      {bottle.store ? (
-        <Text style={styles.bottleMeta}>From: {bottle.store}</Text>
       ) : null}
       {bottle.notes ? (
         <Text style={styles.bottleNotes}>{bottle.notes}</Text>

@@ -59,9 +59,7 @@ const EMPTY_FORM = {
   purchase_date: "",
   purchase_price: "",
   estimated_value: "",
-  store: "",
   location: "",
-  bin: "",
   size: "750ml",
   notes: "",
 };
@@ -163,9 +161,7 @@ export default function AddWineScreen() {
         purchase_date: form.purchase_date || null,
         purchase_price: form.purchase_price ? parseFloat(form.purchase_price) : null,
         estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
-        store: form.store || null,
         location: form.location || null,
-        bin: form.bin || null,
         size: form.size || "750ml",
         notes: form.notes || null,
       };
@@ -353,21 +349,19 @@ export default function AddWineScreen() {
               </FormField>
             </View>
           </View>
-          <FormField label="Store">
-            <TextInput style={styles.input} value={form.store} onChangeText={(v) => update("store", v)} placeholder="Wine shop name" placeholderTextColor={Colors.light.tabIconDefault} />
+          <FormField label="Location">
+            <View style={styles.locationRow}>
+              {["Rack", "Cabinet", "Fridge"].map((opt) => (
+                <Pressable
+                  key={opt}
+                  style={[styles.locationOption, form.location === opt && styles.locationOptionActive]}
+                  onPress={() => update("location", form.location === opt ? "" : opt)}
+                >
+                  <Text style={[styles.locationOptionText, form.location === opt && styles.locationOptionTextActive]}>{opt}</Text>
+                </Pressable>
+              ))}
+            </View>
           </FormField>
-          <View style={styles.row}>
-            <View style={styles.halfField}>
-              <FormField label="Location">
-                <TextInput style={styles.input} value={form.location} onChangeText={(v) => update("location", v)} placeholder="Cellar" placeholderTextColor={Colors.light.tabIconDefault} />
-              </FormField>
-            </View>
-            <View style={styles.halfField}>
-              <FormField label="Bin">
-                <TextInput style={styles.input} value={form.bin} onChangeText={(v) => update("bin", v)} placeholder="A1" placeholderTextColor={Colors.light.tabIconDefault} />
-              </FormField>
-            </View>
-          </View>
           <FormField label="Notes">
             <TextInput style={[styles.input, styles.textArea]} value={form.notes} onChangeText={(v) => update("notes", v)} placeholder="Tasting notes, purchase details..." placeholderTextColor={Colors.light.tabIconDefault} multiline numberOfLines={3} textAlignVertical="top" />
           </FormField>
@@ -519,6 +513,31 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   colorChipTextActive: {
+    color: "#fff",
+  },
+  locationRow: {
+    flexDirection: "row" as const,
+    gap: 8,
+  },
+  locationOption: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.cardBackground,
+    alignItems: "center" as const,
+  },
+  locationOptionActive: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  locationOptionText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: Colors.light.text,
+  },
+  locationOptionTextActive: {
     color: "#fff",
   },
   submitContainer: {

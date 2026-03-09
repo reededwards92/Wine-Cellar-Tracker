@@ -222,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/wines", (req: Request, res: Response) => {
-    const { quantity = 1, purchase_date, purchase_price, estimated_value, store, location, bin, size, notes, ...wineData } = req.body;
+    const { quantity = 1, purchase_date, purchase_price, estimated_value, location, size, notes, ...wineData } = req.body;
 
     const wineInsert = db.prepare(`
       INSERT INTO wines (producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, critic_scores)
@@ -241,12 +241,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const wineId = result.lastInsertRowid;
 
     const bottleInsert = db.prepare(`
-      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, store, location, bin, size, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (let i = 0; i < (quantity || 1); i++) {
-      bottleInsert.run(wineId, purchase_date || null, purchase_price || null, estimated_value || null, store || null, location || null, bin || null, size || "750ml", notes || null);
+      bottleInsert.run(wineId, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null);
     }
 
     const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(wineId);
@@ -282,15 +282,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(req.params.id);
     if (!wine) return res.status(404).json({ error: "Wine not found" });
 
-    const { quantity = 1, purchase_date, purchase_price, estimated_value, store, location, bin, size, notes } = req.body;
+    const { quantity = 1, purchase_date, purchase_price, estimated_value, location, size, notes } = req.body;
 
     const bottleInsert = db.prepare(`
-      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, store, location, bin, size, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (let i = 0; i < quantity; i++) {
-      bottleInsert.run(req.params.id, purchase_date || null, purchase_price || null, estimated_value || null, store || null, location || null, bin || null, size || "750ml", notes || null);
+      bottleInsert.run(req.params.id, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null);
     }
 
     res.status(201).json({ message: `Added ${quantity} bottle(s)` });
@@ -300,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const bottle = db.prepare("SELECT * FROM bottles WHERE id = ?").get(req.params.id);
     if (!bottle) return res.status(404).json({ error: "Bottle not found" });
 
-    const fields = ["purchase_date", "purchase_price", "estimated_value", "store", "location", "bin", "size", "notes", "status"];
+    const fields = ["purchase_date", "purchase_price", "estimated_value", "location", "size", "notes", "status"];
     const updates: string[] = [];
     const values: any[] = [];
 
@@ -401,8 +401,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     `);
 
     const insertBottle = db.prepare(`
-      INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, store, location, bin, size)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, location, size)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const findWineByCt = db.prepare("SELECT id FROM wines WHERE ct_wine_id = ?");
@@ -495,9 +495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             parseDate(row.PurchaseDate),
             price && price > 0 ? price : null,
             parseNumber(row.Value),
-            cleanValue(row.StoreName),
             cleanValue(row.Location),
-            cleanValue(row.Bin),
             cleanValue(row.Size) || "750ml"
           );
           bottlesCreated++;
