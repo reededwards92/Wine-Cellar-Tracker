@@ -75,10 +75,13 @@ export default function AddWineScreen() {
   const update = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
 
   const launchCamera = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Camera access needed", "Please enable camera access in your device settings to scan wine bottles.");
-      return;
+    const current = await ImagePicker.getCameraPermissionsAsync();
+    if (current.status !== "granted") {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Camera access needed", "Please enable camera access in your device settings to scan wine bottles.");
+        return;
+      }
     }
 
     const result = await ImagePicker.launchCameraAsync({
