@@ -7,10 +7,59 @@ import iconv from "iconv-lite";
 import Anthropic from "@anthropic-ai/sdk";
 import { CELLAR_TOOLS, executeTool } from "./ai-tools";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-});
+async function callAnthropic(params: {
+  model: string;
+  max_tokens: number;
+  system?: string;
+  tools?: Anthropic.Tool[];
+  messages: Anthropic.MessageParam[];
+}): Promise<Anthropic.Message> {
+  const rawBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || "https://api.anthropic.com";
+  const baseURL = rawBaseURL.replace("localhost", "127.0.0.1");
+  const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || "";
+  const url = `${baseURL}/v1/messages`;
+  const body = JSON.stringify(params);
+
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const isHttps = parsed.protocol === "https:";
+    const transport = isHttps ? require("https") : require("http");
+    const defaultPort = isHttps ? 443 : 80;
+
+    const req = transport.request({
+      hostname: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port) : defaultPort,
+      path: parsed.pathname,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Length": Buffer.byteLength(body),
+      },
+      timeout: 60000,
+    }, (res: any) => {
+      let data = "";
+      res.on("data", (chunk: any) => { data += chunk; });
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(new Error("Failed to parse AI response"));
+          }
+        } else {
+          reject(new Error(`Anthropic API error ${res.statusCode}: ${data.substring(0, 200)}`));
+        }
+      });
+    });
+
+    req.on("timeout", () => req.destroy(new Error("Request timed out")));
+    req.on("error", (e: any) => reject(e));
+    req.write(body);
+    req.end();
+  });
+}
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -505,7 +554,7 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
       const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       const mediaType = allowedTypes.includes(mimeType) ? mimeType : "image/jpeg";
 
-      const response = await anthropic.messages.create({
+      const response = await callAnthropic({
         model: "claude-sonnet-4-6",
         max_tokens: 2048,
         messages: [
@@ -582,7 +631,9 @@ Be accurate — only include what you can clearly read from the label. For color
 
   app.post("/api/chat", async (req: Request, res: Response) => {
     let clientDisconnected = false;
-    req.on("close", () => { clientDisconnected = true; });
+    res.on("close", () => {
+      clientDisconnected = true;
+    });
 
     try {
       const { messages: chatMessages, location } = req.body;
@@ -594,7 +645,9 @@ Be accurate — only include what you can clearly read from the label. For color
       res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("X-Accel-Buffering", "no");
       res.setHeader("Connection", "keep-alive");
+      (res.socket as any)?.setNoDelay?.(true);
       res.flushHeaders();
+      res.write(":ok\n\n");
 
       let systemPrompt = SYSTEM_PROMPT;
       if (location && location.latitude && location.longitude) {
@@ -637,8 +690,7 @@ Be accurate — only include what you can clearly read from the label. For color
 
       while (continueLoop && iterations < MAX_TOOL_ITERATIONS && !clientDisconnected) {
         iterations++;
-
-        const response = await anthropic.messages.create({
+        const response = await callAnthropic({
           model: "claude-sonnet-4-6",
           max_tokens: 4096,
           system: systemPrompt,

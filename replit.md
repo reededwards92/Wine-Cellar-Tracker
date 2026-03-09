@@ -15,6 +15,8 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - Client communicates with server via RESTful API
 - SQLite database stored at `cellar.db` in project root
 - AI chat uses SSE streaming with `expo/fetch` for cross-platform support
+- AI calls use raw `http.request` (not Anthropic SDK) to avoid SDK hanging issues; `localhost` replaced with `127.0.0.1` for IPv4 compatibility
+- SSE disconnect detection uses `res.on("close")` (NOT `req.on("close")` which fires prematurely)
 
 ## Database Tables
 - **wines**: Unique wine records (producer + name + vintage)
