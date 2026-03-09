@@ -11,7 +11,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -94,18 +93,28 @@ export default function SettingsScreen() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else {
-        const fileUri = FileSystem.documentDirectory + "vin-cellar-export.xlsx";
-        const downloadResult = await FileSystem.downloadAsync(exportUrl, fileUri, {
+        const res = await fetch(exportUrl, {
           headers: currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {},
         });
+        if (!res.ok) throw new Error("Export failed");
+        const blob = await res.blob();
 
-        if (downloadResult.status !== 200) {
-          throw new Error("Export download failed");
-        }
+        const { File, Paths } = await import("expo-file-system/next");
+        const filePath = new File(Paths.cache, "vin-cellar-export.xlsx");
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(",")[1]);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        filePath.write(base64, { encoding: "base64" });
 
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
-          await Sharing.shareAsync(fileUri, {
+          await Sharing.shareAsync(filePath.uri, {
             mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             dialogTitle: "Export Cellar Data",
           });
