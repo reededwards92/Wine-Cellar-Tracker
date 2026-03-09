@@ -96,9 +96,6 @@ function ConsumptionCard({ entry, onPress }: { entry: ConsumptionEntry; onPress:
           <Text style={styles.pairingText}>{entry.paired_with}</Text>
         </View>
       ) : null}
-      <View style={styles.chevronRow}>
-        <Ionicons name="chevron-forward" size={16} color={Colors.light.tabIconDefault} />
-      </View>
     </Pressable>
   );
 }
@@ -282,13 +279,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
-  },
-  chevronRow: {
-    position: "absolute" as const,
-    right: 12,
-    top: 0,
-    bottom: 0,
-    justifyContent: "center",
   },
   centered: {
     flex: 1,
