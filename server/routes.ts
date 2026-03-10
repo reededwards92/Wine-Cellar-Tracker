@@ -466,6 +466,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ deleted: entries.length });
   });
 
+  app.post("/api/consumption/undo", requireAuth, (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    const { bottle_id } = req.body;
+    if (!bottle_id) return res.status(400).json({ error: "bottle_id required" });
+
+    const bottle = db.prepare(
+      "SELECT * FROM bottles WHERE id = ? AND user_id = ? AND status = 'consumed'"
+    ).get(bottle_id, userId) as any;
+    if (!bottle) return res.status(404).json({ error: "Consumed bottle not found" });
+
+    const undoConsumption = db.transaction(() => {
+      db.prepare("UPDATE bottles SET status = 'in_cellar', consumed_date = NULL, occasion = NULL, rating = NULL WHERE id = ? AND user_id = ?")
+        .run(bottle_id, userId);
+      db.prepare("DELETE FROM consumption_log WHERE bottle_id = ? AND user_id = ?")
+        .run(bottle_id, userId);
+    });
+
+    undoConsumption();
+    res.json({ success: true });
+  });
+
   app.get("/api/storage-locations", requireAuth, (req: AuthRequest, res: Response) => {
     const locations = db.prepare(
       "SELECT * FROM storage_locations WHERE user_id = ? ORDER BY sort_order ASC, id ASC"
@@ -1239,6 +1260,14 @@ Be accurate — only include what you can clearly read from the label. For color
           } else if (block.type === "tool_use") {
             res.write(`data: ${JSON.stringify({ tool_call: block.name })}\n\n`);
             const result = await executeTool(block.name, block.input, (req as AuthRequest).userId);
+            if (block.name === "consume_bottle") {
+              try {
+                const parsed = JSON.parse(result);
+                if (parsed.success) {
+                  res.write(`data: ${JSON.stringify({ consumption_completed: { bottle_id: block.input.bottle_id, message: parsed.message } })}\n\n`);
+                }
+              } catch {}
+            }
             toolResults.push({
               type: "tool_result",
               tool_use_id: block.id,

@@ -15,7 +15,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.cellar.app"
+      "bundleIdentifier": "com.cellar.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Vin uses the camera to scan wine bottle labels so you can quickly add wines to your cellar.",
+        "NSPhotoLibraryUsageDescription": "Vin accesses your photo library so you can select wine label images to identify and catalog wines.",
+        "NSLocationWhenInUseUsageDescription": "Vin uses your location to check local weather conditions and provide personalized wine pairing recommendations from your AI Sommelier.",
+        "NSFaceIDUsageDescription": "Vin uses Face ID to securely sign you in without entering your password."
+      }
     },
     "android": {
       "package": "com.cellar.app",
@@ -35,7 +41,19 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Vin uses the camera to scan wine bottle labels so you can quickly add wines to your cellar."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Vin uses your location to check local weather conditions and provide personalized wine pairing recommendations from your AI Sommelier."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

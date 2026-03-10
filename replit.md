@@ -82,7 +82,8 @@ All data routes require `Authorization: Bearer <token>` header:
 - `GET /api/consumption` - Consumption history
 - `GET /api/consumption/stats` - Consumption analytics (totals, color breakdown, monthly trend)
 - `DELETE /api/consumption` - Bulk delete consumption records (body: {ids: number[]})
-- `POST /api/chat` - AI sommelier chat (SSE streaming)
+- `POST /api/consumption/undo` - Undo a bottle consumption (restores bottle to cellar)
+- `POST /api/chat` - AI sommelier chat (SSE streaming, sends consumption_completed events with undo support)
 - `POST /api/analyze-wine-image` - Wine label analysis
 
 ## File Structure

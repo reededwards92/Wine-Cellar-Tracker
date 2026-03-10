@@ -64,6 +64,12 @@ export default function SommelierScreen() {
   const [locationStatus, setLocationStatus] = useState<
     "pending" | "granted" | "denied" | "unavailable"
   >("pending");
+  const [undoToast, setUndoToast] = useState<{
+    bottle_id: number;
+    message: string;
+  } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     (async () => {
@@ -158,6 +164,59 @@ export default function SommelierScreen() {
     }
   };
 
+  const showUndoToast = (data: { bottle_id: number; message: string }) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoToast(data);
+    Animated.timing(undoFadeAnim, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    undoTimerRef.current = setTimeout(() => {
+      Animated.timing(undoFadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => setUndoToast(null));
+    }, 8000);
+  };
+
+  const handleUndo = async () => {
+    if (!undoToast) return;
+    const bottleId = undoToast.bottle_id;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    Animated.timing(undoFadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setUndoToast(null));
+    try {
+      const { apiRequest } = await import("@/lib/query-client");
+      await apiRequest("POST", "/api/consumption/undo", { bottle_id: bottleId });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/consumption"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/consumption/stats"] });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateUniqueId(),
+          role: "assistant",
+          content: "Got it, I've undone that consumption. The bottle is back in your cellar.",
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateUniqueId(),
+          role: "assistant",
+          content: "Sorry, I couldn't undo that consumption. You can restore it from your History tab.",
+        },
+      ]);
+    }
+  };
+
   const handleSend = async () => {
     const text = inputText.trim();
     const image = pendingImage;
@@ -244,6 +303,11 @@ export default function SommelierScreen() {
 
             if (parsed.tool_call) {
               setActiveTools((prev) => [...prev, parsed.tool_call]);
+              continue;
+            }
+
+            if (parsed.consumption_completed) {
+              showUndoToast(parsed.consumption_completed);
               continue;
             }
 
@@ -631,6 +695,17 @@ export default function SommelierScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+      {undoToast ? (
+        <Animated.View style={[styles.undoToast, { opacity: undoFadeAnim }]}>
+          <Ionicons name="wine-outline" size={18} color={Colors.light.white} />
+          <Text style={styles.undoToastText} numberOfLines={2}>
+            {undoToast.message}
+          </Text>
+          <Pressable onPress={handleUndo} style={styles.undoButton}>
+            <Text style={styles.undoButtonText}>Undo</Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -919,5 +994,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.tint,
+  },
+  undoToast: {
+    position: "absolute" as const,
+    bottom: 100,
+    left: 16,
+    right: 16,
+    backgroundColor: "#333",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  undoToastText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.white,
+  },
+  undoButton: {
+    backgroundColor: Colors.light.tint,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  undoButtonText: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.white,
   },
 });

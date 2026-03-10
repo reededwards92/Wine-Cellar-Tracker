@@ -102,12 +102,12 @@ export interface ImportPreview {
 }
 
 export function getDrinkWindowStatus(start: number | null, end: number | null): "in_window" | "approaching" | "past_peak" | "not_set" {
-  if (!start && !end) return "not_set";
+  if (start == null && end == null) return "not_set";
   const currentYear = new Date().getFullYear();
-  if (end && end < currentYear) return "past_peak";
-  if (start && start > currentYear && start <= currentYear + 1) return "approaching";
-  if (start && end && start <= currentYear && end >= currentYear) return "in_window";
-  if (start && start > currentYear + 1) return "approaching";
+  if (end != null && end < currentYear) return "past_peak";
+  if (start != null && start > currentYear && start <= currentYear + 1) return "approaching";
+  if (start != null && end != null && start <= currentYear && end >= currentYear) return "in_window";
+  if (start != null && start > currentYear + 1) return "approaching";
   return "in_window";
 }
 

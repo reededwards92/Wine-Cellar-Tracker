@@ -205,15 +205,15 @@ export default function WineDetailScreen() {
           <InfoRow label="Appellation" value={wine.appellation} />
           <InfoRow label="Designation" value={wine.designation} />
           <InfoRow label="Vineyard" value={wine.vineyard} />
-          {(wine.drink_window_start || wine.drink_window_end) ? (
+          {(wine.drink_window_start != null || wine.drink_window_end != null) ? (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Drink Window</Text>
               <View style={styles.dwRow}>
                 <View style={[styles.dwDotSm, { backgroundColor: dwColor }]} />
                 <Text style={[styles.infoValue, { color: dwColor }]}>
-                  {wine.drink_window_start && wine.drink_window_end
+                  {wine.drink_window_start != null && wine.drink_window_end != null
                     ? `${wine.drink_window_start}–${wine.drink_window_end}`
-                    : wine.drink_window_start
+                    : wine.drink_window_start != null
                       ? `From ${wine.drink_window_start}`
                       : `Until ${wine.drink_window_end}`}
                 </Text>
