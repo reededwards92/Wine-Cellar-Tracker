@@ -13,8 +13,10 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
+import { getApiUrl } from "@/lib/query-client";
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -151,6 +153,28 @@ export default function RegisterScreen() {
             )}
           </Pressable>
 
+          <Text style={styles.legalText}>
+            By creating an account, you agree to our{" "}
+            <Text
+              style={styles.legalLink}
+              onPress={() => {
+                Linking.openURL(new URL("/terms", getApiUrl()).toString());
+              }}
+            >
+              Terms of Service
+            </Text>
+            {" "}and{" "}
+            <Text
+              style={styles.legalLink}
+              onPress={() => {
+                Linking.openURL(new URL("/privacy", getApiUrl()).toString());
+              }}
+            >
+              Privacy Policy
+            </Text>
+            .
+          </Text>
+
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
@@ -281,6 +305,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.white,
+  },
+  legalText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.tabIconDefault,
+    textAlign: "center",
+    marginTop: 16,
+    lineHeight: 18,
+  },
+  legalLink: {
+    color: Colors.light.tint,
+    textDecorationLine: "underline",
   },
   divider: {
     flexDirection: "row",

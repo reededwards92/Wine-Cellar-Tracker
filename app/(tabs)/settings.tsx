@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sharing from "expo-sharing";
+import * as Linking from "expo-linking";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl } from "@/lib/query-client";
@@ -242,6 +243,33 @@ export default function SettingsScreen() {
             icon="information-circle-outline"
             label="Version"
             subtitle="1.0.0"
+          />
+        </SettingsSection>
+
+        <SettingsSection title="Legal">
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Privacy Policy"
+            onPress={() => {
+              const url = new URL("/privacy", getApiUrl()).toString();
+              Linking.openURL(url);
+            }}
+          />
+          <SettingsRow
+            icon="document-text-outline"
+            label="Terms of Service"
+            onPress={() => {
+              const url = new URL("/terms", getApiUrl()).toString();
+              Linking.openURL(url);
+            }}
+          />
+          <SettingsRow
+            icon="help-circle-outline"
+            label="Support"
+            onPress={() => {
+              const url = new URL("/support", getApiUrl()).toString();
+              Linking.openURL(url);
+            }}
           />
         </SettingsSection>
 

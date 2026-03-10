@@ -50,7 +50,10 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - Customizable storage locations (Rack, Fridge, Cabinet, Closet, Cellar, Wine Bar, Garage, Off-site, Other with custom names)
 - Consumption tracking with ratings and notes
 - Drink window status indicators (in window/approaching/past peak)
-- Support page at /support, Privacy policy at /privacy for Apple App Store
+- Support page at /support, Privacy policy at /privacy, Terms of Service at /terms for Apple App Store
+- Legal links (Privacy Policy, Terms of Service, Support) in Settings > Legal section
+- Legal consent text with tappable links on registration page
+- Landing page footer with Privacy Policy, Terms of Service, Support links
 
 ## AI Tools (server/ai-tools.ts)
 The sommelier can execute these database operations via tool-calling (all scoped by user_id):

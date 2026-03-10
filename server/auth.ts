@@ -3,7 +3,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import db from "./db";
 
-const JWT_SECRET = process.env.SESSION_SECRET || "vin-wine-cellar-secret-key";
+if (!process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET environment variable is required");
+}
+const JWT_SECRET = process.env.SESSION_SECRET;
 
 export interface AuthRequest extends Request {
   userId?: number;
