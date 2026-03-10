@@ -27,7 +27,6 @@ export default function LoginScreen() {
     biometricsEnabled,
     biometricType,
     hasStoredSession,
-    biometricFailed,
   } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -118,7 +117,7 @@ export default function LoginScreen() {
                   <>
                     <Ionicons name={biometricIcon} size={28} color={Colors.light.tint} />
                     <Text style={styles.biometricButtonText}>
-                      {biometricFailed ? `Try ${biometricType} again` : `Sign in with ${biometricType}`}
+                      Sign in with {biometricType}
                     </Text>
                   </>
                 )}
