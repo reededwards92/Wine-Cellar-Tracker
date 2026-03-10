@@ -48,9 +48,9 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
+      router.replace("/(tabs)");
     } catch (e: any) {
       setError(e.message || "Login failed");
-    } finally {
       setLoading(false);
     }
   };
@@ -60,9 +60,9 @@ export default function LoginScreen() {
     setBioLoading(true);
     try {
       await loginWithBiometrics();
+      router.replace("/(tabs)");
     } catch (e: any) {
       setError(e.message || "Biometric login failed");
-    } finally {
       setBioLoading(false);
     }
   };

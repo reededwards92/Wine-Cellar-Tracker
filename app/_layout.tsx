@@ -11,9 +11,9 @@ import {
 } from "@expo-google-fonts/libre-baskerville";
 import { useFonts } from "expo-font";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack, Redirect, useSegments } from "expo-router";
+import { Stack, useSegments, useRouter, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -27,23 +27,31 @@ SplashScreen.preventAutoHideAsync();
 function AuthGate() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
+  const router = useRouter();
+  const navigationState = useRootNavigationState();
+  const hasNavigated = useRef(false);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (isLoading) return;
+    if (!navigationState?.key) return;
+
+    const inAuthGroup = segments[0] === "(auth)";
+
+    if (!user && !inAuthGroup) {
+      hasNavigated.current = false;
+      router.replace("/(auth)/login");
+    } else if (user && inAuthGroup && !hasNavigated.current) {
+      hasNavigated.current = true;
+      router.replace("/(tabs)");
+    }
+  }, [user, isLoading, segments, navigationState?.key]);
+
+  if (isLoading || !navigationState?.key) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.light.tint} />
       </View>
     );
-  }
-
-  const inAuthGroup = segments[0] === "(auth)";
-
-  if (!user && !inAuthGroup) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
-  if (user && inAuthGroup) {
-    return <Redirect href="/(tabs)" />;
   }
 
   return (

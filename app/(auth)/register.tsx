@@ -42,9 +42,9 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register(email.trim().toLowerCase(), password, displayName.trim());
+      router.replace("/(tabs)");
     } catch (e: any) {
       setError(e.message || "Registration failed");
-    } finally {
       setLoading(false);
     }
   };
