@@ -17,6 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.cellar.app",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Vin uses the camera to scan wine bottle labels so you can quickly add wines to your cellar.",
         "NSPhotoLibraryUsageDescription": "Vin accesses your photo library so you can select wine label images to identify and catalog wines.",
         "NSLocationWhenInUseUsageDescription": "Vin uses your location to check local weather conditions and provide personalized wine pairing recommendations from your AI Sommelier.",
