@@ -263,20 +263,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const toggleBiometrics = useCallback(async (): Promise<boolean> => {
     if (!biometricsAvailable) return false;
 
-    if (biometricsEnabled) {
-      await setBiometricsEnabled(false);
-      setBiometricsEnabledState(false);
-      return false;
-    }
-
-    const success = await authenticateWithBiometrics("Verify to enable " + biometricType);
-    if (success) {
-      await setBiometricsEnabled(true);
-      setBiometricsEnabledState(true);
-      return true;
-    }
-    return false;
-  }, [biometricsAvailable, biometricsEnabled, biometricType]);
+    const newValue = !biometricsEnabled;
+    await setBiometricsEnabled(newValue);
+    setBiometricsEnabledState(newValue);
+    return newValue;
+  }, [biometricsAvailable, biometricsEnabled]);
 
   return (
     <AuthContext.Provider value={{

@@ -66,7 +66,14 @@ function SettingsRow({
   );
 
   if (toggle) {
-    return <View style={styles.row}>{content}</View>;
+    return (
+      <Pressable
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+        onPress={() => onToggle?.(!toggleValue)}
+      >
+        {content}
+      </Pressable>
+    );
   }
 
   return (
