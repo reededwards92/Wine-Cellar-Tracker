@@ -37,12 +37,8 @@ function SettingsRow({
   toggleValue?: boolean;
   onToggle?: (val: boolean) => void;
 }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.row, pressed && onPress && styles.rowPressed]}
-      onPress={toggle ? undefined : onPress}
-      disabled={!onPress && !toggle}
-    >
+  const content = (
+    <>
       <View style={[styles.rowIcon, destructive && styles.rowIconDestructive]}>
         <Ionicons
           name={icon}
@@ -66,6 +62,20 @@ function SettingsRow({
       ) : onPress ? (
         <Ionicons name="chevron-forward" size={16} color={Colors.light.tabIconDefault} />
       ) : null}
+    </>
+  );
+
+  if (toggle) {
+    return <View style={styles.row}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && onPress && styles.rowPressed]}
+      onPress={onPress}
+      disabled={!onPress}
+    >
+      {content}
     </Pressable>
   );
 }
