@@ -22,11 +22,6 @@ export default function LoginScreen() {
   const router = useRouter();
   const {
     login,
-    loginWithBiometrics,
-    biometricsAvailable,
-    biometricsEnabled,
-    biometricType,
-    hasStoredSession,
   } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -34,9 +29,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [bioLoading, setBioLoading] = useState(false);
-
-  const canUseBiometrics = biometricsAvailable && biometricsEnabled && hasStoredSession;
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -53,21 +45,6 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
-
-  const handleBiometricLogin = async () => {
-    setError("");
-    setBioLoading(true);
-    try {
-      await loginWithBiometrics();
-      router.replace("/(tabs)");
-    } catch (e: any) {
-      setError(e.message || "Biometric login failed");
-      setBioLoading(false);
-    }
-  };
-
-  const biometricIcon: keyof typeof Ionicons.glyphMap =
-    biometricType === "Face ID" ? "scan-outline" : "finger-print-outline";
 
   return (
     <KeyboardAvoidingView
@@ -98,37 +75,6 @@ export default function LoginScreen() {
               <Ionicons name="alert-circle" size={16} color={Colors.light.danger} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
-          ) : null}
-
-          {canUseBiometrics ? (
-            <>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.biometricButton,
-                  pressed && styles.biometricButtonPressed,
-                  bioLoading && styles.loginButtonDisabled,
-                ]}
-                onPress={handleBiometricLogin}
-                disabled={bioLoading}
-              >
-                {bioLoading ? (
-                  <ActivityIndicator color={Colors.light.tint} size="small" />
-                ) : (
-                  <>
-                    <Ionicons name={biometricIcon} size={28} color={Colors.light.tint} />
-                    <Text style={styles.biometricButtonText}>
-                      Sign in with {biometricType}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or use password</Text>
-                <View style={styles.dividerLine} />
-              </View>
-            </>
           ) : null}
 
           <View style={styles.inputGroup}>
@@ -265,26 +211,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.danger,
-  },
-  biometricButton: {
-    height: 56,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: Colors.light.tint,
-    backgroundColor: Colors.light.white,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  biometricButtonPressed: {
-    backgroundColor: Colors.light.cardBackground,
-  },
-  biometricButtonText: {
-    fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.tint,
   },
   inputGroup: {
     marginBottom: 16,
