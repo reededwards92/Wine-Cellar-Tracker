@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "node:http";
-import db from "./db";
+import pool from "./db";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import iconv from "iconv-lite";
@@ -55,19 +55,25 @@ function parseInteger(val: string | undefined | null): number | null {
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
-  app.get("/api/stats", requireAuth, (req: AuthRequest, res: Response) => {
+  app.get("/api/stats", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
-    const stats = db.prepare(`
+    const result = await pool.query(`
       SELECT
-        (SELECT COUNT(*) FROM bottles WHERE status = 'in_cellar' AND user_id = ?) as total_bottles,
-        (SELECT COALESCE(SUM(estimated_value), 0) FROM bottles WHERE status = 'in_cellar' AND user_id = ?) as total_value,
-        (SELECT COUNT(DISTINCT wine_id) FROM bottles WHERE status = 'in_cellar' AND user_id = ?) as unique_wines,
-        (SELECT COUNT(*) FROM bottles WHERE status = 'consumed' AND user_id = ?) as consumed_bottles
-    `).get(userId, userId, userId, userId) as any;
-    res.json(stats);
+        (SELECT COUNT(*) FROM bottles WHERE status = 'in_cellar' AND user_id = $1) as total_bottles,
+        (SELECT COALESCE(SUM(estimated_value), 0) FROM bottles WHERE status = 'in_cellar' AND user_id = $1) as total_value,
+        (SELECT COUNT(DISTINCT wine_id) FROM bottles WHERE status = 'in_cellar' AND user_id = $1) as unique_wines,
+        (SELECT COUNT(*) FROM bottles WHERE status = 'consumed' AND user_id = $1) as consumed_bottles
+    `, [userId]);
+    const stats = result.rows[0];
+    res.json({
+      total_bottles: Number(stats.total_bottles),
+      total_value: Number(stats.total_value),
+      unique_wines: Number(stats.unique_wines),
+      consumed_bottles: Number(stats.consumed_bottles),
+    });
   });
 
-  app.get("/api/wines", requireAuth, (req: AuthRequest, res: Response) => {
+  app.get("/api/wines", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const {
       sort = "producer",
@@ -84,32 +90,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       search,
     } = req.query;
 
-    let whereClauses: string[] = ["w.user_id = ?"];
+    let whereClauses: string[] = ["w.user_id = $1"];
     let params: any[] = [userId];
+    let paramIdx = 2;
 
     if (color) {
       const colors = (color as string).split(",");
-      whereClauses.push(`w.color IN (${colors.map(() => "?").join(",")})`);
+      const placeholders = colors.map(() => `$${paramIdx++}`);
+      whereClauses.push(`w.color IN (${placeholders.join(",")})`);
       params.push(...colors);
     }
     if (region) {
-      whereClauses.push("w.region = ?");
+      whereClauses.push(`w.region = $${paramIdx++}`);
       params.push(region);
     }
     if (country) {
-      whereClauses.push("w.country = ?");
+      whereClauses.push(`w.country = $${paramIdx++}`);
       params.push(country);
     }
     if (varietal) {
-      whereClauses.push("w.varietal LIKE ?");
+      whereClauses.push(`w.varietal ILIKE $${paramIdx++}`);
       params.push(`%${varietal}%`);
     }
     if (search) {
       whereClauses.push(
-        "(w.producer LIKE ? OR w.wine_name LIKE ? OR w.varietal LIKE ? OR w.region LIKE ? OR w.appellation LIKE ?)"
+        `(w.producer ILIKE $${paramIdx} OR w.wine_name ILIKE $${paramIdx} OR w.varietal ILIKE $${paramIdx} OR w.region ILIKE $${paramIdx} OR w.appellation ILIKE $${paramIdx})`
       );
-      const s = `%${search}%`;
-      params.push(s, s, s, s, s);
+      params.push(`%${search}%`);
+      paramIdx++;
     }
 
     const currentYear = new Date().getFullYear();
@@ -135,22 +143,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     if (location_filter) {
       const locs = (location_filter as string).split(",");
+      const locPlaceholders = locs.map(() => `$${paramIdx++}`);
       whereClauses.push(
-        `w.id IN (SELECT b3.wine_id FROM bottles b3 WHERE b3.status = 'in_cellar' AND b3.user_id = ? AND b3.location IN (${locs.map(() => "?").join(",")}))`
+        `w.id IN (SELECT b3.wine_id FROM bottles b3 WHERE b3.status = 'in_cellar' AND b3.user_id = $1 AND b3.location IN (${locPlaceholders.join(",")}))`
       );
-      params.push(userId, ...locs);
+      params.push(...locs);
     }
 
     const havingClauses: string[] = [];
     if (inStock === "true") {
-      havingClauses.push("bottle_count > 0");
+      havingClauses.push("COUNT(CASE WHEN b.status = 'in_cellar' THEN 1 END) > 0");
     }
     if (minValue) {
-      havingClauses.push("avg_value >= ?");
+      havingClauses.push(`COALESCE(AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) >= $${paramIdx++}`);
       params.push(parseFloat(minValue as string));
     }
     if (maxValue) {
-      havingClauses.push("avg_value <= ?");
+      havingClauses.push(`COALESCE(AVG(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) <= $${paramIdx++}`);
       params.push(parseFloat(maxValue as string));
     }
 
@@ -183,182 +192,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ${whereStr}
       GROUP BY w.id
       ${havingStr}
-      ORDER BY ${sortCol} ${sortOrder}
+      ORDER BY ${sortCol} ${sortOrder} NULLS LAST
     `;
 
-    const wines = db.prepare(query).all(...params);
-    res.json(wines);
+    const result = await pool.query(query, params);
+    res.json(result.rows);
   });
 
-  app.get("/api/wines/:id", requireAuth, (req: AuthRequest, res: Response) => {
-    const wine = db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(req.params.id, req.userId);
-    if (!wine) return res.status(404).json({ error: "Wine not found" });
-    const bottles = db.prepare("SELECT * FROM bottles WHERE wine_id = ? AND user_id = ? ORDER BY created_at DESC").all(req.params.id, req.userId);
-    res.json({ ...(wine as any), bottles });
+  app.get("/api/wines/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+    const wineResult = await pool.query("SELECT * FROM wines WHERE id = $1 AND user_id = $2", [req.params.id, req.userId]);
+    if (wineResult.rows.length === 0) return res.status(404).json({ error: "Wine not found" });
+    const bottleResult = await pool.query("SELECT * FROM bottles WHERE wine_id = $1 AND user_id = $2 ORDER BY created_at DESC", [req.params.id, req.userId]);
+    res.json({ ...wineResult.rows[0], bottles: bottleResult.rows });
   });
 
-  app.post("/api/wines", requireAuth, (req: AuthRequest, res: Response) => {
+  app.post("/api/wines", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const { quantity = 1, purchase_date, purchase_price, estimated_value, location, size, notes, ...wineData } = req.body;
 
-    const wineInsert = db.prepare(`
+    const result = await pool.query(`
       INSERT INTO wines (producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, critic_scores, user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const result = wineInsert.run(
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *
+    `, [
       wineData.producer, wineData.wine_name, wineData.vintage || null,
       wineData.country || null, wineData.region || null, wineData.sub_region || null,
       wineData.appellation || null, wineData.varietal || null, wineData.color || null,
       wineData.wine_type || null, wineData.category || null, wineData.designation || null,
       wineData.vineyard || null, wineData.drink_window_start || null, wineData.drink_window_end || null,
       wineData.ct_community_score || null, wineData.critic_scores || null, userId
-    );
+    ]);
 
-    const wineId = result.lastInsertRowid;
-
-    const bottleInsert = db.prepare(`
-      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes, user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const wineId = result.rows[0].id;
 
     for (let i = 0; i < (quantity || 1); i++) {
-      bottleInsert.run(wineId, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null, userId);
+      await pool.query(`
+        INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes, user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [wineId, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null, userId]);
     }
 
-    const wine = db.prepare("SELECT * FROM wines WHERE id = ?").get(wineId);
-    res.status(201).json(wine);
+    res.status(201).json(result.rows[0]);
   });
 
-  app.put("/api/wines/:id", requireAuth, (req: AuthRequest, res: Response) => {
-    const wine = db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(req.params.id, req.userId);
-    if (!wine) return res.status(404).json({ error: "Wine not found" });
+  app.put("/api/wines/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+    const wineResult = await pool.query("SELECT * FROM wines WHERE id = $1 AND user_id = $2", [req.params.id, req.userId]);
+    if (wineResult.rows.length === 0) return res.status(404).json({ error: "Wine not found" });
 
     const fields = ["producer", "wine_name", "vintage", "country", "region", "sub_region", "appellation", "varietal", "color", "wine_type", "category", "designation", "vineyard", "drink_window_start", "drink_window_end", "ct_community_score", "critic_scores"];
     const updates: string[] = [];
     const values: any[] = [];
+    let paramIdx = 1;
 
     for (const field of fields) {
       if (req.body[field] !== undefined) {
-        updates.push(`${field} = ?`);
+        updates.push(`${field} = $${paramIdx++}`);
         values.push(req.body[field]);
       }
     }
 
     if (updates.length > 0) {
-      updates.push("updated_at = CURRENT_TIMESTAMP");
+      updates.push(`updated_at = NOW()`);
       values.push(req.params.id);
-      db.prepare(`UPDATE wines SET ${updates.join(", ")} WHERE id = ?`).run(...values);
+      await pool.query(`UPDATE wines SET ${updates.join(", ")} WHERE id = $${paramIdx}`, values);
     }
 
-    const updated = db.prepare("SELECT * FROM wines WHERE id = ?").get(req.params.id);
-    res.json(updated);
+    const updated = await pool.query("SELECT * FROM wines WHERE id = $1", [req.params.id]);
+    res.json(updated.rows[0]);
   });
 
-  app.post("/api/wines/:id/bottles", requireAuth, (req: AuthRequest, res: Response) => {
-    const wine = db.prepare("SELECT * FROM wines WHERE id = ? AND user_id = ?").get(req.params.id, req.userId);
-    if (!wine) return res.status(404).json({ error: "Wine not found" });
+  app.post("/api/wines/:id/bottles", requireAuth, async (req: AuthRequest, res: Response) => {
+    const wineResult = await pool.query("SELECT * FROM wines WHERE id = $1 AND user_id = $2", [req.params.id, req.userId]);
+    if (wineResult.rows.length === 0) return res.status(404).json({ error: "Wine not found" });
 
     const { quantity = 1, purchase_date, purchase_price, estimated_value, location, size, notes } = req.body;
 
-    const bottleInsert = db.prepare(`
-      INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes, user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
     for (let i = 0; i < quantity; i++) {
-      bottleInsert.run(req.params.id, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null, req.userId);
+      await pool.query(`
+        INSERT INTO bottles (wine_id, purchase_date, purchase_price, estimated_value, location, size, notes, user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [req.params.id, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null, req.userId]);
     }
 
     res.status(201).json({ message: `Added ${quantity} bottle(s)` });
   });
 
-  app.put("/api/bottles/:id", requireAuth, (req: AuthRequest, res: Response) => {
-    const bottle = db.prepare("SELECT * FROM bottles WHERE id = ? AND user_id = ?").get(req.params.id, req.userId);
-    if (!bottle) return res.status(404).json({ error: "Bottle not found" });
+  app.put("/api/bottles/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+    const bottleResult = await pool.query("SELECT * FROM bottles WHERE id = $1 AND user_id = $2", [req.params.id, req.userId]);
+    if (bottleResult.rows.length === 0) return res.status(404).json({ error: "Bottle not found" });
 
     const fields = ["purchase_date", "purchase_price", "estimated_value", "location", "size", "notes", "status"];
     const updates: string[] = [];
     const values: any[] = [];
+    let paramIdx = 1;
 
     for (const field of fields) {
       if (req.body[field] !== undefined) {
-        updates.push(`${field} = ?`);
+        updates.push(`${field} = $${paramIdx++}`);
         values.push(req.body[field]);
       }
     }
 
     if (updates.length > 0) {
       values.push(req.params.id);
-      db.prepare(`UPDATE bottles SET ${updates.join(", ")} WHERE id = ?`).run(...values);
+      await pool.query(`UPDATE bottles SET ${updates.join(", ")} WHERE id = $${paramIdx}`, values);
     }
 
-    const updated = db.prepare("SELECT * FROM bottles WHERE id = ?").get(req.params.id);
-    res.json(updated);
+    const updated = await pool.query("SELECT * FROM bottles WHERE id = $1", [req.params.id]);
+    res.json(updated.rows[0]);
   });
 
-  app.patch("/api/bottles/:id/consume", requireAuth, (req: AuthRequest, res: Response) => {
-    const bottle = db.prepare("SELECT * FROM bottles WHERE id = ? AND user_id = ?").get(req.params.id, req.userId) as any;
-    if (!bottle) return res.status(404).json({ error: "Bottle not found" });
+  app.patch("/api/bottles/:id/consume", requireAuth, async (req: AuthRequest, res: Response) => {
+    const bottleResult = await pool.query("SELECT * FROM bottles WHERE id = $1 AND user_id = $2", [req.params.id, req.userId]);
+    if (bottleResult.rows.length === 0) return res.status(404).json({ error: "Bottle not found" });
+    const bottle = bottleResult.rows[0];
 
     const { consumed_date, occasion, paired_with, who_with, rating, tasting_notes } = req.body;
     const consumeDate = consumed_date || new Date().toISOString().split("T")[0];
 
-    db.prepare(`UPDATE bottles SET status = 'consumed', consumed_date = ?, occasion = ?, rating = ? WHERE id = ?`)
-      .run(consumeDate, occasion || null, rating || null, req.params.id);
+    await pool.query(
+      `UPDATE bottles SET status = 'consumed', consumed_date = $1, occasion = $2, rating = $3 WHERE id = $4`,
+      [consumeDate, occasion || null, rating || null, req.params.id]
+    );
 
-    db.prepare(`
+    await pool.query(`
       INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, occasion, paired_with, who_with, rating, tasting_notes, user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(req.params.id, bottle.wine_id, consumeDate, occasion || null, paired_with || null, who_with || null, rating || null, tasting_notes || null, req.userId);
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `, [req.params.id, bottle.wine_id, consumeDate, occasion || null, paired_with || null, who_with || null, rating || null, tasting_notes || null, req.userId]);
 
     res.json({ message: "Bottle consumed" });
   });
 
-  app.get("/api/consumption", requireAuth, (req: AuthRequest, res: Response) => {
-    const logs = db.prepare(`
+  app.get("/api/consumption", requireAuth, async (req: AuthRequest, res: Response) => {
+    const result = await pool.query(`
       SELECT cl.*, w.producer, w.wine_name, w.vintage, w.color, w.varietal, w.region,
         w.sub_region, w.appellation, w.ct_community_score, w.drink_window_start, w.drink_window_end,
         b.purchase_price, b.estimated_value, b.location AS bottle_location
       FROM consumption_log cl
       JOIN wines w ON cl.wine_id = w.id
       LEFT JOIN bottles b ON cl.bottle_id = b.id
-      WHERE cl.user_id = ?
+      WHERE cl.user_id = $1
       ORDER BY cl.consumed_date DESC
-    `).all(req.userId);
-    res.json(logs);
+    `, [req.userId]);
+    res.json(result.rows);
   });
 
-  app.get("/api/consumption/stats", requireAuth, (req: AuthRequest, res: Response) => {
+  app.get("/api/consumption/stats", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
 
-    const totals = db.prepare(`
+    const totals = (await pool.query(`
       SELECT
-        COUNT(*) as totalBottles,
-        COALESCE(SUM(COALESCE(b.estimated_value, b.purchase_price, 0)), 0) as totalValue
+        COUNT(*) as "totalBottles",
+        COALESCE(SUM(COALESCE(b.estimated_value, b.purchase_price, 0)), 0) as "totalValue"
       FROM consumption_log cl
       LEFT JOIN bottles b ON cl.bottle_id = b.id
-      WHERE cl.user_id = ?
-    `).get(userId) as any;
+      WHERE cl.user_id = $1
+    `, [userId])).rows[0];
 
-    const colorBreakdown = db.prepare(`
+    const colorBreakdown = (await pool.query(`
       SELECT w.color, COUNT(*) as count
       FROM consumption_log cl
       JOIN wines w ON cl.wine_id = w.id
-      WHERE cl.user_id = ? AND w.color IS NOT NULL
+      WHERE cl.user_id = $1 AND w.color IS NOT NULL
       GROUP BY w.color
       ORDER BY count DESC
-    `).all(userId) as any[];
+    `, [userId])).rows;
 
-    const monthlyRaw = db.prepare(`
+    const monthlyRaw = (await pool.query(`
       SELECT
-        strftime('%Y-%m', cl.consumed_date) as month,
+        to_char(cl.consumed_date::date, 'YYYY-MM') as month,
         COUNT(*) as count
       FROM consumption_log cl
-      WHERE cl.user_id = ? AND cl.consumed_date IS NOT NULL
+      WHERE cl.user_id = $1 AND cl.consumed_date IS NOT NULL
       GROUP BY month
       ORDER BY month ASC
-    `).all(userId) as any[];
+    `, [userId])).rows;
 
     const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     let monthlyTrend: any[] = [];
@@ -366,7 +373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (monthlyRaw.length > 0) {
       const first = monthlyRaw[0].month;
       const last = monthlyRaw[monthlyRaw.length - 1].month;
-      const countMap = new Map(monthlyRaw.map((r: any) => [r.month, r.count]));
+      const countMap = new Map(monthlyRaw.map((r: any) => [r.month, Number(r.count)]));
 
       let [y, m] = first.split("-").map(Number);
       const [ey, em] = last.split("-").map(Number);
@@ -385,77 +392,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     res.json({
-      totalBottles: totals.totalBottles,
-      totalGlasses: totals.totalBottles * 5,
-      totalValue: Math.round(totals.totalValue * 100) / 100,
+      totalBottles: Number(totals.totalBottles),
+      totalGlasses: Number(totals.totalBottles) * 5,
+      totalValue: Math.round(Number(totals.totalValue) * 100) / 100,
       colorBreakdown,
       monthlyTrend,
     });
   });
 
-  app.delete("/api/consumption", requireAuth, (req: AuthRequest, res: Response) => {
+  app.delete("/api/consumption", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: "ids array required" });
     }
 
-    const placeholders = ids.map(() => "?").join(",");
-    const entries = db.prepare(
-      `SELECT id, bottle_id FROM consumption_log WHERE id IN (${placeholders}) AND user_id = ?`
-    ).all(...ids, userId) as any[];
+    const placeholders = ids.map((_: any, i: number) => `$${i + 1}`);
+    const entries = (await pool.query(
+      `SELECT id, bottle_id FROM consumption_log WHERE id IN (${placeholders.join(",")}) AND user_id = $${ids.length + 1}`,
+      [...ids, userId]
+    )).rows;
 
     if (entries.length === 0) {
       return res.status(404).json({ error: "No matching entries found" });
     }
 
-    const deleteEntries = db.transaction(() => {
-      db.prepare(
-        `DELETE FROM consumption_log WHERE id IN (${placeholders}) AND user_id = ?`
-      ).run(...ids, userId);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `DELETE FROM consumption_log WHERE id IN (${placeholders.join(",")}) AND user_id = $${ids.length + 1}`,
+        [...ids, userId]
+      );
 
       for (const entry of entries) {
         if (entry.bottle_id) {
-          db.prepare(
-            `DELETE FROM bottles WHERE id = ? AND user_id = ? AND status = 'consumed'`
-          ).run(entry.bottle_id, userId);
+          await client.query(
+            `DELETE FROM bottles WHERE id = $1 AND user_id = $2 AND status = 'consumed'`,
+            [entry.bottle_id, userId]
+          );
         }
       }
-    });
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
 
-    deleteEntries();
     res.json({ deleted: entries.length });
   });
 
-  app.post("/api/consumption/undo", requireAuth, (req: AuthRequest, res: Response) => {
+  app.post("/api/consumption/undo", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const { bottle_id } = req.body;
     if (!bottle_id) return res.status(400).json({ error: "bottle_id required" });
 
-    const bottle = db.prepare(
-      "SELECT * FROM bottles WHERE id = ? AND user_id = ? AND status = 'consumed'"
-    ).get(bottle_id, userId) as any;
-    if (!bottle) return res.status(404).json({ error: "Consumed bottle not found" });
+    const bottleResult = await pool.query(
+      "SELECT * FROM bottles WHERE id = $1 AND user_id = $2 AND status = 'consumed'",
+      [bottle_id, userId]
+    );
+    if (bottleResult.rows.length === 0) return res.status(404).json({ error: "Consumed bottle not found" });
 
-    const undoConsumption = db.transaction(() => {
-      db.prepare("UPDATE bottles SET status = 'in_cellar', consumed_date = NULL, occasion = NULL, rating = NULL WHERE id = ? AND user_id = ?")
-        .run(bottle_id, userId);
-      db.prepare("DELETE FROM consumption_log WHERE bottle_id = ? AND user_id = ?")
-        .run(bottle_id, userId);
-    });
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        "UPDATE bottles SET status = 'in_cellar', consumed_date = NULL, occasion = NULL, rating = NULL WHERE id = $1 AND user_id = $2",
+        [bottle_id, userId]
+      );
+      await client.query(
+        "DELETE FROM consumption_log WHERE bottle_id = $1 AND user_id = $2",
+        [bottle_id, userId]
+      );
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
 
-    undoConsumption();
     res.json({ success: true });
   });
 
-  app.get("/api/storage-locations", requireAuth, (req: AuthRequest, res: Response) => {
-    const locations = db.prepare(
-      "SELECT * FROM storage_locations WHERE user_id = ? ORDER BY sort_order ASC, id ASC"
-    ).all(req.userId);
-    res.json(locations);
+  app.get("/api/storage-locations", requireAuth, async (req: AuthRequest, res: Response) => {
+    const result = await pool.query(
+      "SELECT * FROM storage_locations WHERE user_id = $1 ORDER BY sort_order ASC, id ASC",
+      [req.userId]
+    );
+    res.json(result.rows);
   });
 
-  app.put("/api/storage-locations", requireAuth, (req: AuthRequest, res: Response) => {
+  app.put("/api/storage-locations", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const { locations, renames } = req.body;
     if (!locations || !Array.isArray(locations)) {
@@ -464,65 +494,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const renameMap: Record<string, string> = renames || {};
 
-    const updateLocations = db.transaction(() => {
-      const existing = db.prepare("SELECT name FROM storage_locations WHERE user_id = ?").all(userId) as any[];
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const existing = (await client.query("SELECT name FROM storage_locations WHERE user_id = $1", [userId])).rows;
       const oldNames = new Set(existing.map((e: any) => e.name));
 
-      db.prepare("DELETE FROM storage_locations WHERE user_id = ?").run(userId);
-
-      const insert = db.prepare(
-        "INSERT INTO storage_locations (user_id, name, type, sort_order) VALUES (?, ?, ?, ?)"
-      );
+      await client.query("DELETE FROM storage_locations WHERE user_id = $1", [userId]);
 
       const newNames = new Set<string>();
-      locations.forEach((loc: { name: string; type: string }, idx: number) => {
+      for (let idx = 0; idx < locations.length; idx++) {
+        const loc = locations[idx];
         if (loc.name && loc.name.trim()) {
           const name = loc.name.trim();
           if (!newNames.has(name)) {
-            insert.run(userId, name, loc.type || "other", idx);
+            await client.query(
+              "INSERT INTO storage_locations (user_id, name, type, sort_order) VALUES ($1, $2, $3, $4)",
+              [userId, name, loc.type || "other", idx]
+            );
             newNames.add(name);
           }
         }
-      });
+      }
 
       for (const [oldName, newName] of Object.entries(renameMap)) {
         if (oldName !== newName && newNames.has(newName)) {
-          db.prepare(
-            "UPDATE bottles SET location = ? WHERE location = ? AND user_id = ?"
-          ).run(newName, oldName, userId);
+          await client.query(
+            "UPDATE bottles SET location = $1 WHERE location = $2 AND user_id = $3",
+            [newName, oldName, userId]
+          );
         }
       }
 
       for (const oldName of oldNames) {
         if (!newNames.has(oldName) && !renameMap[oldName]) {
-          db.prepare(
-            "UPDATE bottles SET location = NULL WHERE location = ? AND user_id = ? AND status = 'in_cellar'"
-          ).run(oldName, userId);
+          await client.query(
+            "UPDATE bottles SET location = NULL WHERE location = $1 AND user_id = $2 AND status = 'in_cellar'",
+            [oldName, userId]
+          );
         }
       }
-    });
 
-    updateLocations();
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
 
-    const updated = db.prepare(
-      "SELECT * FROM storage_locations WHERE user_id = ? ORDER BY sort_order ASC, id ASC"
-    ).all(userId);
-    res.json(updated);
+    const updated = await pool.query(
+      "SELECT * FROM storage_locations WHERE user_id = $1 ORDER BY sort_order ASC, id ASC",
+      [userId]
+    );
+    res.json(updated.rows);
   });
 
-  app.get("/api/filters", requireAuth, (req: AuthRequest, res: Response) => {
+  app.get("/api/filters", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
-    const colors = db.prepare("SELECT DISTINCT color FROM wines WHERE color IS NOT NULL AND user_id = ? ORDER BY color").all(userId);
-    const regions = db.prepare("SELECT DISTINCT region FROM wines WHERE region IS NOT NULL AND user_id = ? ORDER BY region").all(userId);
-    const countries = db.prepare("SELECT DISTINCT country FROM wines WHERE country IS NOT NULL AND user_id = ? ORDER BY country").all(userId);
-    const varietals = db.prepare("SELECT DISTINCT varietal FROM wines WHERE varietal IS NOT NULL AND user_id = ? ORDER BY varietal").all(userId);
-    const locations = db.prepare("SELECT DISTINCT location FROM bottles WHERE location IS NOT NULL AND status = 'in_cellar' AND user_id = ? ORDER BY location").all(userId);
+    const colors = (await pool.query("SELECT DISTINCT color FROM wines WHERE color IS NOT NULL AND user_id = $1 ORDER BY color", [userId])).rows;
+    const regions = (await pool.query("SELECT DISTINCT region FROM wines WHERE region IS NOT NULL AND user_id = $1 ORDER BY region", [userId])).rows;
+    const countries = (await pool.query("SELECT DISTINCT country FROM wines WHERE country IS NOT NULL AND user_id = $1 ORDER BY country", [userId])).rows;
+    const varietals = (await pool.query("SELECT DISTINCT varietal FROM wines WHERE varietal IS NOT NULL AND user_id = $1 ORDER BY varietal", [userId])).rows;
+    const locationsResult = (await pool.query("SELECT DISTINCT location FROM bottles WHERE location IS NOT NULL AND status = 'in_cellar' AND user_id = $1 ORDER BY location", [userId])).rows;
     res.json({
-      colors: (colors as any[]).map((c) => c.color),
-      regions: (regions as any[]).map((r) => r.region),
-      countries: (countries as any[]).map((c) => c.country),
-      locations: (locations as any[]).map((l) => l.location),
-      varietals: (varietals as any[]).map((v) => v.varietal),
+      colors: colors.map((c: any) => c.color),
+      regions: regions.map((r: any) => r.region),
+      countries: countries.map((c: any) => c.country),
+      locations: locationsResult.map((l: any) => l.location),
+      varietals: varietals.map((v: any) => v.varietal),
     });
   });
 
@@ -612,6 +653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size: "Size",
         purchase_date: "PurchaseDate",
         quantity: null,
+        consumed_date: null,
       };
     } else {
       const sampleRows = records.slice(0, 5).map((r: any) => {
@@ -692,34 +734,20 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
     const errors: string[] = [];
 
     const userId = req.userId;
-    const insertWine = db.prepare(`
-      INSERT INTO wines (ct_wine_id, producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const insertBottle = db.prepare(`
-      INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, location, size, user_id, status, consumed_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const insertConsumption = db.prepare(`
-      INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, user_id)
-      VALUES (?, ?, ?, ?)
-    `);
-
     const winesByCtId = new Map<string, number>();
-    const findWineByCt = db.prepare("SELECT id FROM wines WHERE ct_wine_id = ? AND user_id = ?");
-    const findBottleByCt = db.prepare("SELECT id FROM bottles WHERE ct_inventory_id = ? AND user_id = ?");
 
-    const importAll = db.transaction(() => {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
       for (let i = 0; i < records.length; i++) {
         const row = records[i];
         try {
           if (isCellarTracker) {
             const ctInventoryId = parseInteger(row.iInventory);
             if (ctInventoryId) {
-              const existingBottle = findBottleByCt.get(ctInventoryId, userId);
-              if (existingBottle) {
+              const existingBottle = await client.query("SELECT id FROM bottles WHERE ct_inventory_id = $1 AND user_id = $2", [ctInventoryId, userId]);
+              if (existingBottle.rows.length > 0) {
                 skipped++;
                 continue;
               }
@@ -736,57 +764,39 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
             if (ctWineId && winesByCtId.has(String(ctWineId))) {
               wineId = winesByCtId.get(String(ctWineId))!;
             } else if (ctWineId) {
-              const existingWine = findWineByCt.get(ctWineId, userId) as any;
-              if (existingWine) {
-                wineId = existingWine.id;
+              const existingWine = await client.query("SELECT id FROM wines WHERE ct_wine_id = $1 AND user_id = $2", [ctWineId, userId]);
+              if (existingWine.rows.length > 0) {
+                wineId = existingWine.rows[0].id;
                 winesByCtId.set(String(ctWineId), wineId);
               } else {
-                const result = insertWine.run(
-                  ctWineId,
-                  producer,
-                  wineName,
-                  parseInteger(row.Vintage),
-                  cleanValue(row.Country),
-                  cleanValue(row.Region),
-                  cleanValue(row.SubRegion),
-                  cleanValue(row.Appellation),
-                  cleanValue(row.Varietal),
-                  cleanValue(row.Color),
-                  cleanValue(row.Type),
-                  cleanValue(row.Category),
-                  cleanValue(row.Designation),
-                  cleanValue(row.Vineyard),
-                  parseInteger(row.BeginConsume),
-                  parseInteger(row.EndConsume),
-                  parseNumber(row.CScore),
-                  userId
-                );
-                wineId = Number(result.lastInsertRowid);
+                const result = await client.query(`
+                  INSERT INTO wines (ct_wine_id, producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, user_id)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id
+                `, [
+                  ctWineId, producer, wineName, parseInteger(row.Vintage),
+                  cleanValue(row.Country), cleanValue(row.Region), cleanValue(row.SubRegion),
+                  cleanValue(row.Appellation), cleanValue(row.Varietal), cleanValue(row.Color),
+                  cleanValue(row.Type), cleanValue(row.Category), cleanValue(row.Designation),
+                  cleanValue(row.Vineyard), parseInteger(row.BeginConsume), parseInteger(row.EndConsume),
+                  parseNumber(row.CScore), userId
+                ]);
+                wineId = result.rows[0].id;
                 winesByCtId.set(String(ctWineId), wineId);
                 winesCreated++;
               }
             } else {
-              const result = insertWine.run(
-                null,
-                producer,
-                wineName,
-                parseInteger(row.Vintage),
-                cleanValue(row.Country),
-                cleanValue(row.Region),
-                cleanValue(row.SubRegion),
-                cleanValue(row.Appellation),
-                cleanValue(row.Varietal),
-                cleanValue(row.Color),
-                cleanValue(row.Type),
-                cleanValue(row.Category),
-                cleanValue(row.Designation),
-                cleanValue(row.Vineyard),
-                parseInteger(row.BeginConsume),
-                parseInteger(row.EndConsume),
-                parseNumber(row.CScore),
-                userId
-              );
-              wineId = Number(result.lastInsertRowid);
+              const result = await client.query(`
+                INSERT INTO wines (ct_wine_id, producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, user_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id
+              `, [
+                null, producer, wineName, parseInteger(row.Vintage),
+                cleanValue(row.Country), cleanValue(row.Region), cleanValue(row.SubRegion),
+                cleanValue(row.Appellation), cleanValue(row.Varietal), cleanValue(row.Color),
+                cleanValue(row.Type), cleanValue(row.Category), cleanValue(row.Designation),
+                cleanValue(row.Vineyard), parseInteger(row.BeginConsume), parseInteger(row.EndConsume),
+                parseNumber(row.CScore), userId
+              ]);
+              wineId = result.rows[0].id;
               winesCreated++;
             }
 
@@ -795,77 +805,74 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
             const consumedDate = parseDate(row.Consumed) || parseDate(row.ConsumeDate);
             const isConsumed = !!consumedDate;
 
-            const bottleResult = insertBottle.run(
-              wineId,
-              parseInteger(row.iInventory),
-              barcode,
-              parseDate(row.PurchaseDate),
-              price && price > 0 ? price : null,
-              parseNumber(row.Value),
-              cleanValue(row.Location),
-              cleanValue(row.Size) || "750ml",
-              userId,
-              isConsumed ? "consumed" : "in_cellar",
-              consumedDate
-            );
+            const bottleResult = await client.query(`
+              INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, location, size, user_id, status, consumed_date)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
+            `, [
+              wineId, parseInteger(row.iInventory), barcode,
+              parseDate(row.PurchaseDate), price && price > 0 ? price : null,
+              parseNumber(row.Value), cleanValue(row.Location),
+              cleanValue(row.Size) || "750ml", userId,
+              isConsumed ? "consumed" : "in_cellar", consumedDate
+            ]);
             bottlesCreated++;
 
             if (isConsumed) {
-              const bottleId = Number(bottleResult.lastInsertRowid);
-              insertConsumption.run(bottleId, wineId, consumedDate, userId);
+              const bottleId = bottleResult.rows[0].id;
+              await client.query(
+                "INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, user_id) VALUES ($1, $2, $3, $4)",
+                [bottleId, wineId, consumedDate, userId]
+              );
               consumedCount++;
             }
           } else {
             const producer = getField(row, mapping.producer) || "Unknown";
             const wineName = getField(row, mapping.wine_name) || "Unknown";
-            const quantity = mapping.quantity ? (parseInteger(row[mapping.quantity]) || 1) : 1;
+            const quantity = mapping.quantity ? (parseInteger(row[mapping.quantity!]) || 1) : 1;
 
-            const result = insertWine.run(
-              null,
-              producer,
-              wineName,
+            const result = await client.query(`
+              INSERT INTO wines (ct_wine_id, producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, user_id)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id
+            `, [
+              null, producer, wineName,
               mapping.vintage ? parseInteger(row[mapping.vintage]) : null,
-              getField(row, mapping.country),
-              getField(row, mapping.region),
-              getField(row, mapping.sub_region),
-              getField(row, mapping.appellation),
-              getField(row, mapping.varietal),
-              getField(row, mapping.color),
-              getField(row, mapping.wine_type),
-              getField(row, mapping.category),
-              getField(row, mapping.designation),
-              getField(row, mapping.vineyard),
+              getField(row, mapping.country), getField(row, mapping.region),
+              getField(row, mapping.sub_region), getField(row, mapping.appellation),
+              getField(row, mapping.varietal), getField(row, mapping.color),
+              getField(row, mapping.wine_type), getField(row, mapping.category),
+              getField(row, mapping.designation), getField(row, mapping.vineyard),
               mapping.drink_window_start ? parseInteger(row[mapping.drink_window_start]) : null,
               mapping.drink_window_end ? parseInteger(row[mapping.drink_window_end]) : null,
-              mapping.score ? parseNumber(row[mapping.score]) : null,
+              mapping.score ? parseNumber(row[mapping.score!]) : null,
               userId
-            );
-            const wineId = Number(result.lastInsertRowid);
+            ]);
+            const wineId = result.rows[0].id;
             winesCreated++;
 
             for (let q = 0; q < quantity; q++) {
-              const price = mapping.price ? parseNumber(row[mapping.price]) : null;
-              const consumedDate = mapping.consumed_date ? parseDate(row[mapping.consumed_date]) : null;
+              const price = mapping.price ? parseNumber(row[mapping.price!]) : null;
+              const consumedDate = mapping.consumed_date ? parseDate(row[mapping.consumed_date!]) : null;
               const isConsumed = !!consumedDate;
 
-              const bottleResult = insertBottle.run(
-                wineId,
-                null,
-                null,
-                mapping.purchase_date ? parseDate(row[mapping.purchase_date]) : null,
+              const bottleResult = await client.query(`
+                INSERT INTO bottles (wine_id, ct_inventory_id, ct_barcode, purchase_date, purchase_price, estimated_value, location, size, user_id, status, consumed_date)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
+              `, [
+                wineId, null, null,
+                mapping.purchase_date ? parseDate(row[mapping.purchase_date!]) : null,
                 price && price > 0 ? price : null,
-                mapping.value ? parseNumber(row[mapping.value]) : null,
-                getField(row, mapping.location),
-                getField(row, mapping.size) || "750ml",
-                userId,
-                isConsumed ? "consumed" : "in_cellar",
-                consumedDate
-              );
+                mapping.value ? parseNumber(row[mapping.value!]) : null,
+                getField(row, mapping.location), getField(row, mapping.size) || "750ml",
+                userId, isConsumed ? "consumed" : "in_cellar", consumedDate
+              ]);
               bottlesCreated++;
 
               if (isConsumed) {
-                const bottleId = Number(bottleResult.lastInsertRowid);
-                insertConsumption.run(bottleId, wineId, consumedDate, userId);
+                const bottleId = bottleResult.rows[0].id;
+                await client.query(
+                  "INSERT INTO consumption_log (bottle_id, wine_id, consumed_date, user_id) VALUES ($1, $2, $3, $4)",
+                  [bottleId, wineId, consumedDate, userId]
+                );
                 consumedCount++;
               }
             }
@@ -874,12 +881,13 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
           errors.push(`Row ${i + 1}: ${err.message}`);
         }
       }
-    });
 
-    try {
-      importAll();
+      await client.query("COMMIT");
     } catch (err: any) {
+      await client.query("ROLLBACK");
       return res.status(500).json({ error: `Import failed: ${err.message}` });
+    } finally {
+      client.release();
     }
 
     res.json({
@@ -901,27 +909,27 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
   app.get("/api/export", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
 
-    const wines = db.prepare(`
+    const wines = (await pool.query(`
       SELECT w.*,
         COUNT(CASE WHEN b.status = 'in_cellar' THEN 1 END) as bottle_count,
         COALESCE(SUM(CASE WHEN b.status = 'in_cellar' THEN b.estimated_value END), 0) as total_value
       FROM wines w
       LEFT JOIN bottles b ON w.id = b.wine_id AND b.user_id = w.user_id
-      WHERE w.user_id = ?
+      WHERE w.user_id = $1
       GROUP BY w.id
       ORDER BY w.producer ASC
-    `).all(userId) as any[];
+    `, [userId])).rows;
 
-    const bottles = db.prepare(`
+    const bottles = (await pool.query(`
       SELECT b.*, w.producer, w.wine_name, w.vintage, w.color, w.varietal, w.region,
         w.country, w.sub_region, w.appellation, w.wine_type, w.category,
         w.designation, w.vineyard, w.drink_window_start, w.drink_window_end,
         w.ct_community_score
       FROM bottles b
       JOIN wines w ON b.wine_id = w.id
-      WHERE b.user_id = ?
+      WHERE b.user_id = $1
       ORDER BY w.producer ASC, b.created_at DESC
-    `).all(userId) as any[];
+    `, [userId])).rows;
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Vin Wine Cellar";
@@ -977,8 +985,8 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
         drink_window_start: wine.drink_window_start,
         drink_window_end: wine.drink_window_end,
         ct_community_score: wine.ct_community_score,
-        bottle_count: wine.bottle_count,
-        total_value: wine.total_value,
+        bottle_count: Number(wine.bottle_count),
+        total_value: Number(wine.total_value),
       });
     }
 
@@ -1130,7 +1138,6 @@ Be accurate — only include what you can clearly read from the label. For color
           }
         }
       } catch {
-        // partial parse failed, return defaults
       }
       res.json(wineData);
     } catch (err: any) {
@@ -1147,9 +1154,20 @@ Be accurate — only include what you can clearly read from the label. For color
       clientDisconnected = true;
     });
 
+    const CHAT_TIMEOUT_MS = 90_000;
+    const chatTimeout = setTimeout(() => {
+      if (!clientDisconnected && res.headersSent) {
+        res.write(`data: ${JSON.stringify({ content: "\n\nI'm sorry, this request took too long. Please try again with a simpler question." })}\n\n`);
+        res.write("data: [DONE]\n\n");
+        res.end();
+        clientDisconnected = true;
+      }
+    }, CHAT_TIMEOUT_MS);
+
     try {
       const { messages: chatMessages, location } = req.body;
       if (!chatMessages || !Array.isArray(chatMessages)) {
+        clearTimeout(chatTimeout);
         return res.status(400).json({ error: "messages array required" });
       }
 
@@ -1225,7 +1243,7 @@ Be accurate — only include what you can clearly read from the label. For color
               try {
                 const parsed = JSON.parse(result);
                 if (parsed.success) {
-                  res.write(`data: ${JSON.stringify({ consumption_completed: { bottle_id: block.input.bottle_id, message: parsed.message } })}\n\n`);
+                  res.write(`data: ${JSON.stringify({ consumption_completed: { bottle_id: (block.input as any).bottle_id, message: parsed.message } })}\n\n`);
                 }
               } catch {}
             }
@@ -1245,6 +1263,7 @@ Be accurate — only include what you can clearly read from the label. For color
         }
       }
 
+      clearTimeout(chatTimeout);
       if (!clientDisconnected) {
         if (iterations >= MAX_TOOL_ITERATIONS) {
           res.write(`data: ${JSON.stringify({ content: "\n\nI needed to look up quite a few things. Let me know if you need more details!" })}\n\n`);
@@ -1253,6 +1272,7 @@ Be accurate — only include what you can clearly read from the label. For color
         res.end();
       }
     } catch (error: any) {
+      clearTimeout(chatTimeout);
       console.error("Chat error:", error);
       if (clientDisconnected) return;
       if (res.headersSent) {

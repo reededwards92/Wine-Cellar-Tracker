@@ -1,7 +1,16 @@
 import type { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import db from "./db";
+import rateLimit from "express-rate-limit";
+import pool from "./db";
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { message: "Too many attempts. Please try again in 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 if (!process.env.SESSION_SECRET) {
   throw new Error("SESSION_SECRET environment variable is required");
@@ -25,7 +34,7 @@ function verifyToken(token: string): { userId: number } | null {
   }
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "Authentication required" });
@@ -37,18 +46,19 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 
-  const user = db.prepare("SELECT id, email, display_name FROM users WHERE id = ?").get(decoded.userId) as any;
-  if (!user) {
+  const result = await pool.query("SELECT id, email, display_name FROM users WHERE id = $1", [decoded.userId]);
+  if (result.rows.length === 0) {
     return res.status(401).json({ message: "User not found" });
   }
 
+  const user = result.rows[0];
   req.userId = user.id;
   req.user = user;
   next();
 }
 
 export function registerAuthRoutes(app: any) {
-  app.post("/api/auth/register", async (req: Request, res: Response) => {
+  app.post("/api/auth/register", authLimiter, async (req: Request, res: Response) => {
     const { email, password, display_name } = req.body;
 
     if (!email || !password) {
@@ -59,34 +69,36 @@ export function registerAuthRoutes(app: any) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
-    if (existing) {
+    const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (existing.rows.length > 0) {
       return res.status(409).json({ message: "An account with this email already exists" });
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    const result = db.prepare(
-      "INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)"
-    ).run(email, hash, display_name || null);
+    const result = await pool.query(
+      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name",
+      [email, hash, display_name || null]
+    );
 
-    const token = generateToken(result.lastInsertRowid as number);
-    const user = db.prepare("SELECT id, email, display_name FROM users WHERE id = ?").get(result.lastInsertRowid) as any;
+    const user = result.rows[0];
+    const token = generateToken(user.id);
 
     res.status(201).json({ user, token });
   });
 
-  app.post("/api/auth/login", async (req: Request, res: Response) => {
+  app.post("/api/auth/login", authLimiter, async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = db.prepare("SELECT id, email, password_hash, display_name FROM users WHERE email = ?").get(email) as any;
-    if (!user) {
+    const result = await pool.query("SELECT id, email, password_hash, display_name FROM users WHERE email = $1", [email]);
+    if (result.rows.length === 0) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    const user = result.rows[0];
     const valid = bcrypt.compareSync(password, user.password_hash);
     if (!valid) {
       return res.status(401).json({ message: "Invalid email or password" });
@@ -99,35 +111,38 @@ export function registerAuthRoutes(app: any) {
     });
   });
 
-  app.post("/api/auth/google", async (req: Request, res: Response) => {
+  app.post("/api/auth/google", authLimiter, async (req: Request, res: Response) => {
     const { id_token, email, name, google_id } = req.body;
 
     if (!email || !google_id) {
       return res.status(400).json({ message: "Google sign-in data is required" });
     }
 
-    let user = db.prepare("SELECT id, email, display_name FROM users WHERE google_id = ?").get(google_id) as any;
+    let result = await pool.query("SELECT id, email, display_name FROM users WHERE google_id = $1", [google_id]);
+    let user = result.rows[0];
 
     if (!user) {
-      user = db.prepare("SELECT id, email, display_name, google_id FROM users WHERE email = ?").get(email) as any;
+      result = await pool.query("SELECT id, email, display_name, google_id FROM users WHERE email = $1", [email]);
+      user = result.rows[0];
       if (user) {
-        db.prepare("UPDATE users SET google_id = ? WHERE id = ?").run(google_id, user.id);
+        await pool.query("UPDATE users SET google_id = $1 WHERE id = $2", [google_id, user.id]);
       }
     }
 
     if (!user) {
       const dummyHash = bcrypt.hashSync(Math.random().toString(36), 10);
-      const result = db.prepare(
-        "INSERT INTO users (email, password_hash, display_name, google_id) VALUES (?, ?, ?, ?)"
-      ).run(email, dummyHash, name || null, google_id);
-      user = db.prepare("SELECT id, email, display_name FROM users WHERE id = ?").get(result.lastInsertRowid) as any;
+      result = await pool.query(
+        "INSERT INTO users (email, password_hash, display_name, google_id) VALUES ($1, $2, $3, $4) RETURNING id, email, display_name",
+        [email, dummyHash, name || null, google_id]
+      );
+      user = result.rows[0];
     }
 
     const token = generateToken(user.id);
     res.json({ user: { id: user.id, email: user.email, display_name: user.display_name }, token });
   });
 
-  app.get("/api/auth/me", (req: AuthRequest, res: Response) => {
+  app.get("/api/auth/me", async (req: AuthRequest, res: Response) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -139,19 +154,19 @@ export function registerAuthRoutes(app: any) {
       return res.status(401).json({ message: "Invalid token" });
     }
 
-    const user = db.prepare("SELECT id, email, display_name FROM users WHERE id = ?").get(decoded.userId) as any;
-    if (!user) {
+    const result = await pool.query("SELECT id, email, display_name FROM users WHERE id = $1", [decoded.userId]);
+    if (result.rows.length === 0) {
       return res.status(401).json({ message: "User not found" });
     }
 
-    res.json({ user });
+    res.json({ user: result.rows[0] });
   });
 
   app.post("/api/auth/logout", (_req: Request, res: Response) => {
     res.json({ message: "Logged out" });
   });
 
-  app.patch("/api/auth/profile", requireAuth, (req: AuthRequest, res: Response) => {
+  app.patch("/api/auth/profile", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: "Authentication required" });
 
@@ -165,12 +180,14 @@ export function registerAuthRoutes(app: any) {
       return res.status(400).json({ message: "Display name cannot be empty" });
     }
 
-    db.prepare("UPDATE users SET display_name = ? WHERE id = ?").run(trimmed, userId);
-    const user = db.prepare("SELECT id, email, display_name FROM users WHERE id = ?").get(userId) as any;
-    res.json({ user });
+    const result = await pool.query(
+      "UPDATE users SET display_name = $1 WHERE id = $2 RETURNING id, email, display_name",
+      [trimmed, userId]
+    );
+    res.json({ user: result.rows[0] });
   });
 
-  app.post("/api/auth/change-password", requireAuth, (req: AuthRequest, res: Response) => {
+  app.post("/api/auth/change-password", authLimiter, requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: "Authentication required" });
 
@@ -182,35 +199,39 @@ export function registerAuthRoutes(app: any) {
       return res.status(400).json({ message: "New password must be at least 6 characters" });
     }
 
-    const user = db.prepare("SELECT password_hash, google_id FROM users WHERE id = ?").get(userId) as any;
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const result = await pool.query("SELECT password_hash, google_id FROM users WHERE id = $1", [userId]);
+    if (result.rows.length === 0) return res.status(404).json({ message: "User not found" });
 
+    const user = result.rows[0];
     const valid = bcrypt.compareSync(current_password, user.password_hash);
     if (!valid) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }
 
     const hash = bcrypt.hashSync(new_password, 10);
-    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hash, userId);
+    await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [hash, userId]);
     res.json({ message: "Password updated" });
   });
 
-  app.delete("/api/auth/account", requireAuth, (req: AuthRequest, res: Response) => {
+  app.delete("/api/auth/account", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: "Authentication required" });
 
-    const deleteAccount = db.transaction(() => {
-      db.prepare("DELETE FROM consumption_log WHERE user_id = ?").run(userId);
-      db.prepare("DELETE FROM bottles WHERE user_id = ?").run(userId);
-      db.prepare("DELETE FROM wines WHERE user_id = ?").run(userId);
-      db.prepare("DELETE FROM users WHERE id = ?").run(userId);
-    });
-
+    const client = await pool.connect();
     try {
-      deleteAccount();
+      await client.query("BEGIN");
+      await client.query("DELETE FROM consumption_log WHERE user_id = $1", [userId]);
+      await client.query("DELETE FROM bottles WHERE user_id = $1", [userId]);
+      await client.query("DELETE FROM wines WHERE user_id = $1", [userId]);
+      await client.query("DELETE FROM storage_locations WHERE user_id = $1", [userId]);
+      await client.query("DELETE FROM users WHERE id = $1", [userId]);
+      await client.query("COMMIT");
       res.json({ message: "Account and all data deleted" });
     } catch (err: any) {
+      await client.query("ROLLBACK");
       res.status(500).json({ message: "Failed to delete account" });
+    } finally {
+      client.release();
     }
   });
 }

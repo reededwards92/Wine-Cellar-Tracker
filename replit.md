@@ -1,11 +1,11 @@
 # Vin - Wine Cellar Management App
 
 ## Overview
-A wine cellar management mobile app built with Expo (React Native) frontend and Express backend with SQLite (better-sqlite3) database. Includes an AI-powered sommelier chat assistant (Claude Sonnet 4.6 via Replit AI Integrations) that can query and modify the wine database through natural language. Multi-user authentication with JWT tokens.
+A wine cellar management mobile app built with Expo (React Native) frontend and Express backend with PostgreSQL (Replit built-in) database. Includes an AI-powered sommelier chat assistant (Claude Sonnet 4.6 via Replit AI Integrations) that can query and modify the wine database through natural language. Multi-user authentication with JWT tokens.
 
 ## Tech Stack
 - **Frontend**: Expo SDK 54, React Native, Expo Router (file-based routing), React Query
-- **Backend**: Express.js, TypeScript, better-sqlite3 (SQLite)
+- **Backend**: Express.js, TypeScript, PostgreSQL (pg, Replit built-in)
 - **AI**: Claude Sonnet 4.6 (Anthropic via Replit AI Integrations) with tool-calling for database operations
 - **Auth**: JWT tokens (30d expiry, SESSION_SECRET env var), bcryptjs for password hashing, expo-secure-store for token storage, expo-local-authentication for Face ID/fingerprint biometric login
 - **Styling**: React Native StyleSheet with wine-burgundy (#722F37) accent color
@@ -17,9 +17,10 @@ A wine cellar management mobile app built with Expo (React Native) frontend and 
 - **Frontend** runs on port 8081 (Expo dev server)
 - **Backend** runs on port 5000 (Express API server)
 - Client communicates with server via RESTful API with Bearer token auth
-- SQLite database stored at `cellar.db` in project root
+- PostgreSQL database (Replit built-in, persistent across deployments) via `pg` Pool
+- Database initialized on server start via `initializeDatabase()` in `server/db.ts`
 - AI chat uses SSE streaming with `expo/fetch` for cross-platform support
-- AI calls use raw `http.request` (not Anthropic SDK) to avoid SDK hanging issues; `localhost` replaced with `127.0.0.1` for IPv4 compatibility
+- AI calls use Anthropic SDK client; `localhost` replaced with `127.0.0.1` for IPv4 compatibility
 - SSE disconnect detection uses `res.on("close")` (NOT `req.on("close")` which fires prematurely)
 
 ## Authentication

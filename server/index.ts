@@ -2,10 +2,12 @@ import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
+import { initializeDatabase } from "./db";
 import * as fs from "fs";
 import * as path from "path";
 
 const app = express();
+app.set("trust proxy", 1);
 const log = console.log;
 
 declare module "http" {
@@ -264,6 +266,8 @@ function setupErrorHandler(app: express.Application) {
 }
 
 (async () => {
+  await initializeDatabase();
+
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);

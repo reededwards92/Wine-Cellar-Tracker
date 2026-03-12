@@ -40,9 +40,7 @@ export interface Bottle {
   purchase_date: string | null;
   purchase_price: number | null;
   estimated_value: number | null;
-  store: string | null;
   location: string | null;
-  bin: string | null;
   size: string;
   notes: string | null;
   status: string;
