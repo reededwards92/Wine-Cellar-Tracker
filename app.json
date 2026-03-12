@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.cellar.app",
+      "bundleIdentifier": "com.reededwards.vin",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Vin uses the camera to scan wine bottle labels so you can quickly add wines to your cellar.",
@@ -25,11 +25,17 @@
       }
     },
     "android": {
-      "package": "com.cellar.app",
+      "package": "com.reededwards.vin",
       "adaptiveIcon": {
         "backgroundColor": "#722F37",
         "foregroundImage": "./assets/images/icon.png"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -38,7 +44,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://vin-tracker.replit.app"
         }
       ],
       "expo-font",
@@ -54,11 +60,20 @@
         {
           "locationWhenInUsePermission": "Vin uses your location to check local weather conditions and provide personalized wine pairing recommendations from your AI Sommelier."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://vin-tracker.replit.app"
+      },
+      "eas": {
+        "projectId": "4eadb20b-7f98-48a8-8a13-ada2e738517c"
+      }
     }
   }
 }

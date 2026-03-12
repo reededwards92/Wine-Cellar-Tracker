@@ -9,6 +9,11 @@ import ExcelJS from "exceljs";
 import { CELLAR_TOOLS, executeTool } from "./ai-tools";
 import { requireAuth, type AuthRequest } from "./auth";
 
+const anthropicClient = new Anthropic({
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || "",
+  baseURL: (process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || "https://api.anthropic.com").replace("localhost", "127.0.0.1"),
+});
+
 async function callAnthropic(params: {
   model: string;
   max_tokens: number;
@@ -16,51 +21,7 @@ async function callAnthropic(params: {
   tools?: Anthropic.Tool[];
   messages: Anthropic.MessageParam[];
 }): Promise<Anthropic.Message> {
-  const rawBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || "https://api.anthropic.com";
-  const baseURL = rawBaseURL.replace("localhost", "127.0.0.1");
-  const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || "";
-  const url = `${baseURL}/v1/messages`;
-  const body = JSON.stringify(params);
-
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const isHttps = parsed.protocol === "https:";
-    const transport = isHttps ? require("https") : require("http");
-    const defaultPort = isHttps ? 443 : 80;
-
-    const req = transport.request({
-      hostname: parsed.hostname,
-      port: parsed.port ? parseInt(parsed.port) : defaultPort,
-      path: parsed.pathname,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "Content-Length": Buffer.byteLength(body),
-      },
-      timeout: 60000,
-    }, (res: any) => {
-      let data = "";
-      res.on("data", (chunk: any) => { data += chunk; });
-      res.on("end", () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          try {
-            resolve(JSON.parse(data));
-          } catch (e) {
-            reject(new Error("Failed to parse AI response"));
-          }
-        } else {
-          reject(new Error(`Anthropic API error ${res.statusCode}: ${data.substring(0, 200)}`));
-        }
-      });
-    });
-
-    req.on("timeout", () => req.destroy(new Error("Request timed out")));
-    req.on("error", (e: any) => reject(e));
-    req.write(body);
-    req.end();
-  });
+  return anthropicClient.messages.create(params as any) as Promise<Anthropic.Message>;
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
