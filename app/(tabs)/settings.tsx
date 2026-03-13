@@ -283,7 +283,7 @@ export default function SettingsScreen() {
                 "What you expected to happen:\n\n" +
                 "App version: 1.0.0"
               );
-              Linking.openURL(`mailto:reed@fiveelms.com?subject=${subject}&body=${body}`);
+              Linking.openURL(`mailto:reededwards92@gmail.com?subject=${subject}&body=${body}`);
             }}
           />
         </SettingsSection>
