@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import pool from "./db";
 
@@ -164,6 +165,82 @@ export function registerAuthRoutes(app: any) {
 
   app.post("/api/auth/logout", (_req: Request, res: Response) => {
     res.json({ message: "Logged out" });
+  });
+
+  app.post("/api/auth/forgot-password", authLimiter, async (req: Request, res: Response) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    const userResult = await pool.query("SELECT id FROM users WHERE email = $1", [String(email).toLowerCase().trim()]);
+    if (userResult.rows.length === 0) {
+      return res.json({ message: "If that email exists, we sent a reset code" });
+    }
+
+    const userId = userResult.rows[0].id;
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const tokenHash = crypto.createHash("sha256").update(code).digest("hex");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await pool.query("DELETE FROM password_reset_tokens WHERE user_id = $1", [userId]);
+    await pool.query(
+      "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+      [userId, tokenHash, expiresAt]
+    );
+
+    const resendKey = process.env.RESEND_API_KEY;
+    if (resendKey) {
+      try {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendKey}` },
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM_EMAIL || "noreply@vin-tracker.replit.app",
+            to: email,
+            subject: "Vin — Password Reset Code",
+            html: `<p>Your password reset code is:</p><p style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#722F37">${code}</p><p>This code expires in 15 minutes. If you didn't request this, you can safely ignore this email.</p>`,
+          }),
+        });
+      } catch (e) {
+        console.error("[auth] Failed to send reset email:", e);
+      }
+    } else {
+      console.log(`[auth] DEV — password reset code for ${email}: ${code}`);
+    }
+
+    res.json({ message: "If that email exists, we sent a reset code" });
+  });
+
+  app.post("/api/auth/reset-password", authLimiter, async (req: Request, res: Response) => {
+    const { email, code, new_password } = req.body;
+    if (!email || !code || !new_password) {
+      return res.status(400).json({ message: "Email, code, and new password are required" });
+    }
+    if (String(new_password).length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const userResult = await pool.query("SELECT id FROM users WHERE email = $1", [String(email).toLowerCase().trim()]);
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ message: "Invalid or expired reset code" });
+    }
+
+    const userId = userResult.rows[0].id;
+    const tokenHash = crypto.createHash("sha256").update(String(code).trim()).digest("hex");
+
+    const tokenResult = await pool.query(
+      "SELECT id FROM password_reset_tokens WHERE user_id = $1 AND token_hash = $2 AND expires_at > NOW() AND used = FALSE",
+      [userId, tokenHash]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({ message: "Invalid or expired reset code" });
+    }
+
+    const hash = bcrypt.hashSync(String(new_password), 10);
+    await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [hash, userId]);
+    await pool.query("UPDATE password_reset_tokens SET used = TRUE WHERE id = $1", [tokenResult.rows[0].id]);
+
+    res.json({ message: "Password reset successfully" });
   });
 
   app.patch("/api/auth/profile", requireAuth, async (req: AuthRequest, res: Response) => {

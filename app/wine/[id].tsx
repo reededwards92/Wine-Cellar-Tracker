@@ -103,6 +103,14 @@ export default function WineDetailScreen() {
     rating: 0,
     tasting_notes: "",
   });
+  const [addModal, setAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({
+    quantity: 1,
+    location: "",
+    purchase_price: "",
+    estimated_value: "",
+    size: "750ml",
+  });
 
   const { data: wine, isLoading } = useQuery<WineDetail>({
     queryKey: ["/api/wines", id],
@@ -147,6 +155,29 @@ export default function WineDetailScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/wines", id] });
+    },
+  });
+
+  const addBottlesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/wines/${id}/bottles`, {
+        quantity: addForm.quantity,
+        location: addForm.location || null,
+        purchase_price: addForm.purchase_price ? parseFloat(addForm.purchase_price) : null,
+        estimated_value: addForm.estimated_value ? parseFloat(addForm.estimated_value) : null,
+        size: addForm.size,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setAddModal(false);
+      setAddForm({ quantity: 1, location: "", purchase_price: "", estimated_value: "", size: "750ml" });
+      queryClient.invalidateQueries({ queryKey: ["/api/wines", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (err: any) => {
+      Alert.alert("Error", err.message);
     },
   });
 
@@ -238,6 +269,10 @@ export default function WineDetailScreen() {
               onLocationChange={(location) => locationMutation.mutate({ bottleId: bottle.id, location })}
             />
           ))}
+          <Pressable style={styles.addBottlesBtn} onPress={() => setAddModal(true)}>
+            <Ionicons name="add-circle-outline" size={18} color={Colors.light.tint} />
+            <Text style={styles.addBottlesBtnText}>Add More Bottles</Text>
+          </Pressable>
         </View>
       </ScrollView>
 
@@ -313,6 +348,100 @@ export default function WineDetailScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.confirmBtnText}>Confirm</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={addModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Bottles</Text>
+              <Pressable onPress={() => setAddModal(false)}>
+                <Ionicons name="close" size={24} color={Colors.light.text} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.modalLabel}>Quantity</Text>
+              <View style={styles.quantityRow}>
+                <Pressable
+                  style={styles.quantityBtn}
+                  onPress={() => setAddForm((p) => ({ ...p, quantity: Math.max(1, p.quantity - 1) }))}
+                >
+                  <Ionicons name="remove" size={20} color={Colors.light.tint} />
+                </Pressable>
+                <Text style={styles.quantityNum}>{addForm.quantity}</Text>
+                <Pressable
+                  style={styles.quantityBtn}
+                  onPress={() => setAddForm((p) => ({ ...p, quantity: Math.min(24, p.quantity + 1) }))}
+                >
+                  <Ionicons name="add" size={20} color={Colors.light.tint} />
+                </Pressable>
+              </View>
+
+              {locationNames.length > 0 ? (
+                <>
+                  <Text style={styles.modalLabel}>Location</Text>
+                  <View style={styles.locationPickerRow}>
+                    {locationNames.map((opt) => (
+                      <Pressable
+                        key={opt}
+                        style={[styles.locationPill, addForm.location === opt && styles.locationPillActive]}
+                        onPress={() => setAddForm((p) => ({ ...p, location: p.location === opt ? "" : opt }))}
+                      >
+                        <Text style={[styles.locationPillText, addForm.location === opt && styles.locationPillTextActive]}>{opt}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              ) : null}
+
+              <Text style={styles.modalLabel}>Purchase Price</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={addForm.purchase_price}
+                onChangeText={(v) => setAddForm((p) => ({ ...p, purchase_price: v }))}
+                placeholder="$0.00"
+                placeholderTextColor={Colors.light.tabIconDefault}
+                keyboardType="decimal-pad"
+              />
+
+              <Text style={styles.modalLabel}>Estimated Value</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={addForm.estimated_value}
+                onChangeText={(v) => setAddForm((p) => ({ ...p, estimated_value: v }))}
+                placeholder="$0.00"
+                placeholderTextColor={Colors.light.tabIconDefault}
+                keyboardType="decimal-pad"
+              />
+
+              <Text style={styles.modalLabel}>Bottle Size</Text>
+              <View style={styles.locationPickerRow}>
+                {["375ml", "750ml", "1.5L", "3L"].map((s) => (
+                  <Pressable
+                    key={s}
+                    style={[styles.locationPill, addForm.size === s && styles.locationPillActive]}
+                    onPress={() => setAddForm((p) => ({ ...p, size: s }))}
+                  >
+                    <Text style={[styles.locationPillText, addForm.size === s && styles.locationPillTextActive]}>{s}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+
+            <Pressable
+              style={styles.confirmBtn}
+              onPress={() => addBottlesMutation.mutate()}
+              disabled={addBottlesMutation.isPending}
+            >
+              {addBottlesMutation.isPending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.confirmBtnText}>Add {addForm.quantity} Bottle{addForm.quantity !== 1 ? "s" : ""}</Text>
               )}
             </Pressable>
           </View>
@@ -591,5 +720,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
     color: "#fff",
+  },
+  addBottlesBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 10,
+    borderRadius: 6,
+    backgroundColor: Colors.light.tint + "10",
+    borderWidth: 1,
+    borderColor: Colors.light.tint + "40",
+  },
+  addBottlesBtnText: {
+    fontSize: 14,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
+  },
+  quantityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    paddingVertical: 8,
+  },
+  quantityBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.light.tint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quantityNum: {
+    fontSize: 24,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.text,
+    minWidth: 40,
+    textAlign: "center",
   },
 });

@@ -268,6 +268,10 @@ function setupErrorHandler(app: express.Application) {
 (async () => {
   await initializeDatabase();
 
+  if (!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
+    console.warn("[startup] WARNING: AI_INTEGRATIONS_ANTHROPIC_API_KEY is not set — the AI sommelier will not work.");
+  }
+
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);

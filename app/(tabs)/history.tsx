@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,9 +12,10 @@ import {
   Animated,
   Dimensions,
   ScrollView,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
@@ -39,6 +40,7 @@ interface ConsumptionStats {
   totalValue: number;
   colorBreakdown: { color: string; count: number }[];
   monthlyTrend: { month: string; label: string; count: number }[];
+  yearlyComparison?: { label: string; current: number; prior: number }[];
 }
 
 function DonutChart({ data, size }: { data: { color: string; count: number }[]; size: number }) {
@@ -82,25 +84,58 @@ function DonutChart({ data, size }: { data: { color: string; count: number }[]; 
   );
 }
 
-function BarChart({ data }: { data: { label: string; count: number }[] }) {
+function BarChart({ data, secondSeries, currentYear, priorYear }: {
+  data: { label: string; count: number }[];
+  secondSeries?: { label: string; count: number }[];
+  currentYear?: number;
+  priorYear?: number;
+}) {
   if (data.length === 0) return null;
-  const maxCount = Math.max(...data.map((d) => d.count), 1);
-  const barWidth = Math.min(32, (Dimensions.get("window").width - 80) / data.length - 4);
+  const allCounts = [...data.map((d) => d.count), ...(secondSeries?.map((d) => d.count) || [])];
+  const maxCount = Math.max(...allCounts, 1);
+  const hasTwo = !!secondSeries;
+  const barWidth = Math.min(hasTwo ? 16 : 28, (Dimensions.get("window").width - 80) / data.length / (hasTwo ? 2 : 1) - 4);
   const chartHeight = 120;
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barChartScroll}>
-      {data.map((d, i) => {
-        const barH = maxCount > 0 ? (d.count / maxCount) * (chartHeight - 20) : 0;
-        return (
-          <View key={i} style={[styles.barCol, { width: barWidth + 8 }]}>
-            <Text style={styles.barCount}>{d.count > 0 ? d.count : ""}</Text>
-            <View style={[styles.bar, { height: Math.max(barH, d.count > 0 ? 4 : 1), width: barWidth, backgroundColor: d.count > 0 ? Colors.light.tint : Colors.light.border }]} />
-            <Text style={styles.barLabel} numberOfLines={1}>{d.label.split(" ")[0]}</Text>
+    <View>
+      {hasTwo && currentYear && priorYear ? (
+        <View style={{ flexDirection: "row", gap: 16, marginBottom: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: Colors.light.tint }} />
+            <Text style={styles.barLabel}>{currentYear}</Text>
           </View>
-        );
-      })}
-    </ScrollView>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: Colors.light.tint + "60" }} />
+            <Text style={styles.barLabel}>{priorYear}</Text>
+          </View>
+        </View>
+      ) : null}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barChartScroll}>
+        {data.map((d, i) => {
+          const d2 = secondSeries?.[i];
+          const barH1 = maxCount > 0 ? (d.count / maxCount) * (chartHeight - 20) : 0;
+          const barH2 = d2 ? (maxCount > 0 ? (d2.count / maxCount) * (chartHeight - 20) : 0) : 0;
+          return (
+            <View key={i} style={[styles.barCol, { width: (barWidth + 2) * (hasTwo ? 2 : 1) + 8 }]}>
+              <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 2 }}>
+                <View style={{ alignItems: "center", gap: 4 }}>
+                  <Text style={styles.barCount}>{d.count > 0 ? d.count : ""}</Text>
+                  <View style={[styles.bar, { height: Math.max(barH1, d.count > 0 ? 4 : 1), width: barWidth, backgroundColor: d.count > 0 ? Colors.light.tint : Colors.light.border }]} />
+                </View>
+                {d2 !== undefined ? (
+                  <View style={{ alignItems: "center", gap: 4 }}>
+                    <Text style={[styles.barCount, { color: Colors.light.tabIconDefault }]}>{d2.count > 0 ? d2.count : ""}</Text>
+                    <View style={[styles.bar, { height: Math.max(barH2, d2.count > 0 ? 4 : 1), width: barWidth, backgroundColor: d2.count > 0 ? Colors.light.tint + "60" : Colors.light.border }]} />
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.barLabel} numberOfLines={1}>{d.label}</Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -266,7 +301,16 @@ function StatsSection({ stats }: { stats: ConsumptionStats }) {
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Monthly Trend</Text>
           <View style={styles.barChartContainer}>
-            <BarChart data={stats.monthlyTrend} />
+            {stats.yearlyComparison && stats.yearlyComparison.some(y => y.prior > 0) ? (
+              <BarChart
+                data={stats.yearlyComparison.map(y => ({ label: y.label, count: y.current }))}
+                secondSeries={stats.yearlyComparison.map(y => ({ label: y.label, count: y.prior }))}
+                currentYear={new Date().getFullYear()}
+                priorYear={new Date().getFullYear() - 1}
+              />
+            ) : (
+              <BarChart data={stats.monthlyTrend} />
+            )}
           </View>
         </View>
       ) : null}
@@ -281,10 +325,39 @@ export default function HistoryScreen() {
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [filterSearch, setFilterSearch] = useState("");
+  const [filterColor, setFilterColor] = useState<string[]>([]);
+  const [filterMinRating, setFilterMinRating] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
 
-  const { data: entries, isLoading, refetch } = useQuery<ConsumptionEntry[]>({
-    queryKey: ["/api/consumption"],
+  const filterParams = useMemo(() => {
+    const p = new URLSearchParams();
+    if (filterSearch) p.set("search", filterSearch);
+    if (filterColor.length > 0) p.set("color", filterColor.join(","));
+    if (filterMinRating > 0) p.set("min_rating", String(filterMinRating));
+    return p.toString();
+  }, [filterSearch, filterColor, filterMinRating]);
+
+  const {
+    data: pagedData,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch,
+  } = useInfiniteQuery<{ entries: ConsumptionEntry[]; total: number; hasMore: boolean; page: number }>({
+    queryKey: ["/api/consumption", filterParams],
+    queryFn: async ({ pageParam }) => {
+      const sep = filterParams ? "&" : "";
+      const res = await apiRequest("GET", `/api/consumption?${filterParams}${sep}page=${pageParam ?? 1}&limit=30`);
+      return res.json();
+    },
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
+    initialPageParam: 1,
   });
+
+  const entries = useMemo(() => pagedData?.pages.flatMap((p) => p.entries) ?? [], [pagedData]);
+  const totalCount = pagedData?.pages[0]?.total ?? 0;
 
   const { data: stats } = useQuery<ConsumptionStats>({
     queryKey: ["/api/consumption/stats"],
@@ -301,7 +374,6 @@ export default function HistoryScreen() {
   };
 
   const selectAll = () => {
-    if (!entries) return;
     if (selected.size === entries.length) {
       setSelected(new Set());
     } else {
@@ -344,11 +416,12 @@ export default function HistoryScreen() {
     );
   };
 
-  const allSelected = entries && entries.length > 0 && selected.size === entries.length;
+  const allSelected = entries.length > 0 && selected.size === entries.length;
 
   const handleRefresh = () => {
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ["/api/consumption"] });
     queryClient.invalidateQueries({ queryKey: ["/api/consumption/stats"] });
+    refetch();
   };
 
   return (
@@ -357,11 +430,11 @@ export default function HistoryScreen() {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.title}>History</Text>
-            {entries && entries.length > 0 && !editing ? (
-              <Text style={styles.subtitle}>{entries.length} bottle{entries.length !== 1 ? "s" : ""} consumed</Text>
+            {entries.length > 0 && !editing ? (
+              <Text style={styles.subtitle}>{totalCount} bottle{totalCount !== 1 ? "s" : ""} consumed</Text>
             ) : null}
           </View>
-          {entries && entries.length > 0 ? (
+          {entries.length > 0 ? (
             <Pressable
               onPress={editing ? exitEditing : () => setEditing(true)}
               hitSlop={8}
@@ -396,10 +469,89 @@ export default function HistoryScreen() {
             )}
           </View>
         ) : null}
+
+        {!editing ? (
+          <View>
+            <Pressable
+              style={styles.filterToggle}
+              onPress={() => setShowFilters(!showFilters)}
+            >
+              <Ionicons name="options-outline" size={16} color={filterColor.length > 0 || filterMinRating > 0 || filterSearch ? Colors.light.tint : Colors.light.textSecondary} />
+              <Text style={[styles.filterToggleText, (filterColor.length > 0 || filterMinRating > 0 || filterSearch) && { color: Colors.light.tint }]}>
+                Filter{filterColor.length > 0 || filterMinRating > 0 || filterSearch ? " (active)" : ""}
+              </Text>
+              <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={14} color={Colors.light.tabIconDefault} />
+            </Pressable>
+
+            {showFilters ? (
+              <View style={styles.filterPanel}>
+                <View style={styles.filterSearchRow}>
+                  <Ionicons name="search" size={15} color={Colors.light.tabIconDefault} />
+                  <TextInput
+                    style={styles.filterSearchInput}
+                    value={filterSearch}
+                    onChangeText={setFilterSearch}
+                    placeholder="Search history..."
+                    placeholderTextColor={Colors.light.tabIconDefault}
+                    returnKeyType="search"
+                  />
+                  {filterSearch ? (
+                    <Pressable onPress={() => setFilterSearch("")}>
+                      <Ionicons name="close-circle" size={15} color={Colors.light.tabIconDefault} />
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                <Text style={styles.filterLabel}>Color</Text>
+                <View style={styles.filterChips}>
+                  {["Red", "White", "Rosé", "Sparkling", "Dessert", "Fortified"].map((c) => (
+                    <Pressable
+                      key={c}
+                      style={[styles.filterChip, filterColor.includes(c) && styles.filterChipActive]}
+                      onPress={() =>
+                        setFilterColor((prev) =>
+                          prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
+                        )
+                      }
+                    >
+                      <Text style={[styles.filterChipText, filterColor.includes(c) && styles.filterChipTextActive]}>{c}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={styles.filterLabel}>Min Rating</Text>
+                <View style={styles.ratingFilter}>
+                  {[0, 1, 2, 3, 4, 5].map((r) => (
+                    <Pressable key={r} onPress={() => setFilterMinRating(r === filterMinRating ? 0 : r)}>
+                      {r === 0 ? (
+                        <Text style={[styles.ratingFilterAny, filterMinRating === 0 && styles.ratingFilterAnyActive]}>Any</Text>
+                      ) : (
+                        <Ionicons
+                          name={r <= filterMinRating ? "star" : "star-outline"}
+                          size={24}
+                          color={r <= filterMinRating ? Colors.light.warning : Colors.light.tabIconDefault}
+                        />
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+
+                {(filterColor.length > 0 || filterMinRating > 0 || filterSearch) ? (
+                  <Pressable
+                    style={styles.clearFiltersBtn}
+                    onPress={() => { setFilterColor([]); setFilterMinRating(0); setFilterSearch(""); }}
+                  >
+                    <Text style={styles.clearFiltersBtnText}>Clear All Filters</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <FlatList
-        data={entries || []}
+        data={entries}
         renderItem={({ item }) => (
           <ConsumptionCard
             entry={item}
@@ -435,7 +587,16 @@ export default function HistoryScreen() {
           styles.listContent,
           { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
         ]}
-        scrollEnabled={!!(entries && entries.length > 0)}
+        scrollEnabled={entries.length > 0}
+        onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View style={{ paddingVertical: 20, alignItems: "center" }}>
+              <ActivityIndicator size="small" color={Colors.light.tint} />
+            </View>
+          ) : null
+        }
       />
     </View>
   );
@@ -752,6 +913,110 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
+  },
+  filterToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  filterToggleText: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.textSecondary,
+    flex: 1,
+  },
+  filterPanel: {
+    paddingTop: 12,
+  },
+  filterSearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    marginBottom: 12,
+  },
+  filterSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.text,
+    padding: 0,
+  },
+  filterLabel: {
+    fontSize: 11,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  filterChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 12,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.white,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.text,
+  },
+  filterChipTextActive: {
+    color: "#fff",
+  },
+  ratingFilter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  ratingFilterAny: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tabIconDefault,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  ratingFilterAnyActive: {
+    color: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  clearFiltersBtn: {
+    alignSelf: "flex-start",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.danger,
+  },
+  clearFiltersBtnText: {
+    fontSize: 12,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.danger,
   },
   centered: {
     flex: 1,

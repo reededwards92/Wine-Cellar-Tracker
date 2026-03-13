@@ -82,6 +82,15 @@ export async function initializeDatabase() {
       sort_order INTEGER DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
 
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_storage_locations_user_id ON storage_locations(user_id)`);
@@ -95,6 +104,7 @@ export async function initializeDatabase() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_consumption_log_user_id ON consumption_log(user_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id)`);
 
   await seedAccounts();
 }

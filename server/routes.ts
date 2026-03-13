@@ -195,8 +195,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ORDER BY ${sortCol} ${sortOrder} NULLS LAST
     `;
 
-    const result = await pool.query(query, params);
-    res.json(result.rows);
+    const pageNum = parseInt(req.query.page as string, 10);
+    const limitNum = Math.min(parseInt((req.query.limit as string) || "50", 10), 100);
+
+    if (!isNaN(pageNum) && pageNum >= 1) {
+      const countQuery = `SELECT COUNT(*) as total FROM (${query}) subq`;
+      const countResult = await pool.query(countQuery, params);
+      const total = Number(countResult.rows[0].total);
+
+      const paginatedQuery = query + ` LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`;
+      const paginatedResult = await pool.query(paginatedQuery, [...params, limitNum, (pageNum - 1) * limitNum]);
+
+      res.json({
+        wines: paginatedResult.rows,
+        total,
+        hasMore: pageNum * limitNum < total,
+        page: pageNum,
+      });
+    } else {
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+    }
   });
 
   app.get("/api/wines/:id", requireAuth, async (req: AuthRequest, res: Response) => {
@@ -323,17 +342,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/consumption", requireAuth, async (req: AuthRequest, res: Response) => {
-    const result = await pool.query(`
+    const userId = req.userId;
+    const { search, color, min_rating, date_from, date_to, page, limit } = req.query;
+
+    let whereClauses = ["cl.user_id = $1"];
+    let params: any[] = [userId];
+    let paramIdx = 2;
+
+    if (search) {
+      whereClauses.push(
+        `(w.producer ILIKE $${paramIdx} OR w.wine_name ILIKE $${paramIdx} OR w.varietal ILIKE $${paramIdx} OR cl.occasion ILIKE $${paramIdx} OR cl.tasting_notes ILIKE $${paramIdx})`
+      );
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+    if (color) {
+      const colors = (color as string).split(",");
+      const placeholders = colors.map(() => `$${paramIdx++}`);
+      whereClauses.push(`w.color IN (${placeholders.join(",")})`);
+      params.push(...colors);
+    }
+    if (min_rating) {
+      whereClauses.push(`cl.rating >= $${paramIdx++}`);
+      params.push(parseInt(min_rating as string, 10));
+    }
+    if (date_from) {
+      whereClauses.push(`cl.consumed_date >= $${paramIdx++}`);
+      params.push(date_from);
+    }
+    if (date_to) {
+      whereClauses.push(`cl.consumed_date <= $${paramIdx++}`);
+      params.push(date_to);
+    }
+
+    const whereStr = `WHERE ${whereClauses.join(" AND ")}`;
+    const baseQuery = `
       SELECT cl.*, w.producer, w.wine_name, w.vintage, w.color, w.varietal, w.region,
         w.sub_region, w.appellation, w.ct_community_score, w.drink_window_start, w.drink_window_end,
         b.purchase_price, b.estimated_value, b.location AS bottle_location
       FROM consumption_log cl
       JOIN wines w ON cl.wine_id = w.id
       LEFT JOIN bottles b ON cl.bottle_id = b.id
-      WHERE cl.user_id = $1
+      ${whereStr}
       ORDER BY cl.consumed_date DESC
-    `, [req.userId]);
-    res.json(result.rows);
+    `;
+
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = Math.min(parseInt((limit as string) || "50", 10), 100);
+
+    if (!isNaN(pageNum) && pageNum >= 1) {
+      const countResult = await pool.query(
+        `SELECT COUNT(*) as total FROM consumption_log cl JOIN wines w ON cl.wine_id = w.id ${whereStr}`,
+        params
+      );
+      const total = Number(countResult.rows[0].total);
+
+      const paginatedQuery = baseQuery + ` LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`;
+      const result = await pool.query(paginatedQuery, [...params, limitNum, (pageNum - 1) * limitNum]);
+
+      res.json({
+        entries: result.rows,
+        total,
+        hasMore: pageNum * limitNum < total,
+        page: pageNum,
+      });
+    } else {
+      const result = await pool.query(baseQuery, params);
+      res.json(result.rows);
+    }
   });
 
   app.get("/api/consumption/stats", requireAuth, async (req: AuthRequest, res: Response) => {
@@ -391,12 +467,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
+    const thisYear = new Date().getFullYear();
+    const lastYear = thisYear - 1;
+
+    const yoyRaw = (await pool.query(`
+      SELECT
+        EXTRACT(MONTH FROM consumed_date::date)::int as month_num,
+        EXTRACT(YEAR FROM consumed_date::date)::int as year_num,
+        COUNT(*) as count
+      FROM consumption_log
+      WHERE user_id = $1
+        AND consumed_date IS NOT NULL
+        AND EXTRACT(YEAR FROM consumed_date::date) IN ($2, $3)
+      GROUP BY month_num, year_num
+      ORDER BY year_num, month_num
+    `, [userId, thisYear, lastYear])).rows;
+
+    const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const yearlyComparison = monthLabels.map((label, i) => {
+      const m = i + 1;
+      const cur = yoyRaw.find((r: any) => r.year_num === thisYear && r.month_num === m);
+      const prior = yoyRaw.find((r: any) => r.year_num === lastYear && r.month_num === m);
+      return { label, current: Number(cur?.count || 0), prior: Number(prior?.count || 0) };
+    });
+
     res.json({
       totalBottles: Number(totals.totalBottles),
       totalGlasses: Number(totals.totalBottles) * 5,
       totalValue: Math.round(Number(totals.totalValue) * 100) / 100,
       colorBreakdown,
       monthlyTrend,
+      yearlyComparison,
     });
   });
 

@@ -14,7 +14,8 @@ import {
   Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/query-client";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
@@ -275,9 +276,28 @@ export default function CellarScreen() {
 
   const queryString = useMemo(() => buildQueryString(), [buildQueryString]);
 
-  const { data: wines, isLoading, refetch } = useQuery<WineListItem[]>({
+  const {
+    data: winesData,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch,
+  } = useInfiniteQuery<{ wines: WineListItem[]; total: number; hasMore: boolean; page: number }>({
     queryKey: ["/api/wines", queryString],
+    queryFn: async ({ pageParam }) => {
+      const sep = queryString ? "&" : "";
+      const res = await apiRequest("GET", `/api/wines?${queryString}${sep}page=${pageParam ?? 1}&limit=50`);
+      return res.json();
+    },
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
+    initialPageParam: 1,
   });
+
+  const wines = useMemo(
+    () => winesData?.pages.flatMap((p) => p.wines) ?? [],
+    [winesData]
+  );
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<Stats>({
     queryKey: ["/api/stats"],
@@ -396,6 +416,15 @@ export default function CellarScreen() {
           ]}
           scrollEnabled={sections.length > 0}
           onScrollToIndexFailed={() => {}}
+          onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                <ActivityIndicator size="small" color={Colors.light.tint} />
+              </View>
+            ) : null
+          }
         />
         <SectionScrubber sections={sections} onSectionPress={handleScrubberPress} />
       </View>

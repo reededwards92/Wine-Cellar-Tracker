@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,15 +14,19 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl } from "@/lib/query-client";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, googleSignIn } = useAuth();
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -30,6 +34,28 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      const { authentication } = googleResponse;
+      if (!authentication?.accessToken) return;
+      setLoading(true);
+      fetch("https://www.googleapis.com/userinfo/v2/me", {
+        headers: { Authorization: `Bearer ${authentication.accessToken}` },
+      })
+        .then((r) => r.json())
+        .then(async (info) => {
+          await googleSignIn({ email: info.email, name: info.name || "", google_id: info.id, id_token: authentication.idToken || "" });
+          router.replace("/(tabs)");
+        })
+        .catch((e: any) => { setError(e.message || "Google sign-in failed"); setLoading(false); });
+    }
+  }, [googleResponse]);
 
   const handleRegister = async () => {
     if (!email.trim() || !password) {
@@ -174,6 +200,21 @@ export default function RegisterScreen() {
             </Text>
             .
           </Text>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.googleButton, pressed && styles.googleButtonPressed]}
+            onPress={() => promptGoogleAsync()}
+            disabled={!googleRequest || loading}
+          >
+            <Ionicons name="logo-google" size={18} color={Colors.light.text} />
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </Pressable>
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -349,5 +390,24 @@ const styles = StyleSheet.create({
   loginLinkBold: {
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.tint,
+  },
+  googleButton: {
+    height: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    borderRadius: 10,
+    backgroundColor: Colors.light.white,
+  },
+  googleButtonPressed: {
+    backgroundColor: Colors.light.cardBackground,
+  },
+  googleButtonText: {
+    fontSize: 15,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.text,
   },
 });
