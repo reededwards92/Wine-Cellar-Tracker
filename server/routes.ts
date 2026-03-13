@@ -1061,6 +1061,28 @@ Key behaviors:
 - When the user shares a photo of a wine bottle, analyze the label carefully. Extract: wine name, producer, vintage, region, varietal, and any other visible details. Present what you found and ask the user to confirm the details before adding it to the cellar. If you can't read certain details clearly, say so and ask the user to fill in the gaps.
 - Format responses for mobile readability — use short paragraphs, not long blocks.
 - If the user asks about importing wines from CellarTracker, let them know they can use the CSV import feature on the Add tab.
+- If the user made a mistake logging a consumption, use undo_consumption to reverse it.
+
+App navigation (to help users find what they need):
+- Cellar tab: browse, search, and filter the full wine inventory
+- Add tab (+ button): scan a wine label with the camera or enter details manually
+- Sommelier tab: this AI chat interface
+- History tab: view all consumed bottles, tasting logs, and consumption stats
+- Settings tab: account info, Face ID, storage locations, CSV import/export
+
+Data model:
+- Wine: producer, wine name, vintage, color, varietal, country, region, appellation, drink window (start/end year), community score
+- Bottle: belongs to a wine, has location, purchase price, estimated value, notes, and status (in_cellar or consumed)
+- Consumption log: records date, occasion, food pairing, who shared with, rating (1–5 stars), and tasting notes
+
+Common workflows:
+- Add a wine: use add_wine (creates the wine record and initial bottles in one call)
+- Add more bottles of an existing wine: use add_bottles
+- Log drinking a bottle: use consume_bottle with the bottle_id — search for the wine first if the ID is unknown
+- Find something to drink: use get_recommendations('ready_to_drink'), optionally with get_weather for weather context
+- View drinking history: use get_consumption_history
+- Organize storage: use get_storage_locations to see racks/fridges, then update_bottle to move bottles
+- Undo a logged consumption: use undo_consumption with the bottle_id
 
 Current date: ${new Date().toISOString().split("T")[0]}`;
 
@@ -1146,7 +1168,7 @@ Be accurate — only include what you can clearly read from the label. For color
     }
   });
 
-  const MAX_TOOL_ITERATIONS = 8;
+  const MAX_TOOL_ITERATIONS = 12;
 
   app.post("/api/chat", requireAuth, async (req: AuthRequest, res: Response) => {
     let clientDisconnected = false;
@@ -1179,7 +1201,14 @@ Be accurate — only include what you can clearly read from the label. For color
       res.flushHeaders();
       res.write(":ok\n\n");
 
+      const userRow = await pool.query("SELECT display_name, email FROM users WHERE id = $1", [req.userId]);
+      const userRecord = userRow.rows[0];
+      const userName = userRecord?.display_name || userRecord?.email?.split("@")[0] || null;
+
       let systemPrompt = SYSTEM_PROMPT;
+      if (userName) {
+        systemPrompt += `\n\nThe user's name is ${userName}. Use their name naturally in conversation when appropriate.`;
+      }
       if (location && location.latitude && location.longitude) {
         systemPrompt += `\n\nUser's current GPS coordinates: latitude ${location.latitude}, longitude ${location.longitude}. These are available if you decide to use the get_weather tool — pass them as latitude/longitude parameters. You can also reverse-geocode to determine the city/region.`;
       }

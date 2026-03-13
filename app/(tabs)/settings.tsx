@@ -271,6 +271,21 @@ export default function SettingsScreen() {
               Linking.openURL(url);
             }}
           />
+          <SettingsRow
+            icon="bug-outline"
+            label="Report a Bug"
+            subtitle="Send feedback to the developer"
+            onPress={() => {
+              const subject = encodeURIComponent("Vin Bug Report");
+              const body = encodeURIComponent(
+                "Describe the bug:\n\n" +
+                "Steps to reproduce:\n\n" +
+                "What you expected to happen:\n\n" +
+                "App version: 1.0.0"
+              );
+              Linking.openURL(`mailto:reed@fiveelms.com?subject=${subject}&body=${body}`);
+            }}
+          />
         </SettingsSection>
 
         <SettingsSection title="">

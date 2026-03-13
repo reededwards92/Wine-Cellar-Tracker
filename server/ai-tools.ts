@@ -173,6 +173,38 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: "get_consumption_history",
+    description: "Get the user's consumption history — wines they've drunk, when, with whom, ratings, and tasting notes. Use this when the user asks what they've been drinking, their recent bottles, or wants to recall a specific tasting.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        limit: { type: "number", description: "Max entries to return (default 20)" },
+        wine_id: { type: "number", description: "Filter history for a specific wine" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_storage_locations",
+    description: "Get the user's defined storage locations (wine racks, fridges, cabinets, etc.) and how many bottles are in each. Use this when the user asks about their storage, wants to find bottles in a specific location, or needs to know what locations exist before moving bottles.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "undo_consumption",
+    description: "Undo a recent bottle consumption — restores the bottle to 'in cellar' status and removes the consumption log entry. Use this when the user says they logged a bottle by mistake or wants to reverse a consumption.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        bottle_id: { type: "number", description: "The bottle ID to restore. Search for the wine first if the ID is unknown." },
+      },
+      required: ["bottle_id"],
+    },
+  },
 ];
 
 export async function executeTool(name: string, input: any, userId?: number): Promise<string> {
@@ -198,6 +230,12 @@ export async function executeTool(name: string, input: any, userId?: number): Pr
         return await getRecommendations(input, userId);
       case "get_weather":
         return await getWeather(input);
+      case "get_consumption_history":
+        return await getConsumptionHistory(input, userId);
+      case "get_storage_locations":
+        return await getStorageLocations(userId);
+      case "undo_consumption":
+        return await undoConsumption(input, userId);
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` });
     }
@@ -564,6 +602,99 @@ async function getRecommendations(input: any, userId?: number): Promise<string> 
 
   const result = await pool.query(query, params);
   return JSON.stringify({ recommendations: result.rows, criteria: input.criteria });
+}
+
+async function getConsumptionHistory(input: any, userId?: number): Promise<string> {
+  const limit = input.limit || 20;
+  const params: any[] = [];
+  let paramIdx = 1;
+  const conditions: string[] = [];
+
+  if (userId) {
+    conditions.push(`cl.user_id = $${paramIdx++}`);
+    params.push(userId);
+  }
+  if (input.wine_id) {
+    conditions.push(`cl.wine_id = $${paramIdx++}`);
+    params.push(input.wine_id);
+  }
+
+  const whereStr = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  params.push(limit);
+
+  const result = await pool.query(`
+    SELECT cl.*, w.producer, w.wine_name, w.vintage, w.color, w.varietal, w.region
+    FROM consumption_log cl
+    JOIN wines w ON cl.wine_id = w.id
+    ${whereStr}
+    ORDER BY cl.consumed_date DESC, cl.id DESC
+    LIMIT $${paramIdx}
+  `, params);
+
+  return JSON.stringify({ history: result.rows, count: result.rows.length });
+}
+
+async function getStorageLocations(userId?: number): Promise<string> {
+  const userFilter = userId ? "WHERE sl.user_id = $1" : "";
+  const userParams = userId ? [userId] : [];
+
+  const locations = await pool.query(`
+    SELECT sl.*, COUNT(b.id) as bottle_count
+    FROM storage_locations sl
+    LEFT JOIN bottles b ON b.location = sl.name AND b.user_id = sl.user_id AND b.status = 'in_cellar'
+    ${userFilter}
+    GROUP BY sl.id
+    ORDER BY sl.sort_order ASC, sl.id ASC
+  `, userParams);
+
+  // Also count bottles in locations not in the storage_locations table
+  const untaggedFilter = userId ? "AND user_id = $1" : "";
+  const untaggedBottles = await pool.query(`
+    SELECT location, COUNT(*) as bottle_count
+    FROM bottles
+    WHERE status = 'in_cellar' AND location IS NOT NULL ${untaggedFilter}
+    GROUP BY location
+  `, userParams);
+
+  return JSON.stringify({ locations: locations.rows, all_bottle_locations: untaggedBottles.rows });
+}
+
+async function undoConsumption(input: any, userId?: number): Promise<string> {
+  const bottleResult = userId
+    ? await pool.query("SELECT * FROM bottles WHERE id = $1 AND user_id = $2 AND status = 'consumed'", [input.bottle_id, userId])
+    : await pool.query("SELECT * FROM bottles WHERE id = $1 AND status = 'consumed'", [input.bottle_id]);
+
+  if (bottleResult.rows.length === 0) {
+    return JSON.stringify({ error: "Bottle not found or not marked as consumed. It may already be back in the cellar." });
+  }
+
+  const bottle = bottleResult.rows[0];
+  const wineResult = await pool.query("SELECT producer, wine_name, vintage FROM wines WHERE id = $1", [bottle.wine_id]);
+  const wine = wineResult.rows[0];
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "UPDATE bottles SET status = 'in_cellar', consumed_date = NULL, occasion = NULL, rating = NULL WHERE id = $1",
+      [input.bottle_id]
+    );
+    await client.query(
+      "DELETE FROM consumption_log WHERE bottle_id = $1",
+      [input.bottle_id]
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return JSON.stringify({
+    success: true,
+    message: `Done — ${wine.producer} ${wine.wine_name}${wine.vintage ? ` ${wine.vintage}` : ""} is back in your cellar.`
+  });
 }
 
 async function getWeather(input: any): Promise<string> {

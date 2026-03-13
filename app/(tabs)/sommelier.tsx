@@ -245,7 +245,9 @@ export default function SommelierScreen() {
     try {
       const baseUrl = getApiUrl();
 
-      const chatHistory = currentMessages.map((m) => {
+      // Keep last 20 messages to avoid exceeding context limits on long sessions
+      const recentMessages = currentMessages.slice(-20);
+      const chatHistory = recentMessages.map((m) => {
         if (m.imageBase64) {
           return { role: m.role, content: m.content, hadImage: true };
         }
@@ -385,6 +387,9 @@ export default function SommelierScreen() {
     get_cellar_stats: "Checking stats",
     get_recommendations: "Finding recommendations",
     get_weather: "Checking weather",
+    get_consumption_history: "Checking history",
+    get_storage_locations: "Checking storage",
+    undo_consumption: "Undoing consumption",
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
