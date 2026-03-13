@@ -18,10 +18,10 @@
       "bundleIdentifier": "com.cellar.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Vin uses the camera to scan wine bottle labels so you can quickly add wines to your cellar.",
-        "NSPhotoLibraryUsageDescription": "Vin accesses your photo library so you can select wine label images to identify and catalog wines.",
-        "NSLocationWhenInUseUsageDescription": "Vin uses your location to check local weather conditions and provide personalized wine pairing recommendations from your AI Sommelier.",
-        "NSFaceIDUsageDescription": "Vin uses Face ID to securely sign you in without entering your password."
+        "NSCameraUsageDescription": "Vin needs camera access to photograph wine bottle labels. For example, you can point your camera at a wine label and Vin will identify the producer, vintage, and region, then add it to your cellar.",
+        "NSPhotoLibraryUsageDescription": "Vin needs photo library access to select images of wine labels from your camera roll. For example, you can choose a photo of a wine label you took at a restaurant and Vin will identify the wine details.",
+        "NSLocationWhenInUseUsageDescription": "Vin needs your location to provide weather-based wine pairing suggestions. For example, if it's a warm evening in your area, your AI Sommelier might recommend a chilled white wine from your cellar.",
+        "NSFaceIDUsageDescription": "Vin uses Face ID to let you sign in securely without typing your password each time you open the app."
       }
     },
     "android": {
@@ -46,13 +46,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Vin uses the camera to scan wine bottle labels so you can quickly add wines to your cellar."
+          "cameraPermission": "Vin needs camera access to photograph wine bottle labels. For example, you can point your camera at a wine label and Vin will identify the producer, vintage, and region, then add it to your cellar."
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Vin uses your location to check local weather conditions and provide personalized wine pairing recommendations from your AI Sommelier."
+          "locationWhenInUsePermission": "Vin needs your location to provide weather-based wine pairing suggestions. For example, if it's a warm evening in your area, your AI Sommelier might recommend a chilled white wine from your cellar."
         }
       ]
     ],

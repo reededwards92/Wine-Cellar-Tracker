@@ -277,7 +277,11 @@ export default function SommelierScreen() {
         signal: controller.signal,
       });
 
-      if (!response.ok) throw new Error("Failed to get response");
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        console.error(`Chat API error: ${response.status} ${errorText}`);
+        throw new Error(`Chat request failed (${response.status})`);
+      }
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response body");
@@ -348,17 +352,21 @@ export default function SommelierScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
       queryClient.invalidateQueries({ queryKey: ["/api/consumption"] });
-    } catch (error) {
+    } catch (error: any) {
       setShowTyping(false);
       setActiveTools([]);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: generateUniqueId(),
-          role: "assistant",
-          content: "I had trouble connecting. Please try again.",
-        },
-      ]);
+      const isAbort = error?.name === "AbortError";
+      if (!isAbort) {
+        console.error("Chat error:", error?.message);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: generateUniqueId(),
+            role: "assistant",
+            content: "I had trouble connecting to the server. Please check your internet connection and try again.",
+          },
+        ]);
+      }
     } finally {
       setIsStreaming(false);
       setShowTyping(false);
