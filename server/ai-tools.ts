@@ -676,12 +676,12 @@ async function undoConsumption(input: any, userId?: number): Promise<string> {
   try {
     await client.query("BEGIN");
     await client.query(
-      "UPDATE bottles SET status = 'in_cellar', consumed_date = NULL, occasion = NULL, rating = NULL WHERE id = $1",
-      [input.bottle_id]
+      "UPDATE bottles SET status = 'in_cellar', consumed_date = NULL, occasion = NULL, rating = NULL WHERE id = $1 AND user_id = $2",
+      [input.bottle_id, userId]
     );
     await client.query(
-      "DELETE FROM consumption_log WHERE bottle_id = $1",
-      [input.bottle_id]
+      "DELETE FROM consumption_log WHERE bottle_id = $1 AND user_id = $2",
+      [input.bottle_id, userId]
     );
     await client.query("COMMIT");
   } catch (err) {
