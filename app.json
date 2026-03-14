@@ -44,7 +44,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://wine-app-production-731e.up.railway.app"
         }
       ],
       "expo-font",
@@ -68,7 +68,7 @@
     },
     "extra": {
       "router": {
-        "origin": "https://replit.com/"
+        "origin": "https://wine-app-production-731e.up.railway.app"
       },
       "eas": {
         "projectId": "4eadb20b-7f98-48a8-8a13-ada2e738517c"
