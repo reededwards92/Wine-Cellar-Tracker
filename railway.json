@@ -2,11 +2,11 @@
   "$schema": "https://schema.railway.com/railway.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install && npm run expo:static:build && npm run server:build"
+    "buildCommand": "npm install"
   },
   "deploy": {
-    "startCommand": "npm run server:prod",
-"restartPolicyType": "ON_FAILURE",
+    "startCommand": "NODE_ENV=production tsx server/index.ts",
+    "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
 }
