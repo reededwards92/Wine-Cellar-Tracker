@@ -130,6 +130,7 @@ function SectionScrubber({
   onSectionPress: (index: number) => void;
 }) {
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [containerLayout, setContainerLayout] = useState({ height: 0 });
   const bubbleOpacity = useRef(new Animated.Value(0)).current;
   const lastIndex = useRef(-1);
   const containerRef = useRef<View>(null);
@@ -143,7 +144,8 @@ function SectionScrubber({
     });
   }, []);
 
-  const onLayout = useCallback(() => {
+  const onLayout = useCallback((e: LayoutChangeEvent) => {
+    setContainerLayout({ height: e.nativeEvent.layout.height });
     measureContainer();
   }, [measureContainer]);
 
@@ -202,8 +204,11 @@ function SectionScrubber({
 
   if (sections.length <= 1) return null;
 
-  const ITEM_HEIGHT = 15;
-  const bubbleTopOffset = activeIndex >= 0 ? activeIndex * ITEM_HEIGHT + ITEM_HEIGHT / 2 - 22 : 0;
+  const itemHeight = containerLayout.height > 0
+    ? Math.max(12, Math.min(20, containerLayout.height / sections.length))
+    : 15;
+  const totalHeight = itemHeight * sections.length;
+  const bubbleTopOffset = activeIndex >= 0 ? activeIndex * itemHeight + itemHeight / 2 - 22 : 0;
 
   return (
     <View
@@ -212,11 +217,11 @@ function SectionScrubber({
       onLayout={onLayout}
       {...panResponder.panHandlers}
     >
-      <View style={styles.scrubberLetters}>
+      <View style={[styles.scrubberLetters, { height: totalHeight }]}>
         {sections.map((section, i) => (
           <Pressable
             key={section.title}
-            style={[styles.scrubberItem, { height: ITEM_HEIGHT }]}
+            style={[styles.scrubberItem, { height: itemHeight }]}
             onPress={() => {
               showBubble(i);
               setTimeout(hideBubble, 600);
@@ -490,14 +495,15 @@ const styles = StyleSheet.create({
   scrubberContainer: {
     position: "absolute" as const,
     right: 0,
-    top: 0,
-    bottom: 0,
-    width: 22,
+    top: 8,
+    bottom: 8,
+    width: 24,
     alignItems: "center" as const,
     justifyContent: "center" as const,
   },
   scrubberLetters: {
     alignItems: "center" as const,
+    justifyContent: "center" as const,
   },
   scrubberItem: {
     alignItems: "center" as const,
