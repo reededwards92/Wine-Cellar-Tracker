@@ -109,7 +109,7 @@ export default function LoginScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="your@email.com"
-              placeholderTextColor={Colors.light.tabIconDefault}
+              placeholderTextColor="rgba(114, 47, 55, 0.38)"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -125,7 +125,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Enter password"
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 testID="login-password"

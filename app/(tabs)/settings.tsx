@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sharing from "expo-sharing";
 import * as Linking from "expo-linking";
+import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,7 +63,7 @@ function SettingsRow({
           thumbColor={Colors.light.white}
         />
       ) : onPress ? (
-        <Ionicons name="chevron-forward" size={16} color={Colors.light.tabIconDefault} />
+        <Ionicons name="chevron-forward" size={16} color="rgba(114,47,55,0.35)" />
       ) : null}
     </>
   );
@@ -180,7 +181,10 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <LinearGradient
+      colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]}
+      style={styles.screen}
+    >
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
         <Text style={styles.title}>Settings</Text>
       </View>
@@ -298,19 +302,18 @@ export default function SettingsScreen() {
           />
         </SettingsSection>
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: Colors.light.white,
+    backgroundColor: "transparent",
   },
   title: {
     fontSize: 28,
@@ -327,14 +330,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "rgba(114, 47, 55, 0.55)",
     marginBottom: 8,
     paddingHorizontal: 4,
   },
   sectionContent: {
-    backgroundColor: Colors.light.white,
-    borderRadius: theme.radius.xl,
-    ...theme.shadows.card,
+    backgroundColor: "rgba(255, 255, 255, 0.62)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(114, 47, 55, 0.10)",
     overflow: "hidden",
   },
   row: {
@@ -343,7 +347,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.divider,
+    borderBottomColor: "rgba(114,47,55,0.07)",
   },
   rowPressed: {
     backgroundColor: Colors.light.cardBackground,
@@ -374,7 +378,7 @@ const styles = StyleSheet.create({
   rowSubtitle: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.50)",
     marginTop: 1,
   },
 });

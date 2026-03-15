@@ -225,7 +225,7 @@ export default function StorageLocationsScreen() {
                       value={loc.name}
                       onChangeText={(val) => renameLocation(idx, val)}
                       placeholder="Location name"
-                      placeholderTextColor={Colors.light.tabIconDefault}
+                      placeholderTextColor="rgba(114, 47, 55, 0.38)"
                     />
                     <Pressable onPress={() => removeLocation(idx)} hitSlop={8} style={styles.removeBtn}>
                       <Ionicons name="close-circle" size={20} color={Colors.light.danger} />
@@ -257,7 +257,7 @@ export default function StorageLocationsScreen() {
                   value={customName}
                   onChangeText={setCustomName}
                   placeholder="Enter custom location name"
-                  placeholderTextColor={Colors.light.tabIconDefault}
+                  placeholderTextColor="rgba(114, 47, 55, 0.38)"
                   autoFocus
                   onSubmitEditing={addCustomLocation}
                   returnKeyType="done"

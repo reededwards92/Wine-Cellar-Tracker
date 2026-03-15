@@ -155,7 +155,7 @@ export default function AccountScreen() {
                 value={displayName}
                 onChangeText={setDisplayName}
                 placeholder="Your name"
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 autoCapitalize="words"
               />
             </View>
@@ -181,7 +181,7 @@ export default function AccountScreen() {
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Enter current password"
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 secureTextEntry
               />
             </View>
@@ -193,7 +193,7 @@ export default function AccountScreen() {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="Enter new password"
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 secureTextEntry
               />
             </View>
@@ -205,7 +205,7 @@ export default function AccountScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Confirm new password"
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 secureTextEntry
               />
             </View>

@@ -57,7 +57,7 @@ export default function WineCard({ wine, onPress }: WineCardProps) {
             <Text style={styles.value}>${Math.round(wine.avg_value)}</Text>
           ) : null}
           {wine.ct_community_score ? (
-            <Text style={styles.score}>{wine.ct_community_score.toFixed(1)}</Text>
+            <Text style={styles.score}>{Math.round(wine.ct_community_score)}</Text>
           ) : null}
         </View>
       </View>
@@ -82,9 +82,9 @@ export default function WineCard({ wine, onPress }: WineCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: "transparent",
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.divider,
+    borderBottomColor: "rgba(114, 47, 55, 0.08)",
     paddingLeft: 16,
     paddingRight: 32,
     paddingVertical: 14,

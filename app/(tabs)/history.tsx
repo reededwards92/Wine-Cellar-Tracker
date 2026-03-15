@@ -16,9 +16,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import { getColorDot } from "@/lib/api";
@@ -323,21 +325,37 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const router = useRouter();
+  const params = useLocalSearchParams<{ rated?: string }>();
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [filterSearch, setFilterSearch] = useState("");
   const [filterColor, setFilterColor] = useState<string[]>([]);
   const [filterMinRating, setFilterMinRating] = useState(0);
-  const [showFilters, setShowFilters] = useState(false);
+  const [filterRated, setFilterRated] = useState<"all" | "rated" | "unrated">(
+    params.rated === "false" ? "unrated" : params.rated === "true" ? "rated" : "all"
+  );
+  const [showFilters, setShowFilters] = useState(!!params.rated);
+
+  useEffect(() => {
+    if (params.rated === "false") {
+      setFilterRated("unrated");
+      setShowFilters(true);
+    } else if (params.rated === "true") {
+      setFilterRated("rated");
+      setShowFilters(true);
+    }
+  }, [params.rated]);
 
   const filterParams = useMemo(() => {
     const p = new URLSearchParams();
     if (filterSearch) p.set("search", filterSearch);
     if (filterColor.length > 0) p.set("color", filterColor.join(","));
     if (filterMinRating > 0) p.set("min_rating", String(filterMinRating));
+    if (filterRated === "rated") p.set("rated", "true");
+    if (filterRated === "unrated") p.set("rated", "false");
     return p.toString();
-  }, [filterSearch, filterColor, filterMinRating]);
+  }, [filterSearch, filterColor, filterMinRating, filterRated]);
 
   const {
     data: pagedData,
@@ -426,7 +444,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <LinearGradient colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]} style={styles.screen}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
         <View style={styles.headerRow}>
           <View>
@@ -477,9 +495,9 @@ export default function HistoryScreen() {
               style={styles.filterToggle}
               onPress={() => setShowFilters(!showFilters)}
             >
-              <Ionicons name="options-outline" size={16} color={filterColor.length > 0 || filterMinRating > 0 || filterSearch ? Colors.light.tint : Colors.light.textSecondary} />
-              <Text style={[styles.filterToggleText, (filterColor.length > 0 || filterMinRating > 0 || filterSearch) && { color: Colors.light.tint }]}>
-                Filter{filterColor.length > 0 || filterMinRating > 0 || filterSearch ? " (active)" : ""}
+              <Ionicons name="options-outline" size={16} color={filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all" ? Colors.light.tint : Colors.light.textSecondary} />
+              <Text style={[styles.filterToggleText, (filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all") && { color: Colors.light.tint }]}>
+                Filter{filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all" ? " (active)" : ""}
               </Text>
               <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={14} color={Colors.light.tabIconDefault} />
             </Pressable>
@@ -493,7 +511,7 @@ export default function HistoryScreen() {
                     value={filterSearch}
                     onChangeText={setFilterSearch}
                     placeholder="Search history..."
-                    placeholderTextColor={Colors.light.tabIconDefault}
+                    placeholderTextColor="rgba(114, 47, 55, 0.40)"
                     returnKeyType="search"
                   />
                   {filterSearch ? (
@@ -537,10 +555,23 @@ export default function HistoryScreen() {
                   ))}
                 </View>
 
-                {(filterColor.length > 0 || filterMinRating > 0 || filterSearch) ? (
+                <Text style={styles.filterLabel}>Rating Status</Text>
+                <View style={styles.filterChips}>
+                  {([["all", "All"], ["rated", "Rated"], ["unrated", "Unrated"]] as const).map(([val, label]) => (
+                    <Pressable
+                      key={val}
+                      style={[styles.filterChip, filterRated === val && styles.filterChipActive]}
+                      onPress={() => setFilterRated(val)}
+                    >
+                      <Text style={[styles.filterChipText, filterRated === val && styles.filterChipTextActive]}>{label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {(filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all") ? (
                   <Pressable
                     style={styles.clearFiltersBtn}
-                    onPress={() => { setFilterColor([]); setFilterMinRating(0); setFilterSearch(""); }}
+                    onPress={() => { setFilterColor([]); setFilterMinRating(0); setFilterSearch(""); setFilterRated("all"); }}
                   >
                     <Text style={styles.clearFiltersBtnText}>Clear All Filters</Text>
                   </Pressable>
@@ -599,19 +630,18 @@ export default function HistoryScreen() {
           ) : null
         }
       />
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: Colors.light.white,
+    backgroundColor: "transparent",
   },
   headerRow: {
     flexDirection: "row",
@@ -642,7 +672,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
+    borderTopColor: "rgba(114, 47, 55, 0.08)",
   },
   selectAllBtn: {
     flexDirection: "row",
@@ -683,21 +713,23 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: Colors.light.glassBg,
     borderRadius: theme.radius.xl,
-    ...theme.shadows.card,
+    borderWidth: 1,
+    borderColor: Colors.light.glassBorder,
+    ...theme.shadows.glass,
     padding: 16,
     alignItems: "center",
   },
   statNumber: {
     fontSize: 32,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.tint,
+    color: Colors.light.text,
   },
   statLabel: {
     fontSize: 13,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
+    color: "rgba(45, 18, 21, 0.55)",
     marginTop: 2,
     textAlign: "center",
   },
@@ -709,9 +741,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   chartCard: {
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: Colors.light.glassBg,
     borderRadius: theme.radius.xl,
-    ...theme.shadows.card,
+    borderWidth: 1,
+    borderColor: Colors.light.glassBorder,
+    ...theme.shadows.glass,
     padding: 16,
   },
   chartTitle: {
@@ -807,11 +841,11 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: Colors.light.white,
+    backgroundColor: "transparent",
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.divider,
+    borderBottomColor: "rgba(114, 47, 55, 0.08)",
   },
   cardPressed: {
     backgroundColor: Colors.light.cardBackground,
@@ -842,7 +876,7 @@ const styles = StyleSheet.create({
   cardWine: {
     fontSize: 13,
     fontFamily: "LibreBaskerville_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45, 18, 21, 0.60)",
     marginTop: 1,
   },
   metaRow: {
@@ -853,7 +887,7 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: 12,
     fontFamily: "Outfit_300Light",
-    color: Colors.light.textSecondary,
+    color: "rgba(45, 18, 21, 0.45)",
   },
   right: {
     alignItems: "flex-end",
@@ -863,7 +897,7 @@ const styles = StyleSheet.create({
   cardDate: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45, 18, 21, 0.50)",
   },
   value: {
     fontSize: 13,
@@ -918,12 +952,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
+    borderTopColor: "rgba(114, 47, 55, 0.08)",
   },
   filterToggleText: {
     fontSize: 13,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "rgba(114, 47, 55, 0.55)",
     flex: 1,
   },
   filterPanel: {
@@ -932,8 +966,10 @@ const styles = StyleSheet.create({
   filterSearchRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: "rgba(255,255,255,0.60)",
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(114,47,55,0.15)",
     paddingHorizontal: 10,
     paddingVertical: 8,
     gap: 8,
@@ -949,7 +985,7 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: 11,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "rgba(114, 47, 55, 0.55)",
     marginBottom: 6,
   },
   filterChips: {
@@ -963,20 +999,20 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.white,
+    borderColor: "rgba(114,47,55,0.20)",
+    backgroundColor: "rgba(255,255,255,0.55)",
   },
   filterChipActive: {
-    backgroundColor: Colors.light.tint,
-    borderColor: Colors.light.tint,
+    backgroundColor: "rgba(114,47,55,0.15)",
+    borderColor: "rgba(114,47,55,0.45)",
   },
   filterChipText: {
     fontSize: 12,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
+    color: "rgba(45,18,21,0.70)",
   },
   filterChipTextActive: {
-    color: "#fff",
+    color: "#722F37",
   },
   ratingFilter: {
     flexDirection: "row",

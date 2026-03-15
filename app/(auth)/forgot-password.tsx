@@ -131,7 +131,7 @@ export default function ForgotPasswordScreen() {
                   value={email}
                   onChangeText={setEmail}
                   placeholder="your@email.com"
-                  placeholderTextColor={Colors.light.tabIconDefault}
+                  placeholderTextColor="rgba(114, 47, 55, 0.38)"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -168,7 +168,7 @@ export default function ForgotPasswordScreen() {
                   value={code}
                   onChangeText={setCode}
                   placeholder="000000"
-                  placeholderTextColor={Colors.light.tabIconDefault}
+                  placeholderTextColor="rgba(114, 47, 55, 0.38)"
                   keyboardType="number-pad"
                   maxLength={6}
                 />
@@ -182,7 +182,7 @@ export default function ForgotPasswordScreen() {
                     value={newPassword}
                     onChangeText={setNewPassword}
                     placeholder="At least 6 characters"
-                    placeholderTextColor={Colors.light.tabIconDefault}
+                    placeholderTextColor="rgba(114, 47, 55, 0.38)"
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                   />

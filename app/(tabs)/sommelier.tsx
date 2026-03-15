@@ -21,10 +21,27 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "react-native-markdown-display";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import Colors from "@/constants/colors";
 const CruAvatar = require("../../assets/images/Cru.png");
 import { theme } from "@/constants/theme";
 import { getApiUrl, queryClient } from "@/lib/query-client";
+
+// Cru tab color palette
+const CruColors = {
+  gradientTop: "#6B2A32",
+  gradientMid: "#722F37",
+  gradientBlush: "#C4787F",
+  gradientBottom: "#FDF6F4",
+  textPrimary: "#1A0A0C",
+  textSecondary: "rgba(45,18,21,0.55)",
+  glassBg: "rgba(255,255,255,0.55)",
+  glassBorder: "rgba(255,255,255,0.7)",
+  accent: "#722F37",
+  accentMuted: "rgba(114,47,55,0.2)",
+  warmShadow: "#2D1215",
+};
 
 interface WineCard {
   id: number;
@@ -462,7 +479,7 @@ export default function SommelierScreen() {
         >
           <View style={styles.wineCardHeader}>
             {wine.color && (
-              <View style={[styles.wineCardDot, { backgroundColor: colorDot[wine.color] || Colors.light.tint }]} />
+              <View style={[styles.wineCardDot, { backgroundColor: colorDot[wine.color] || CruColors.accent }]} />
             )}
             <Text style={styles.wineCardName} numberOfLines={1}>{wine.wine_name}</Text>
           </View>
@@ -489,23 +506,20 @@ export default function SommelierScreen() {
           ]}
         >
           {!isUser && (
-            <Image source={CruAvatar} style={styles.avatarImage} />
+            <View style={styles.avatarGlass}>
+              <Image source={CruAvatar} style={styles.avatarImage} />
+            </View>
           )}
-          <View
-            style={[
-              styles.bubble,
-              isUser ? styles.bubbleUser : styles.bubbleAssistant,
-            ]}
-          >
-            {item.imageUri && (
-              <Image
-                source={{ uri: item.imageUri }}
-                style={styles.bubbleImage}
-                resizeMode="cover"
-              />
-            )}
-            {!!item.content && (
-              isUser ? (
+          {isUser ? (
+            <View style={[styles.bubble, styles.bubbleUser]}>
+              {item.imageUri && (
+                <Image
+                  source={{ uri: item.imageUri }}
+                  style={styles.bubbleImage}
+                  resizeMode="cover"
+                />
+              )}
+              {!!item.content && (
                 <Text
                   style={[
                     styles.bubbleText,
@@ -516,13 +530,24 @@ export default function SommelierScreen() {
                 >
                   {item.content}
                 </Text>
-              ) : (
+              )}
+            </View>
+          ) : (
+            <BlurView intensity={30} tint="light" style={[styles.bubble, styles.bubbleAssistant]}>
+              {item.imageUri && (
+                <Image
+                  source={{ uri: item.imageUri }}
+                  style={styles.bubbleImage}
+                  resizeMode="cover"
+                />
+              )}
+              {!!item.content && (
                 <Markdown style={markdownStyles}>
                   {item.content}
                 </Markdown>
-              )
-            )}
-          </View>
+              )}
+            </BlurView>
+          )}
         </View>
         {!isUser && item.wineCards && item.wineCards.length > 0 && renderWineCards(item.wineCards)}
       </View>
@@ -602,98 +627,160 @@ export default function SommelierScreen() {
     );
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
+  const SUGGESTED_PROMPTS = [
+    "What should I drink tonight?",
+    "Show me my best reds",
+    "What's approaching its peak?",
+    "Recommend a wine for dinner",
+    "Is this wine well priced?",
+  ];
 
   const renderHomeState = () => {
-    if (homeLoading) {
-      return (
-        <View style={styles.homeContainer}>
-          <View style={[styles.pickCard, { height: 120, opacity: 0.5 }]} />
-          <View style={styles.tilesRow}>
-            <View style={[styles.actionTile, { height: 70, opacity: 0.5 }]} />
-            <View style={[styles.actionTile, { height: 70, opacity: 0.5 }]} />
-          </View>
-        </View>
-      );
-    }
+    const fadeOpacity = homeLoading ? 0.4 : 1;
 
-    const tiles: { label: string; sub?: string; query: string; accent?: string }[] = [];
+    // Build insight cards
+    type InsightCard = {
+      topLabel: string;
+      mainText: string;
+      subtitle: string;
+      accentColor: string;
+      onPress: () => void;
+    };
+
+    const insightCards: InsightCard[] = [];
 
     if (homeData?.alerts?.past_peak > 0) {
-      tiles.push({
-        label: `${homeData.alerts.past_peak} past peak`,
-        sub: "Drink soon",
-        query: "Which wines in my cellar are past their peak drinking window?",
-        accent: Colors.light.warning,
+      insightCards.push({
+        topLabel: "DRINK SOON",
+        mainText: `${homeData.alerts.past_peak} past peak`,
+        subtitle: "Open before it's too late",
+        accentColor: "#DC2626",
+        onPress: () => {
+          router.push({ pathname: "/(tabs)", params: { drinkWindow: "past_peak" } });
+        },
       });
     }
+
     if (homeData?.alerts?.approaching_peak > 0) {
-      tiles.push({
-        label: `${homeData.alerts.approaching_peak} approaching peak`,
-        sub: "Plan ahead",
-        query: "Which wines are approaching the end of their drinking window?",
+      insightCards.push({
+        topLabel: "PLAN AHEAD",
+        mainText: `${homeData.alerts.approaching_peak} approaching`,
+        subtitle: "Opening their window soon",
+        accentColor: "#D97706",
+        onPress: () => {
+          router.push({ pathname: "/(tabs)", params: { drinkWindow: "approaching" } });
+        },
       });
     }
-    if (homeData?.recent_unrated) {
-      tiles.push({
-        label: `Rate ${homeData.recent_unrated.wine_name?.split(" ")[0] || "recent"}?`,
-        sub: homeData.recent_unrated.producer,
-        query: `I'd like to rate the ${homeData.recent_unrated.wine_name} by ${homeData.recent_unrated.producer} that I drank recently`,
+
+    // Card 3: rotating state
+    if (homeData?.unrated_count > 0) {
+      insightCards.push({
+        topLabel: "RATE & REVIEW",
+        mainText: `${homeData.unrated_count} unrated`,
+        subtitle: "Bottles awaiting your notes",
+        accentColor: "#722F37",
+        onPress: () => {
+          router.push({ pathname: "/(tabs)/history", params: { rated: "false" } });
+        },
+      });
+    } else {
+      insightCards.push({
+        topLabel: "ADD TO CELLAR",
+        mainText: "Scan a label",
+        subtitle: "Identify any wine instantly",
+        accentColor: "rgba(114,47,55,0.35)",
+        onPress: () => {
+          router.push("/(tabs)/add");
+        },
       });
     }
-    tiles.push({
-      label: "What should I drink?",
-      sub: `${homeData?.total_bottles || 0} bottles`,
-      query: "What should I drink tonight?",
-    });
+
+    // Ensure exactly 3 cards — fill from defaults if needed
+    if (insightCards.length < 3) {
+      const defaults: InsightCard[] = [
+        {
+          topLabel: "ADD TO CELLAR",
+          mainText: "Scan a label",
+          subtitle: "Identify any wine instantly",
+          accentColor: "rgba(114,47,55,0.35)",
+          onPress: () => router.push("/(tabs)/add"),
+        },
+      ];
+      for (const d of defaults) {
+        if (insightCards.length >= 3) break;
+        if (!insightCards.some((c) => c.topLabel === d.topLabel)) {
+          insightCards.push(d);
+        }
+      }
+    }
 
     return (
       <View style={styles.homeContainer}>
-        <Text style={styles.greeting}>{getGreeting()}</Text>
-
-        {homeData?.tonight_pick && (
-          <Pressable
-            style={styles.pickCard}
-            onPress={() => handleSend(`Tell me about the ${homeData.tonight_pick.wine_name} by ${homeData.tonight_pick.producer}`)}
-          >
-            <Text style={styles.pickLabel}>Tonight's Pick</Text>
-            <Text style={styles.pickWineName} numberOfLines={1}>
-              {homeData.tonight_pick.wine_name}
-            </Text>
-            <Text style={styles.pickDetail} numberOfLines={1}>
-              {homeData.tonight_pick.producer}
-              {homeData.tonight_pick.vintage ? ` · ${homeData.tonight_pick.vintage}` : ""}
-              {homeData.tonight_pick.region ? ` · ${homeData.tonight_pick.region}` : ""}
-            </Text>
-            {homeData.tonight_pick.reason && (
-              <View style={styles.pickReasonTag}>
-                <Text style={styles.pickReasonText}>{homeData.tonight_pick.reason}</Text>
-              </View>
-            )}
-          </Pressable>
-        )}
-
-        <View style={styles.tilesRow}>
-          {tiles.slice(0, 3).map((tile) => (
+        {/* Tonight's Pick — hero card */}
+        <Animated.View style={{ opacity: fadeOpacity }}>
+          {homeData?.tonight_pick ? (
             <Pressable
-              key={tile.label}
-              style={styles.actionTile}
-              onPress={() => handleSend(tile.query)}
+              style={styles.pickCardOuter}
+              onPress={() => router.push({ pathname: "/wine/[id]", params: { id: homeData.tonight_pick.wine_id } })}
             >
-              {tile.accent && (
-                <View style={[styles.tileAccent, { backgroundColor: tile.accent }]} />
-              )}
-              <Text style={styles.tileText} numberOfLines={2}>{tile.label}</Text>
-              {tile.sub && (
-                <Text style={styles.tileSubtext} numberOfLines={1}>{tile.sub}</Text>
-              )}
+              <BlurView intensity={50} tint="light" style={styles.pickBlur}>
+                <View style={styles.pickCardInner}>
+                  <Text style={styles.pickLabel}>TONIGHT'S PICK</Text>
+                  <Text style={styles.pickWineName} numberOfLines={1}>
+                    {homeData.tonight_pick.wine_name}
+                  </Text>
+                  <Text style={styles.pickDetail} numberOfLines={1}>
+                    {homeData.tonight_pick.producer}
+                    {homeData.tonight_pick.vintage ? ` · ${homeData.tonight_pick.vintage}` : ""}
+                    {homeData.tonight_pick.region ? ` · ${homeData.tonight_pick.region}` : ""}
+                  </Text>
+                  {homeData.tonight_pick.reason && (
+                    <View style={styles.pickReasonTag}>
+                      <Text style={styles.pickReasonText}>{homeData.tonight_pick.reason}</Text>
+                    </View>
+                  )}
+                </View>
+              </BlurView>
+            </Pressable>
+          ) : (
+            <View style={[styles.pickCardOuter, { height: 120 }]} />
+          )}
+        </Animated.View>
+
+        {/* Three insight cards */}
+        <Animated.View style={[styles.tilesRow, { opacity: fadeOpacity }]}>
+          {insightCards.slice(0, 3).map((card) => (
+            <Pressable
+              key={card.topLabel}
+              style={styles.insightCardOuter}
+              onPress={card.onPress}
+            >
+              <BlurView intensity={40} tint="light" style={styles.insightBlur}>
+                <View style={[styles.insightAccent, { backgroundColor: card.accentColor }]} />
+                <View style={styles.insightCardInner}>
+                  <Text style={styles.insightTopLabel}>{card.topLabel}</Text>
+                  <Text style={styles.insightMainText} numberOfLines={1}>{card.mainText}</Text>
+                  <Text style={styles.insightSubtitle} numberOfLines={1}>{card.subtitle}</Text>
+                </View>
+              </BlurView>
             </Pressable>
           ))}
+        </Animated.View>
+
+        {/* Suggested prompts */}
+        <View style={styles.promptsContainer}>
+          <View style={styles.promptsRow}>
+            {SUGGESTED_PROMPTS.map((prompt) => (
+              <Pressable
+                key={prompt}
+                style={styles.promptChip}
+                onPress={() => handleSend(prompt)}
+              >
+                <Text style={styles.promptChipText}>{prompt}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </View>
     );
@@ -704,7 +791,10 @@ export default function SommelierScreen() {
   const tabBarHeight = isWeb ? 84 : Platform.OS === "ios" ? 49 + insets.bottom : 56;
 
   return (
-    <View style={[styles.container, { paddingTop: isWeb ? 67 : 0, paddingBottom: tabBarHeight }]}>
+    <LinearGradient
+      colors={['#6B2A32', '#8B3D46', '#A85560', '#C4787F', '#DDA8AC', '#EDD0D3', '#F7EAEB', '#FDF6F4']}
+      style={[styles.container, { paddingTop: isWeb ? 67 : 0, paddingBottom: tabBarHeight }]}
+    >
       <View
         style={[
           styles.header,
@@ -724,7 +814,7 @@ export default function SommelierScreen() {
             <Ionicons
               name="refresh"
               size={20}
-              color={Colors.light.textSecondary}
+              color="rgba(245,232,234,0.7)"
             />
           </Pressable>
         )}
@@ -751,14 +841,15 @@ export default function SommelierScreen() {
           />
         )}
 
-        <View
-          style={[
-            styles.inputContainer,
-            {
-              paddingBottom: 8,
-            },
-          ]}
-        >
+        <BlurView intensity={40} tint="light" style={styles.inputBlur}>
+          <View
+            style={[
+              styles.inputContainer,
+              {
+                paddingBottom: 8,
+              },
+            ]}
+          >
           {pendingImage && (
             <View style={styles.imagePreviewContainer}>
               <Image
@@ -771,7 +862,7 @@ export default function SommelierScreen() {
                 style={styles.removeImageButton}
                 testID="remove-image"
               >
-                <Ionicons name="close-circle" size={22} color={Colors.light.text} />
+                <Ionicons name="close-circle" size={22} color={CruColors.textPrimary} />
               </Pressable>
             </View>
           )}
@@ -785,7 +876,7 @@ export default function SommelierScreen() {
               <Ionicons
                 name="camera-outline"
                 size={24}
-                color={isStreaming ? Colors.light.tabIconDefault : Colors.light.tint}
+                color={isStreaming ? CruColors.accentMuted : "rgba(114,47,55,0.6)"}
               />
             </Pressable>
             <Pressable
@@ -797,14 +888,14 @@ export default function SommelierScreen() {
               <Ionicons
                 name="image-outline"
                 size={24}
-                color={isStreaming ? Colors.light.tabIconDefault : Colors.light.tint}
+                color={isStreaming ? CruColors.accentMuted : "rgba(114,47,55,0.6)"}
               />
             </Pressable>
             <TextInput
               ref={inputRef}
               style={styles.textInput}
               placeholder="Ask Cru anything..."
-              placeholderTextColor={Colors.light.tabIconDefault}
+              placeholderTextColor="rgba(114,47,55,0.4)"
               value={inputText}
               onChangeText={setInputText}
               onSubmitEditing={handleSend}
@@ -833,17 +924,18 @@ export default function SommelierScreen() {
                 size={20}
                 color={
                   (inputText.trim() || pendingImage) && !isStreaming
-                    ? Colors.light.white
-                    : Colors.light.tabIconDefault
+                    ? "#FFFFFF"
+                    : "rgba(114,47,55,0.4)"
                 }
               />
             </Pressable>
           </View>
         </View>
+        </BlurView>
       </KeyboardAvoidingView>
       {undoToast ? (
         <Animated.View style={[styles.undoToast, { opacity: undoFadeAnim }]}>
-          <Ionicons name="wine-outline" size={18} color={Colors.light.white} />
+          <Ionicons name="wine-outline" size={18} color="#FFFFFF" />
           <Text style={styles.undoToastText} numberOfLines={2}>
             {undoToast.message}
           </Text>
@@ -852,7 +944,7 @@ export default function SommelierScreen() {
           </Pressable>
         </Animated.View>
       ) : null}
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -861,7 +953,7 @@ const markdownStyles = {
     fontSize: 15,
     lineHeight: 21,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: CruColors.textPrimary,
   },
   text: {
     fontFamily: "Outfit_400Regular",
@@ -876,21 +968,21 @@ const markdownStyles = {
   heading1: {
     fontSize: 20,
     fontFamily: "LibreBaskerville_700Bold",
-    color: Colors.light.text,
+    color: CruColors.textPrimary,
     marginTop: 8,
     marginBottom: 4,
   },
   heading2: {
     fontSize: 18,
     fontFamily: "LibreBaskerville_700Bold",
-    color: Colors.light.text,
+    color: CruColors.textPrimary,
     marginTop: 6,
     marginBottom: 4,
   },
   heading3: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: CruColors.textPrimary,
     marginTop: 4,
     marginBottom: 2,
   },
@@ -920,7 +1012,7 @@ const markdownStyles = {
     marginBottom: 6,
   },
   link: {
-    color: Colors.light.tint,
+    color: CruColors.accent,
     textDecorationLine: "underline" as const,
   },
 };
@@ -928,7 +1020,6 @@ const markdownStyles = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   flex: {
     flex: 1,
@@ -939,12 +1030,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between" as const,
     paddingHorizontal: 20,
     paddingBottom: 12,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "transparent",
   },
   headerTitle: {
-    fontSize: 24,
-    fontFamily: "LibreBaskerville_700Bold",
-    color: Colors.light.text,
+    fontSize: 34,
+    fontFamily: "LibreBaskerville_400Regular",
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.25)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   messageList: {
     paddingHorizontal: 16,
@@ -961,12 +1055,23 @@ const styles = StyleSheet.create({
   bubbleRowAssistant: {
     alignSelf: "flex-start" as const,
   },
-  avatarImage: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  avatarGlass: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     marginRight: 8,
     marginTop: 4,
+    overflow: "hidden" as const,
+  },
+  avatarImage: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
   },
   bubble: {
     borderRadius: 18,
@@ -974,16 +1079,27 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     maxWidth: "100%" as const,
     flexShrink: 1,
+    overflow: "hidden" as const,
   },
   bubbleUser: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: CruColors.accent,
     borderBottomRightRadius: 4,
+    shadowColor: CruColors.warmShadow,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   bubbleAssistant: {
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: CruColors.glassBg,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: CruColors.glassBorder,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   bubbleText: {
     fontSize: 15,
@@ -991,7 +1107,7 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
   },
   bubbleTextUser: {
-    color: Colors.light.white,
+    color: "#FFFFFF",
   },
   thinkingContainer: {
     flexDirection: "row" as const,
@@ -1009,12 +1125,15 @@ const styles = StyleSheet.create({
   thinkingText: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: CruColors.textSecondary,
+  },
+  inputBlur: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(114,47,55,0.12)",
+    overflow: "hidden" as const,
   },
   inputContainer: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "transparent",
     paddingHorizontal: 12,
     paddingTop: 8,
   },
@@ -1027,16 +1146,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     maxHeight: 120,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "rgba(114,47,55,0.15)",
     paddingHorizontal: 16,
     paddingTop: Platform.OS === "ios" ? 10 : 8,
     paddingBottom: Platform.OS === "ios" ? 10 : 8,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
-    backgroundColor: Colors.light.cardBackground,
+    color: CruColors.textPrimary,
+    backgroundColor: "rgba(255,255,255,0.5)",
   },
   sendButton: {
     width: 36,
@@ -1047,10 +1166,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sendButtonActive: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: CruColors.accent,
   },
   sendButtonDisabled: {
-    backgroundColor: Colors.light.border,
+    backgroundColor: CruColors.accentMuted,
   },
   mediaButton: {
     width: 36,
@@ -1086,88 +1205,160 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 24,
   },
-  greeting: {
-    ...theme.typography.heading1,
-    color: Colors.light.text,
-    marginBottom: 20,
-  },
-  pickCard: {
-    backgroundColor: Colors.light.cardBackground,
-    borderRadius: theme.radius.xl,
-    ...theme.shadows.elevated,
-    padding: 16,
+  // Tonight's Pick — hero card
+  pickCardOuter: {
+    borderRadius: 18,
+    overflow: "hidden" as const,
     marginBottom: 16,
+    shadowColor: "#2D1215",
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  pickBlur: {
+    borderRadius: 18,
+    overflow: "hidden" as const,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.95)",
+  },
+  pickCardInner: {
+    backgroundColor: "rgba(255,255,255,0.82)",
+    paddingHorizontal: 20,
+    paddingVertical: 18,
   },
   pickLabel: {
-    ...theme.typography.label,
-    color: Colors.light.textSecondary,
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 12,
+    letterSpacing: 0.5,
+    color: "rgba(114,47,55,0.65)",
   },
   pickWineName: {
-    ...theme.typography.heading2,
-    color: Colors.light.text,
+    fontFamily: "LibreBaskerville_400Regular",
+    fontSize: 22,
+    color: "#1A0A0C",
     marginTop: 4,
+    marginBottom: 4,
   },
   pickDetail: {
-    ...theme.typography.bodySmall,
-    color: Colors.light.textSecondary,
-    marginTop: 2,
+    fontFamily: "Outfit_400Regular",
+    fontSize: 14,
+    color: "rgba(45,18,21,0.60)",
   },
   pickReasonTag: {
-    backgroundColor: "rgba(114, 47, 55, 0.1)",
-    borderRadius: theme.radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: "rgba(114,47,55,0.10)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(114,47,55,0.22)",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     marginTop: 8,
     alignSelf: "flex-start" as const,
   },
   pickReasonText: {
-    ...theme.typography.caption,
-    color: Colors.light.tint,
+    fontFamily: "Outfit_500Medium",
+    fontSize: 12,
+    color: "rgba(114,47,55,0.85)",
   },
+  // Three insight cards
   tilesRow: {
     flexDirection: "row" as const,
     gap: 10,
-    marginTop: 8,
+    marginBottom: 20,
   },
-  actionTile: {
+  insightCardOuter: {
     flex: 1,
-    backgroundColor: Colors.light.cardBackground,
-    borderRadius: theme.radius.xl,
-    ...theme.shadows.card,
-    padding: 14,
-    minHeight: 70,
-    justifyContent: "center" as const,
+    borderRadius: 14,
     overflow: "hidden" as const,
+    shadowColor: "#2D1215",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    height: 90,
   },
-  tileAccent: {
+  insightBlur: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: "hidden" as const,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.90)",
+  },
+  insightAccent: {
     position: "absolute" as const,
     top: 0,
+    bottom: 0,
     left: 0,
-    right: 0,
-    height: 3,
-    borderTopLeftRadius: theme.radius.xl,
-    borderTopRightRadius: theme.radius.xl,
+    width: 3,
   },
-  tileText: {
-    ...theme.typography.label,
-    color: Colors.light.text,
+  insightCardInner: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.75)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: "center" as const,
   },
-  tileSubtext: {
-    ...theme.typography.caption,
-    color: Colors.light.textSecondary,
+  insightTopLabel: {
+    fontFamily: "Outfit_500Medium",
+    fontSize: 11,
+    color: "rgba(114,47,55,0.55)",
+  },
+  insightMainText: {
+    fontFamily: "Outfit_700Bold",
+    fontSize: 16,
+    color: "#1A0A0C",
     marginTop: 2,
   },
+  insightSubtitle: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 13,
+    color: "rgba(45,18,21,0.55)",
+    marginTop: 1,
+  },
+  // Suggested prompt chips
+  promptsContainer: {
+    marginTop: 0,
+  },
+  promptsRow: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+    gap: 8,
+  },
+  promptChip: {
+    backgroundColor: "rgba(255,255,255,0.70)",
+    borderWidth: 1,
+    borderColor: "rgba(114,47,55,0.25)",
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: "#2D1215",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  promptChipText: {
+    fontFamily: "Outfit_500Medium",
+    fontSize: 14,
+    color: "#722F37",
+  },
   wineCardsContainer: {
-    paddingLeft: 44,
+    paddingLeft: 48,
     paddingRight: 16,
     marginTop: 4,
     marginBottom: 4,
     gap: 6,
   },
   wineCardInline: {
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: CruColors.glassBg,
     borderRadius: theme.radius.lg,
-    ...theme.shadows.card,
+    borderWidth: 1,
+    borderColor: CruColors.glassBorder,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
@@ -1183,12 +1374,12 @@ const styles = StyleSheet.create({
   },
   wineCardName: {
     ...theme.typography.heading3,
-    color: Colors.light.text,
+    color: CruColors.textPrimary,
     flex: 1,
   },
   wineCardDetail: {
     ...theme.typography.caption,
-    color: Colors.light.textSecondary,
+    color: CruColors.textSecondary,
     marginTop: 2,
     marginLeft: 14,
   },
@@ -1200,26 +1391,26 @@ const styles = StyleSheet.create({
   },
   wineCardScore: {
     ...theme.typography.caption,
-    color: Colors.light.tint,
+    color: CruColors.accent,
     fontFamily: "Outfit_600SemiBold",
   },
   wineCardBottles: {
     ...theme.typography.caption,
-    color: Colors.light.textSecondary,
+    color: CruColors.textSecondary,
   },
   undoToast: {
     position: "absolute" as const,
     bottom: 100,
     left: 16,
     right: 16,
-    backgroundColor: "#333",
+    backgroundColor: CruColors.gradientTop,
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     gap: 10,
-    shadowColor: "#000",
+    shadowColor: CruColors.warmShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -1229,10 +1420,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.white,
+    color: "#FFFFFF",
   },
   undoButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: CruColors.accent,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 6,
@@ -1240,6 +1431,6 @@ const styles = StyleSheet.create({
   undoButtonText: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.white,
+    color: "#FFFFFF",
   },
 });

@@ -53,6 +53,15 @@ function parseInteger(val: string | undefined | null): number | null {
   return isNaN(num) ? null : num;
 }
 
+function parseDrinkWindowYear(val: string | undefined | null): number | null {
+  const num = parseInteger(val);
+  if (num === null) return null;
+  const currentYear = new Date().getFullYear();
+  // Treat obviously invalid years (like 9999 or 0) as null
+  if (num > currentYear + 50 || num < 1900) return null;
+  return num;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/stats", requireAuth, async (req: AuthRequest, res: Response) => {
@@ -78,28 +87,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.userId;
       const currentYear = new Date().getFullYear();
 
-      // Tonight's pick — top 5 in drink window by score, then pick one randomly
+      // Tonight's pick — seasonal + daily rotation from in-window wines
+      const now = new Date();
+      const month = now.getMonth(); // 0-11
+      // Seasonal preference: warm months favor lighter wines, cool months favor bolder
+      const warmSeason = month >= 4 && month <= 9; // May–Oct
+      const seasonalColors = warmSeason
+        ? "'White','Rosé','Sparkling','Dessert'"
+        : "'Red','Fortified','Dessert'";
+
       const pickResult = await pool.query(`
         SELECT w.id as wine_id, w.producer, w.wine_name, w.vintage, w.color, w.region, w.varietal,
-          w.ct_community_score as score, COUNT(b.id) as bottle_count,
-          AVG(b.estimated_value) as avg_value
+          ROUND(w.ct_community_score) as score, COUNT(b.id) as bottle_count,
+          AVG(b.estimated_value) as avg_value,
+          CASE WHEN w.color IN (${seasonalColors}) THEN 1 ELSE 0 END as seasonal_match
         FROM wines w JOIN bottles b ON w.id = b.wine_id
         WHERE b.status = 'in_cellar' AND b.user_id = $1
           AND w.drink_window_start <= $2 AND w.drink_window_end >= $2
         GROUP BY w.id
-        ORDER BY w.ct_community_score DESC NULLS LAST
-        LIMIT 5
+        ORDER BY seasonal_match DESC, w.ct_community_score DESC NULLS LAST
+        LIMIT 10
       `, [userId, currentYear]);
 
       let tonight_pick = null;
       if (pickResult.rows.length > 0) {
-        const pick = pickResult.rows[Math.floor(Math.random() * pickResult.rows.length)];
+        // Deterministic daily pick: hash the date string for consistent daily rotation
+        const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+        let hash = 0;
+        for (let i = 0; i < dateStr.length; i++) {
+          hash = ((hash << 5) - hash + dateStr.charCodeAt(i)) | 0;
+        }
+        const idx = Math.abs(hash) % pickResult.rows.length;
+        const pick = pickResult.rows[idx];
         const parts: string[] = [];
-        if (pick.score) parts.push(`${pick.score} pts`);
+        if (pick.score) parts.push(`${Math.round(Number(pick.score))} pts`);
         if (pick.region) parts.push(pick.region);
         else if (pick.varietal) parts.push(pick.varietal);
         tonight_pick = {
           ...pick,
+          score: pick.score ? Math.round(Number(pick.score)) : null,
           bottle_count: Number(pick.bottle_count),
           avg_value: pick.avg_value ? Math.round(Number(pick.avg_value)) : null,
           reason: parts.length > 0 ? `In its prime • ${parts.join(" • ")}` : "In its prime",
@@ -119,13 +145,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND w.drink_window_end >= $2 AND w.drink_window_end <= $3
       `, [userId, currentYear, currentYear + 1]);
 
-      // Recent unrated consumption
+      // Unrated consumption count + most recent
       const unrated = await pool.query(`
         SELECT b.id as consumption_id, w.wine_name, w.producer, b.consumed_date
         FROM bottles b JOIN wines w ON b.wine_id = w.id
         WHERE b.status = 'consumed' AND b.user_id = $1 AND b.rating IS NULL
         ORDER BY b.consumed_date DESC NULLS LAST LIMIT 1
       `, [userId]);
+      const unratedCount = await pool.query(
+        `SELECT COUNT(*) as count FROM consumption_log cl WHERE cl.user_id = $1 AND cl.rating IS NULL`,
+        [userId]
+      );
 
       // Total bottles
       const totalBottles = await pool.query(
@@ -140,6 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           approaching_peak: Number(approachingPeak.rows[0].count),
         },
         recent_unrated: unrated.rows[0] || null,
+        unrated_count: Number(unratedCount.rows[0].count),
         total_bottles: Number(totalBottles.rows[0].count),
       });
     } catch (error) {
@@ -418,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/consumption", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
-    const { search, color, min_rating, date_from, date_to, page, limit } = req.query;
+    const { search, color, min_rating, rated, date_from, date_to, page, limit } = req.query;
 
     let whereClauses = ["cl.user_id = $1"];
     let params: any[] = [userId];
@@ -436,6 +467,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const placeholders = colors.map(() => `$${paramIdx++}`);
       whereClauses.push(`w.color IN (${placeholders.join(",")})`);
       params.push(...colors);
+    }
+    if (rated === "true") {
+      whereClauses.push("cl.rating IS NOT NULL");
+    } else if (rated === "false") {
+      whereClauses.push("cl.rating IS NULL");
     }
     if (min_rating) {
       whereClauses.push(`cl.rating >= $${paramIdx++}`);
@@ -953,7 +989,7 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
                   cleanValue(row.Country), cleanValue(row.Region), cleanValue(row.SubRegion),
                   cleanValue(row.Appellation), cleanValue(row.Varietal), cleanValue(row.Color),
                   cleanValue(row.Type), cleanValue(row.Category), cleanValue(row.Designation),
-                  cleanValue(row.Vineyard), parseInteger(row.BeginConsume), parseInteger(row.EndConsume),
+                  cleanValue(row.Vineyard), parseDrinkWindowYear(row.BeginConsume), parseDrinkWindowYear(row.EndConsume),
                   parseNumber(row.CScore), userId
                 ]);
                 wineId = result.rows[0].id;
@@ -969,7 +1005,7 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
                 cleanValue(row.Country), cleanValue(row.Region), cleanValue(row.SubRegion),
                 cleanValue(row.Appellation), cleanValue(row.Varietal), cleanValue(row.Color),
                 cleanValue(row.Type), cleanValue(row.Category), cleanValue(row.Designation),
-                cleanValue(row.Vineyard), parseInteger(row.BeginConsume), parseInteger(row.EndConsume),
+                cleanValue(row.Vineyard), parseDrinkWindowYear(row.BeginConsume), parseDrinkWindowYear(row.EndConsume),
                 parseNumber(row.CScore), userId
               ]);
               wineId = result.rows[0].id;
@@ -1017,8 +1053,8 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
               getField(row, mapping.varietal), getField(row, mapping.color),
               getField(row, mapping.wine_type), getField(row, mapping.category),
               getField(row, mapping.designation), getField(row, mapping.vineyard),
-              mapping.drink_window_start ? parseInteger(row[mapping.drink_window_start]) : null,
-              mapping.drink_window_end ? parseInteger(row[mapping.drink_window_end]) : null,
+              mapping.drink_window_start ? parseDrinkWindowYear(row[mapping.drink_window_start]) : null,
+              mapping.drink_window_end ? parseDrinkWindowYear(row[mapping.drink_window_end]) : null,
               mapping.score ? parseNumber(row[mapping.score!]) : null,
               userId
             ]);
@@ -1247,6 +1283,7 @@ Key behaviors:
 - Format responses for mobile readability — use short paragraphs, not long blocks.
 - If the user asks about importing wines from CellarTracker, let them know they can use the CSV import feature on the Add tab.
 - If the user made a mistake logging a consumption, use undo_consumption to reverse it.
+- **Ask before you guess**: When the user's request is vague or missing key details you need to make a good recommendation, ask a brief follow-up question rather than guessing. For example: "What are you having for dinner?" or "Red or white tonight?" or "Any budget in mind?" Keep follow-ups to one short question — don't bombard them with a list of questions. If you already have enough context from their history, memories, or the current conversation, skip the question and just recommend.
 
 Memory:
 You have a long-term memory that persists across conversations. Use it wisely:

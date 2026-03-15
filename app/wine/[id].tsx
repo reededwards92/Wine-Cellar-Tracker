@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import { getColorDot, getDrinkWindowStatus } from "@/lib/api";
@@ -112,6 +114,22 @@ export default function WineDetailScreen() {
     estimated_value: "",
     size: "750ml",
   });
+  const [editModal, setEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    producer: "",
+    wine_name: "",
+    vintage: "",
+    color: "",
+    varietal: "",
+    country: "",
+    region: "",
+    sub_region: "",
+    appellation: "",
+    designation: "",
+    vineyard: "",
+    drink_window_start: "",
+    drink_window_end: "",
+  });
 
   const { data: wine, isLoading } = useQuery<WineDetail>({
     queryKey: ["/api/wines", id],
@@ -182,6 +200,55 @@ export default function WineDetailScreen() {
     },
   });
 
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      const body: Record<string, any> = {};
+      if (editForm.producer) body.producer = editForm.producer;
+      if (editForm.wine_name) body.wine_name = editForm.wine_name;
+      body.vintage = editForm.vintage ? parseInt(editForm.vintage, 10) : null;
+      if (editForm.color) body.color = editForm.color;
+      body.varietal = editForm.varietal || null;
+      body.country = editForm.country || null;
+      body.region = editForm.region || null;
+      body.sub_region = editForm.sub_region || null;
+      body.appellation = editForm.appellation || null;
+      body.designation = editForm.designation || null;
+      body.vineyard = editForm.vineyard || null;
+      body.drink_window_start = editForm.drink_window_start ? parseInt(editForm.drink_window_start, 10) : null;
+      body.drink_window_end = editForm.drink_window_end ? parseInt(editForm.drink_window_end, 10) : null;
+      const res = await apiRequest("PUT", `/api/wines/${id}`, body);
+      return res.json();
+    },
+    onSuccess: () => {
+      setEditModal(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/wines", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
+    },
+    onError: (err: any) => {
+      Alert.alert("Error", err.message);
+    },
+  });
+
+  const openEditModal = () => {
+    if (!wine) return;
+    setEditForm({
+      producer: wine.producer || "",
+      wine_name: wine.wine_name || "",
+      vintage: wine.vintage ? String(wine.vintage) : "",
+      color: wine.color || "",
+      varietal: wine.varietal || "",
+      country: wine.country || "",
+      region: wine.region || "",
+      sub_region: wine.sub_region || "",
+      appellation: wine.appellation || "",
+      designation: wine.designation || "",
+      vineyard: wine.vineyard || "",
+      drink_window_start: wine.drink_window_start != null ? String(wine.drink_window_start) : "",
+      drink_window_end: wine.drink_window_end != null ? String(wine.drink_window_end) : "",
+    });
+    setEditModal(true);
+  };
+
   if (isLoading || !wine) {
     return (
       <View style={[styles.screen, styles.centered]}>
@@ -200,13 +267,18 @@ export default function WineDetailScreen() {
   const inCellarBottles = wine.bottles?.filter((b) => b.status === "in_cellar") || [];
 
   return (
-    <View style={styles.screen}>
+    <LinearGradient
+      colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]}
+      style={styles.screen}
+    >
       <View style={[styles.navBar, { paddingTop: isWeb ? 67 : insets.top }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={Colors.light.tint} />
         </Pressable>
         <Text style={styles.navTitle} numberOfLines={1}>Wine Details</Text>
-        <View style={{ width: 40 }} />
+        <Pressable onPress={openEditModal} style={styles.editBtn} hitSlop={8}>
+          <Ionicons name="create-outline" size={22} color={Colors.light.tint} />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -221,7 +293,7 @@ export default function WineDetailScreen() {
           </Text>
           {wine.ct_community_score ? (
             <View style={styles.scoreBadge}>
-              <Text style={styles.scoreValue}>{wine.ct_community_score.toFixed(1)}</Text>
+              <Text style={styles.scoreValue}>{Math.round(wine.ct_community_score)}</Text>
               <Text style={styles.scoreLabel}>Community</Text>
             </View>
           ) : null}
@@ -307,7 +379,7 @@ export default function WineDetailScreen() {
                 value={consumeForm.occasion}
                 onChangeText={(v) => setConsumeForm((p) => ({ ...p, occasion: v }))}
                 placeholder="Dinner party, celebration..."
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Paired With</Text>
@@ -316,7 +388,7 @@ export default function WineDetailScreen() {
                 value={consumeForm.paired_with}
                 onChangeText={(v) => setConsumeForm((p) => ({ ...p, paired_with: v }))}
                 placeholder="Grilled steak, cheese..."
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Who With</Text>
@@ -325,7 +397,7 @@ export default function WineDetailScreen() {
                 value={consumeForm.who_with}
                 onChangeText={(v) => setConsumeForm((p) => ({ ...p, who_with: v }))}
                 placeholder="Friends, family..."
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Tasting Notes</Text>
@@ -334,7 +406,7 @@ export default function WineDetailScreen() {
                 value={consumeForm.tasting_notes}
                 onChangeText={(v) => setConsumeForm((p) => ({ ...p, tasting_notes: v }))}
                 placeholder="Describe the wine..."
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 multiline
                 textAlignVertical="top"
               />
@@ -406,7 +478,7 @@ export default function WineDetailScreen() {
                 value={addForm.purchase_price}
                 onChangeText={(v) => setAddForm((p) => ({ ...p, purchase_price: v }))}
                 placeholder="$0.00"
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 keyboardType="decimal-pad"
               />
 
@@ -416,7 +488,7 @@ export default function WineDetailScreen() {
                 value={addForm.estimated_value}
                 onChangeText={(v) => setAddForm((p) => ({ ...p, estimated_value: v }))}
                 placeholder="$0.00"
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 keyboardType="decimal-pad"
               />
 
@@ -448,14 +520,146 @@ export default function WineDetailScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+
+      <Modal visible={editModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 16, maxHeight: "90%" }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Wine</Text>
+              <Pressable onPress={() => setEditModal(false)}>
+                <Ionicons name="close" size={24} color={Colors.light.text} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.modalLabel}>Producer</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.producer}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, producer: v }))}
+                placeholder="Producer"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+              />
+
+              <Text style={styles.modalLabel}>Wine Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.wine_name}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, wine_name: v }))}
+                placeholder="Wine name"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+              />
+
+              <Text style={styles.modalLabel}>Vintage</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.vintage}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, vintage: v }))}
+                placeholder="e.g. 2020"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                keyboardType="number-pad"
+              />
+
+              <Text style={styles.modalLabel}>Color</Text>
+              <View style={styles.locationPickerRow}>
+                {["Red", "White", "Rosé", "Sparkling", "Dessert", "Fortified"].map((c) => (
+                  <Pressable
+                    key={c}
+                    style={[styles.locationPill, editForm.color === c && styles.locationPillActive]}
+                    onPress={() => setEditForm((p) => ({ ...p, color: c }))}
+                  >
+                    <Text style={[styles.locationPillText, editForm.color === c && styles.locationPillTextActive]}>{c}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text style={styles.modalLabel}>Varietal</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.varietal}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, varietal: v }))}
+                placeholder="e.g. Cabernet Sauvignon"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+              />
+
+              <Text style={styles.modalLabel}>Country</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.country}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, country: v }))}
+                placeholder="e.g. France"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+              />
+
+              <Text style={styles.modalLabel}>Region</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.region}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, region: v }))}
+                placeholder="e.g. Napa Valley"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+              />
+
+              <Text style={styles.modalLabel}>Sub-Region</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.sub_region}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, sub_region: v }))}
+                placeholder="e.g. Oakville"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+              />
+
+              <Text style={styles.modalLabel}>Appellation</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.appellation}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, appellation: v }))}
+                placeholder="Appellation"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+              />
+
+              <Text style={styles.modalLabel}>Drink Window Start</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.drink_window_start}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, drink_window_start: v }))}
+                placeholder="e.g. 2024"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                keyboardType="number-pad"
+              />
+
+              <Text style={styles.modalLabel}>Drink Window End</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editForm.drink_window_end}
+                onChangeText={(v) => setEditForm((p) => ({ ...p, drink_window_end: v }))}
+                placeholder="e.g. 2030"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                keyboardType="number-pad"
+              />
+            </ScrollView>
+
+            <Pressable
+              style={styles.confirmBtn}
+              onPress={() => editMutation.mutate()}
+              disabled={editMutation.isPending}
+            >
+              {editMutation.isPending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.confirmBtnText}>Save Changes</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.light.cardBackground,
   },
   centered: {
     alignItems: "center",
@@ -466,9 +670,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 8,
     paddingBottom: 10,
-    backgroundColor: Colors.light.white,
+    backgroundColor: "transparent",
   },
   backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editBtn: {
     width: 40,
     height: 40,
     alignItems: "center",
@@ -485,12 +695,15 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   wineHeader: {
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: Colors.light.glassBg,
     borderRadius: theme.radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.light.glassBorder,
     padding: 20,
-    ...theme.shadows.card,
+    ...theme.shadows.glass,
     alignItems: "center",
     marginBottom: 12,
+    overflow: "hidden" as const,
   },
   colorDotLg: {
     width: 16,
@@ -513,7 +726,7 @@ const styles = StyleSheet.create({
   },
   scoreBadge: {
     marginTop: 12,
-    backgroundColor: Colors.light.tint + "15",
+    backgroundColor: "rgba(255,255,255,0.65)",
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -527,19 +740,22 @@ const styles = StyleSheet.create({
   scoreLabel: {
     fontSize: 11,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.tint,
+    color: "rgba(45,18,21,0.55)",
   },
   detailSection: {
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: Colors.light.glassBg,
     borderRadius: theme.radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.light.glassBorder,
     padding: 16,
-    ...theme.shadows.card,
+    ...theme.shadows.glass,
     marginBottom: 12,
+    overflow: "hidden" as const,
   },
   detailSectionTitle: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "rgba(114, 47, 55, 0.55)",
     marginBottom: 12,
   },
   infoRow: {
@@ -547,12 +763,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 7,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.divider,
+    borderBottomColor: "rgba(114, 47, 55, 0.07)",
   },
   infoLabel: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45, 18, 21, 0.50)",
   },
   infoValue: {
     fontSize: 14,
@@ -573,10 +789,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   bottleCard: {
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: "rgba(255,255,255,0.40)",
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(114, 47, 55, 0.07)",
   },
   bottleHeader: {
     flexDirection: "row",
@@ -622,8 +840,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.cardBackground,
+    borderColor: "rgba(114, 47, 55, 0.18)",
+    backgroundColor: "rgba(255,255,255,0.55)",
     alignItems: "center" as const,
   },
   locationPillActive: {
@@ -647,7 +865,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: Colors.light.tint,
+    borderColor: "rgba(114, 47, 55, 0.35)",
+    backgroundColor: "rgba(114, 47, 55, 0.06)",
   },
   consumeBtnText: {
     fontSize: 13,
@@ -656,14 +875,15 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: Colors.light.scrim,
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: Colors.light.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    backgroundColor: Colors.light.glassBgStrong,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: "85%",
+    overflow: "hidden" as const,
   },
   modalHeader: {
     flexDirection: "row",
@@ -671,7 +891,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: "rgba(114, 47, 55, 0.10)",
   },
   modalTitle: {
     fontSize: 18,
@@ -690,12 +910,14 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(114, 47, 55, 0.18)",
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "rgba(255, 255, 255, 0.60)",
   },
   ratingRow: {
     flexDirection: "row",

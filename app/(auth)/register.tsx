@@ -116,7 +116,7 @@ export default function RegisterScreen() {
               value={displayName}
               onChangeText={setDisplayName}
               placeholder="Your name (optional)"
-              placeholderTextColor={Colors.light.tabIconDefault}
+              placeholderTextColor="rgba(114, 47, 55, 0.38)"
               autoCapitalize="words"
               testID="register-name"
             />
@@ -129,7 +129,7 @@ export default function RegisterScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="your@email.com"
-              placeholderTextColor={Colors.light.tabIconDefault}
+              placeholderTextColor="rgba(114, 47, 55, 0.38)"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -145,7 +145,7 @@ export default function RegisterScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="At least 6 characters"
-                placeholderTextColor={Colors.light.tabIconDefault}
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 testID="register-password"

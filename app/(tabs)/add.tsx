@@ -18,6 +18,8 @@ import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
@@ -304,7 +306,7 @@ export default function ScanScreen() {
 
   if (phase === "idle") {
     return (
-      <View style={styles.screen}>
+      <LinearGradient colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]} style={styles.screen}>
         <View style={[styles.centered, { paddingTop: isWeb ? 67 : insets.top + 40, paddingBottom: isWeb ? 84 + 34 : insets.bottom + 80 }]}>
           <View style={styles.cameraIconCircle}>
             <Ionicons name="camera" size={48} color={Colors.light.tint} />
@@ -320,7 +322,7 @@ export default function ScanScreen() {
             <Text style={styles.manualEntryBtnOutlineText}>Enter Manually</Text>
           </Pressable>
         </View>
-      </View>
+      </LinearGradient>
     );
   }
 
@@ -384,7 +386,7 @@ export default function ScanScreen() {
 
   if (phase === "analyzing") {
     return (
-      <View style={styles.screen}>
+      <LinearGradient colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]} style={styles.screen}>
         <View style={[styles.centered, { paddingTop: isWeb ? 67 : insets.top + 40 }]}>
           {photoUri && (
             <Image source={{ uri: photoUri }} style={styles.analyzePhoto} resizeMode="cover" />
@@ -392,13 +394,13 @@ export default function ScanScreen() {
           <ActivityIndicator size="large" color={Colors.light.tint} style={{ marginTop: 24 }} />
           <Text style={styles.analyzingLabel}>Analyzing wine label...</Text>
         </View>
-      </View>
+      </LinearGradient>
     );
   }
 
   if (phase === "results") {
     return (
-      <View style={styles.screen}>
+      <LinearGradient colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]} style={styles.screen}>
         <ScrollView
           contentContainerStyle={[
             styles.resultsContent,
@@ -504,12 +506,12 @@ export default function ScanScreen() {
             </Pressable>
           </View>
         </ScrollView>
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={styles.screen}>
+    <LinearGradient colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]} style={styles.screen}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
         <Pressable onPress={() => setPhase(scanResult ? "results" : "idle")} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color={Colors.light.tint} />
@@ -526,15 +528,15 @@ export default function ScanScreen() {
       >
         <FormSection title="Wine Identity">
           <FormField label="Producer *">
-            <TextInput style={styles.input} value={form.producer} onChangeText={(v) => update("producer", v)} placeholder="e.g., Ch\u00e2teau Margaux" placeholderTextColor={Colors.light.tabIconDefault} />
+            <TextInput style={styles.input} value={form.producer} onChangeText={(v) => update("producer", v)} placeholder="e.g., Ch\u00e2teau Margaux" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
           </FormField>
           <FormField label="Wine Name *">
-            <TextInput style={styles.input} value={form.wine_name} onChangeText={(v) => update("wine_name", v)} placeholder="e.g., Grand Vin" placeholderTextColor={Colors.light.tabIconDefault} />
+            <TextInput style={styles.input} value={form.wine_name} onChangeText={(v) => update("wine_name", v)} placeholder="e.g., Grand Vin" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
           </FormField>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Vintage">
-                <TextInput style={styles.input} value={form.vintage} onChangeText={(v) => update("vintage", v)} placeholder="2020" placeholderTextColor={Colors.light.tabIconDefault} keyboardType="number-pad" />
+                <TextInput style={styles.input} value={form.vintage} onChangeText={(v) => update("vintage", v)} placeholder="2020" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
@@ -555,29 +557,29 @@ export default function ScanScreen() {
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Country">
-                <TextInput style={styles.input} value={form.country} onChangeText={(v) => update("country", v)} placeholder="France" placeholderTextColor={Colors.light.tabIconDefault} />
+                <TextInput style={styles.input} value={form.country} onChangeText={(v) => update("country", v)} placeholder="France" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Region">
-                <TextInput style={styles.input} value={form.region} onChangeText={(v) => update("region", v)} placeholder="Bordeaux" placeholderTextColor={Colors.light.tabIconDefault} />
+                <TextInput style={styles.input} value={form.region} onChangeText={(v) => update("region", v)} placeholder="Bordeaux" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
           </View>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Sub-Region">
-                <TextInput style={styles.input} value={form.sub_region} onChangeText={(v) => update("sub_region", v)} placeholder="Margaux" placeholderTextColor={Colors.light.tabIconDefault} />
+                <TextInput style={styles.input} value={form.sub_region} onChangeText={(v) => update("sub_region", v)} placeholder="Margaux" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Appellation">
-                <TextInput style={styles.input} value={form.appellation} onChangeText={(v) => update("appellation", v)} placeholder="Margaux AOC" placeholderTextColor={Colors.light.tabIconDefault} />
+                <TextInput style={styles.input} value={form.appellation} onChangeText={(v) => update("appellation", v)} placeholder="Margaux AOC" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
           </View>
           <FormField label="Varietal">
-            <TextInput style={styles.input} value={form.varietal} onChangeText={(v) => update("varietal", v)} placeholder="Cabernet Sauvignon" placeholderTextColor={Colors.light.tabIconDefault} />
+            <TextInput style={styles.input} value={form.varietal} onChangeText={(v) => update("varietal", v)} placeholder="Cabernet Sauvignon" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
           </FormField>
         </FormSection>
 
@@ -585,29 +587,29 @@ export default function ScanScreen() {
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Designation">
-                <TextInput style={styles.input} value={form.designation} onChangeText={(v) => update("designation", v)} placeholder="Reserve" placeholderTextColor={Colors.light.tabIconDefault} />
+                <TextInput style={styles.input} value={form.designation} onChangeText={(v) => update("designation", v)} placeholder="Reserve" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Vineyard">
-                <TextInput style={styles.input} value={form.vineyard} onChangeText={(v) => update("vineyard", v)} placeholder="Les Pavots" placeholderTextColor={Colors.light.tabIconDefault} />
+                <TextInput style={styles.input} value={form.vineyard} onChangeText={(v) => update("vineyard", v)} placeholder="Les Pavots" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
           </View>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Drink Start">
-                <TextInput style={styles.input} value={form.drink_window_start} onChangeText={(v) => update("drink_window_start", v)} placeholder="2024" placeholderTextColor={Colors.light.tabIconDefault} keyboardType="number-pad" />
+                <TextInput style={styles.input} value={form.drink_window_start} onChangeText={(v) => update("drink_window_start", v)} placeholder="2024" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Drink End">
-                <TextInput style={styles.input} value={form.drink_window_end} onChangeText={(v) => update("drink_window_end", v)} placeholder="2030" placeholderTextColor={Colors.light.tabIconDefault} keyboardType="number-pad" />
+                <TextInput style={styles.input} value={form.drink_window_end} onChangeText={(v) => update("drink_window_end", v)} placeholder="2030" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
           </View>
           <FormField label="Community Score">
-            <TextInput style={styles.input} value={form.ct_community_score} onChangeText={(v) => update("ct_community_score", v)} placeholder="90.5" placeholderTextColor={Colors.light.tabIconDefault} keyboardType="decimal-pad" />
+            <TextInput style={styles.input} value={form.ct_community_score} onChangeText={(v) => update("ct_community_score", v)} placeholder="90.5" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="decimal-pad" />
           </FormField>
         </FormSection>
 
@@ -615,24 +617,24 @@ export default function ScanScreen() {
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Quantity">
-                <TextInput style={styles.input} value={form.quantity} onChangeText={(v) => update("quantity", v)} placeholder="1" placeholderTextColor={Colors.light.tabIconDefault} keyboardType="number-pad" />
+                <TextInput style={styles.input} value={form.quantity} onChangeText={(v) => update("quantity", v)} placeholder="1" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Size">
-                <TextInput style={styles.input} value={form.size} onChangeText={(v) => update("size", v)} placeholder="750ml" placeholderTextColor={Colors.light.tabIconDefault} />
+                <TextInput style={styles.input} value={form.size} onChangeText={(v) => update("size", v)} placeholder="750ml" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
           </View>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Purchase Price">
-                <TextInput style={styles.input} value={form.purchase_price} onChangeText={(v) => update("purchase_price", v)} placeholder="$0.00" placeholderTextColor={Colors.light.tabIconDefault} keyboardType="decimal-pad" />
+                <TextInput style={styles.input} value={form.purchase_price} onChangeText={(v) => update("purchase_price", v)} placeholder="$0.00" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="decimal-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Est. Value">
-                <TextInput style={styles.input} value={form.estimated_value} onChangeText={(v) => update("estimated_value", v)} placeholder="$0.00" placeholderTextColor={Colors.light.tabIconDefault} keyboardType="decimal-pad" />
+                <TextInput style={styles.input} value={form.estimated_value} onChangeText={(v) => update("estimated_value", v)} placeholder="$0.00" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="decimal-pad" />
               </FormField>
             </View>
           </View>
@@ -648,7 +650,7 @@ export default function ScanScreen() {
             </FormField>
           ) : null}
           <FormField label="Notes">
-            <TextInput style={[styles.input, styles.textArea]} value={form.notes} onChangeText={(v) => update("notes", v)} placeholder="Tasting notes, purchase details..." placeholderTextColor={Colors.light.tabIconDefault} multiline numberOfLines={3} textAlignVertical="top" />
+            <TextInput style={[styles.input, styles.textArea]} value={form.notes} onChangeText={(v) => update("notes", v)} placeholder="Tasting notes, purchase details..." placeholderTextColor="rgba(114, 47, 55, 0.38)" multiline numberOfLines={3} textAlignVertical="top" />
           </FormField>
         </FormSection>
 
@@ -673,14 +675,13 @@ export default function ScanScreen() {
           </Pressable>
         </View>
       </KeyboardAwareScrollViewCompat>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.light.cardBackground,
   },
   centered: {
     flex: 1,
@@ -692,7 +693,9 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: "#F3E8E9",
+    backgroundColor: "rgba(255,255,255,0.50)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.70)",
     alignItems: "center" as const,
     justifyContent: "center" as const,
     marginBottom: 24,
@@ -706,7 +709,7 @@ const styles = StyleSheet.create({
   idleText: {
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
     textAlign: "center" as const,
     marginBottom: 32,
   },
@@ -748,10 +751,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   resultCard: {
-    backgroundColor: Colors.light.white,
+    backgroundColor: Colors.light.glassBg,
     borderRadius: theme.radius.xl,
     padding: 20,
-    ...theme.shadows.card,
+    borderWidth: 1,
+    borderColor: Colors.light.glassBorder,
+    ...theme.shadows.glass,
     marginBottom: 16,
   },
   resultProducer: {
@@ -762,13 +767,13 @@ const styles = StyleSheet.create({
   resultWine: {
     fontSize: 15,
     fontFamily: "LibreBaskerville_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
     marginTop: 4,
   },
   resultMeta: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
     marginTop: 8,
   },
   resultColorRow: {
@@ -778,7 +783,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   resultColorChip: {
-    backgroundColor: "#F3E8E9",
+    backgroundColor: "rgba(255,255,255,0.50)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.70)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -791,7 +798,7 @@ const styles = StyleSheet.create({
   resultCountry: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
   },
   noResultTitle: {
     fontSize: 17,
@@ -802,7 +809,7 @@ const styles = StyleSheet.create({
   noResultText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
     marginTop: 4,
   },
   actionsContainer: {
@@ -812,11 +819,11 @@ const styles = StyleSheet.create({
   actionBtn: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    backgroundColor: Colors.light.white,
+    backgroundColor: "rgba(255,255,255,0.60)",
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "rgba(114,47,55,0.22)",
   },
   actionIcon: {
     width: 40,
@@ -832,12 +839,12 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#722F37",
   },
   actionSub: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
     marginTop: 1,
   },
   bottomActions: {
@@ -853,7 +860,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.light.tint,
+    borderColor: "rgba(114,47,55,0.22)",
+    backgroundColor: "rgba(255,255,255,0.60)",
   },
   retakeBtnText: {
     fontSize: 15,
@@ -867,17 +875,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "rgba(114,47,55,0.22)",
+    backgroundColor: "rgba(255,255,255,0.60)",
   },
   cancelBtnText: {
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
   },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: Colors.light.white,
+    backgroundColor: "transparent",
     flexDirection: "row" as const,
     alignItems: "flex-end" as const,
     justifyContent: "space-between" as const,
@@ -898,18 +907,18 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   section: {
-    backgroundColor: Colors.light.white,
+    backgroundColor: Colors.light.glassBg,
     marginTop: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: Colors.light.glassBorder,
   },
   sectionTitle: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
     marginBottom: 12,
   },
   field: {
@@ -928,7 +937,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "rgba(255,255,255,0.60)",
+    borderWidth: 1,
+    borderColor: "rgba(114,47,55,0.18)",
   },
   textArea: {
     minHeight: 70,
@@ -951,7 +962,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "rgba(114,47,55,0.18)",
   },
   colorChipActive: {
     backgroundColor: Colors.light.tint,
@@ -976,9 +987,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "rgba(114,47,55,0.18)",
     alignItems: "center" as const,
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: "rgba(255,255,255,0.60)",
   },
   locationOptionActive: {
     backgroundColor: Colors.light.tint,
@@ -1020,13 +1031,13 @@ const styles = StyleSheet.create({
     justifyContent: "center" as const,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.white,
+    borderColor: "rgba(114,47,55,0.22)",
+    backgroundColor: "rgba(255,255,255,0.60)",
   },
   cancelOutlineText: {
     fontSize: 16,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "rgba(45,18,21,0.55)",
   },
   manualEntryBtnOutline: {
     flexDirection: "row" as const,

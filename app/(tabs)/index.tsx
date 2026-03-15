@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/query-client";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import StatsBar from "@/components/StatsBar";
@@ -204,11 +205,13 @@ function SectionScrubber({
 
   if (sections.length <= 1) return null;
 
-  const itemHeight = containerLayout.height > 0
-    ? Math.max(12, Math.min(20, containerLayout.height / sections.length))
+  const availableHeight = containerLayout.height;
+  const itemHeight = availableHeight > 0
+    ? Math.min(20, availableHeight / sections.length)
     : 15;
-  const totalHeight = itemHeight * sections.length;
+  const totalHeight = Math.min(availableHeight, itemHeight * sections.length);
   const bubbleTopOffset = activeIndex >= 0 ? activeIndex * itemHeight + itemHeight / 2 - 22 : 0;
+  const showEveryN = itemHeight < 8 ? Math.ceil(8 / itemHeight) : 1;
 
   return (
     <View
@@ -232,9 +235,10 @@ function SectionScrubber({
               style={[
                 styles.scrubberText,
                 activeIndex === i && styles.scrubberTextActive,
+                itemHeight < 10 && { fontSize: 7 },
               ]}
             >
-              {section.shortLabel}
+              {showEveryN > 1 && i % showEveryN !== 0 ? "" : section.shortLabel}
             </Text>
           </Pressable>
         ))}
@@ -257,11 +261,25 @@ function SectionScrubber({
 
 export default function CellarScreen() {
   const insets = useSafeAreaInsets();
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const params = useLocalSearchParams<{ drinkWindow?: string }>();
+  const [filters, setFilters] = useState<FilterState>(() => {
+    if (params.drinkWindow) {
+      return { ...DEFAULT_FILTERS, drinkWindow: [params.drinkWindow] };
+    }
+    return DEFAULT_FILTERS;
+  });
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [searchText, setSearchText] = useState("");
   const isWeb = Platform.OS === "web";
   const sectionListRef = useRef<SectionList>(null);
+
+  // Handle incoming filter params from other tabs
+  useEffect(() => {
+    if (params.drinkWindow) {
+      setFilters((prev) => ({ ...prev, drinkWindow: [params.drinkWindow as string] }));
+      setFiltersExpanded(false);
+    }
+  }, [params.drinkWindow]);
 
   const buildQueryString = useCallback(() => {
     const params = new URLSearchParams();
@@ -318,8 +336,15 @@ export default function CellarScreen() {
     return groupWinesIntoSections(wines, filters.sort);
   }, [wines, filters.sort]);
 
-  const handleSearchSubmit = useCallback(() => {
-    setFilters((prev) => ({ ...prev, search: searchText }));
+  // Debounced live search — updates 300ms after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((prev) => {
+        if (prev.search === searchText) return prev;
+        return { ...prev, search: searchText };
+      });
+    }, 300);
+    return () => clearTimeout(timer);
   }, [searchText]);
 
   const handleRefresh = useCallback(() => {
@@ -357,7 +382,10 @@ export default function CellarScreen() {
   );
 
   return (
-    <View style={styles.screen}>
+    <LinearGradient
+      colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]}
+      style={styles.screen}
+    >
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
         <Text style={styles.title}>Cellar</Text>
       </View>
@@ -366,19 +394,18 @@ export default function CellarScreen() {
 
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={Colors.light.tabIconDefault} />
+          <Ionicons name="search" size={18} color="rgba(114, 47, 55, 0.45)" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search wines..."
-            placeholderTextColor={Colors.light.tabIconDefault}
+            placeholderTextColor="rgba(114, 47, 55, 0.40)"
             value={searchText}
             onChangeText={setSearchText}
-            onSubmitEditing={handleSearchSubmit}
             returnKeyType="search"
           />
           {searchText ? (
             <Pressable onPress={() => { setSearchText(""); setFilters((p) => ({ ...p, search: "" })); }}>
-              <Ionicons name="close-circle" size={18} color={Colors.light.tabIconDefault} />
+              <Ionicons name="close-circle" size={18} color="rgba(114, 47, 55, 0.45)" />
             </Pressable>
           ) : null}
         </View>
@@ -434,19 +461,18 @@ export default function CellarScreen() {
         />
         <SectionScrubber sections={sections} onSectionPress={handleScrubberPress} />
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 8,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "transparent",
   },
   title: {
     fontSize: 28,
@@ -456,17 +482,19 @@ const styles = StyleSheet.create({
   searchRow: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "transparent",
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: "rgba(255, 255, 255, 0.60)",
     borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(114, 47, 55, 0.15)",
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === "web" ? 10 : 8,
     gap: 8,
-    ...theme.shadows.card,
+    ...theme.shadows.glass,
   },
   searchInput: {
     flex: 1,
@@ -485,7 +513,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 4,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "transparent",
   },
   sectionHeaderText: {
     fontSize: 13,
@@ -512,7 +540,7 @@ const styles = StyleSheet.create({
   scrubberText: {
     fontSize: 9,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "rgba(114, 47, 55, 0.45)",
   },
   scrubberTextActive: {
     color: Colors.light.tint,

@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { BlurView } from "expo-blur";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import type { Stats } from "@/lib/api";
@@ -26,22 +27,24 @@ export default function StatsBar({ stats, isLoading }: StatsBarProps) {
   if (isLoading || !stats) {
     return (
       <View style={styles.container}>
-        <View style={[styles.card, styles.skeleton]} />
+        <View style={[styles.cardOuter, styles.skeleton]} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <Stat label="Bottles" value={String(stats.total_bottles)} />
-        <Divider />
-        <Stat label="Value" value={`$${Math.round(stats.total_value).toLocaleString()}`} />
-        <Divider />
-        <Stat label="Wines" value={String(stats.unique_wines)} />
-        <Divider />
-        <Stat label="Consumed" value={String(stats.consumed_bottles)} />
-      </View>
+      <BlurView intensity={35} tint="light" style={styles.cardOuter}>
+        <View style={styles.cardInner}>
+          <Stat label="Bottles" value={String(stats.total_bottles)} />
+          <Divider />
+          <Stat label="Value" value={`$${Math.round(stats.total_value).toLocaleString()}`} />
+          <Divider />
+          <Stat label="Wines" value={String(stats.unique_wines)} />
+          <Divider />
+          <Stat label="Consumed" value={String(stats.consumed_bottles)} />
+        </View>
+      </BlurView>
     </View>
   );
 }
@@ -51,11 +54,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  card: {
-    flexDirection: "row",
-    backgroundColor: Colors.light.cardBackground,
+  cardOuter: {
     borderRadius: theme.radius.xl,
-    ...theme.shadows.elevated,
+    borderWidth: 1,
+    borderColor: Colors.light.glassBorder,
+    overflow: "hidden",
+    ...theme.shadows.glass,
+  },
+  cardInner: {
+    flexDirection: "row",
     paddingVertical: 14,
     paddingHorizontal: 4,
     alignItems: "center",
@@ -63,6 +70,7 @@ const styles = StyleSheet.create({
   skeleton: {
     height: 60,
     opacity: 0.5,
+    backgroundColor: Colors.light.glassBg,
   },
   stat: {
     flex: 1,
@@ -71,7 +79,7 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 28,
-    backgroundColor: Colors.light.divider,
+    backgroundColor: "rgba(114, 47, 55, 0.12)",
   },
   value: {
     fontSize: 18,
@@ -81,7 +89,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontFamily: "Outfit_300Light",
-    color: Colors.light.textSecondary,
+    color: "rgba(45, 18, 21, 0.55)",
     marginTop: 2,
   },
 });

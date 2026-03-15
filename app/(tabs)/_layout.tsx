@@ -53,22 +53,24 @@ function ClassicTabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.light.tint,
-        tabBarInactiveTintColor: Colors.light.tabIconDefault,
+        tabBarActiveTintColor: "#722F37",
+        tabBarInactiveTintColor: "rgba(45, 18, 21, 0.40)",
         tabBarStyle: {
           position: "absolute" as const,
-          backgroundColor: isIOS ? "transparent" : "#fff",
-          borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: Colors.light.border,
+          backgroundColor: "transparent",
+          borderTopWidth: 0.5,
+          borderTopColor: "rgba(114, 47, 55, 0.10)",
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView intensity={100} tint="light" style={StyleSheet.absoluteFill} />
+            <BlurView intensity={55} tint="light" style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: "#fff" }]} />
-          ) : null,
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.light.bgGradientEnd }]} />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.light.bgGradientEnd }]} />
+          ),
         tabBarLabelStyle: {
           fontFamily: "Outfit_500Medium",
           fontSize: 11,
@@ -143,7 +145,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    shadowColor: "#000",
+    shadowColor: "#2D1215",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,

@@ -85,7 +85,7 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
     <View style={styles.container}>
       <Pressable style={styles.header} onPress={onToggle}>
         <View style={styles.headerLeft}>
-          <Ionicons name="options-outline" size={18} color={Colors.light.textSecondary} />
+          <Ionicons name="options-outline" size={18} color="rgba(45, 18, 21, 0.65)" />
           <Text style={styles.headerText}>Filters</Text>
           {activeCount > 0 ? (
             <View style={styles.badge}>
@@ -96,7 +96,7 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
         <Ionicons
           name={isExpanded ? "chevron-up" : "chevron-down"}
           size={18}
-          color={Colors.light.textSecondary}
+          color="rgba(45, 18, 21, 0.65)"
         />
       </Pressable>
 
@@ -150,7 +150,7 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
             <TextInput
               style={styles.rangeInput}
               placeholder="Min"
-              placeholderTextColor={Colors.light.tabIconDefault}
+              placeholderTextColor="rgba(114, 47, 55, 0.38)"
               value={filters.minValue}
               onChangeText={(v) => onChange({ ...filters, minValue: v })}
               keyboardType="numeric"
@@ -159,7 +159,7 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
             <TextInput
               style={styles.rangeInput}
               placeholder="Max"
-              placeholderTextColor={Colors.light.tabIconDefault}
+              placeholderTextColor="rgba(114, 47, 55, 0.38)"
               value={filters.maxValue}
               onChangeText={(v) => onChange({ ...filters, maxValue: v })}
               keyboardType="numeric"
@@ -217,9 +217,9 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.light.white,
+    backgroundColor: "transparent",
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: "rgba(114, 47, 55, 0.08)",
   },
   header: {
     flexDirection: "row",
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "rgba(45, 18, 21, 0.65)",
   },
   badge: {
     backgroundColor: Colors.light.tint,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "rgba(114, 47, 55, 0.55)",
     marginTop: 12,
     marginBottom: 6,
   },
@@ -273,20 +273,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.cardBackground,
+    borderColor: "rgba(114, 47, 55, 0.20)",
+    backgroundColor: "rgba(255, 255, 255, 0.55)",
   },
   chipActive: {
-    backgroundColor: Colors.light.tint,
-    borderColor: Colors.light.tint,
+    backgroundColor: "rgba(114, 47, 55, 0.15)",
+    borderColor: "rgba(114, 47, 55, 0.45)",
   },
   chipText: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "rgba(45, 18, 21, 0.70)",
   },
   chipTextActive: {
-    color: "#fff",
+    color: "#722F37",
   },
   rangeRow: {
     flexDirection: "row",
@@ -296,12 +296,14 @@ const styles = StyleSheet.create({
   rangeInput: {
     flex: 1,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(114, 47, 55, 0.18)",
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: "rgba(255, 255, 255, 0.60)",
   },
   rangeSep: {
     fontSize: 14,

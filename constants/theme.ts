@@ -51,25 +51,32 @@ export const theme = {
 
   shadows: {
     card: {
-      shadowColor: "#000",
+      shadowColor: "#2D1215",
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
-      shadowRadius: 3,
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
       elevation: 1,
     },
     elevated: {
-      shadowColor: "#000",
+      shadowColor: "#2D1215",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.12,
-      shadowRadius: 6,
+      shadowOpacity: 0.10,
+      shadowRadius: 8,
       elevation: 3,
     },
     floating: {
-      shadowColor: "#000",
+      shadowColor: "#2D1215",
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
+      shadowOpacity: 0.16,
+      shadowRadius: 10,
       elevation: 5,
+    },
+    glass: {
+      shadowColor: "#2D1215",
+      shadowOpacity: 0.07,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
     },
   } satisfies Record<string, ShadowStyle>,
 

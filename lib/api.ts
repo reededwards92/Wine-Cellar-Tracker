@@ -102,12 +102,15 @@ export interface ImportPreview {
 }
 
 export function getDrinkWindowStatus(start: number | null, end: number | null): "in_window" | "approaching" | "past_peak" | "not_set" {
-  if (start == null && end == null) return "not_set";
   const currentYear = new Date().getFullYear();
-  if (end != null && end < currentYear) return "past_peak";
-  if (start != null && start > currentYear && start <= currentYear + 1) return "approaching";
-  if (start != null && end != null && start <= currentYear && end >= currentYear) return "in_window";
-  if (start != null && start > currentYear + 1) return "approaching";
+  // Treat obviously invalid years (e.g. 9999) as not set
+  const s = start != null && start >= 1900 && start <= currentYear + 50 ? start : null;
+  const e = end != null && end >= 1900 && end <= currentYear + 50 ? end : null;
+  if (s == null && e == null) return "not_set";
+  if (e != null && e < currentYear) return "past_peak";
+  if (s != null && s > currentYear && s <= currentYear + 1) return "approaching";
+  if (s != null && e != null && s <= currentYear && e >= currentYear) return "in_window";
+  if (s != null && s > currentYear + 1) return "approaching";
   return "in_window";
 }
 
@@ -120,7 +123,7 @@ export function getColorDot(color: string | null): string {
     case "sparkling": return "#C5B358";
     case "dessert": return "#B8860B";
     case "fortified": return "#8B4513";
-    default: return "#9CA3AF";
+    default: return "#9A8A8C";
   }
 }
 
