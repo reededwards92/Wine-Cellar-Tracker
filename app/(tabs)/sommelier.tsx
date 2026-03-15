@@ -22,7 +22,7 @@ import Markdown from "react-native-markdown-display";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
-const CruAvatar = require("@/assets/images/Cru.png");
+const CruAvatar = require("../../assets/images/Cru.png");
 import { theme } from "@/constants/theme";
 import { getApiUrl, queryClient } from "@/lib/query-client";
 
