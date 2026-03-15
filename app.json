@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "cellar",
+    "scheme": ["cellar", "com.googleusercontent.apps.500931826119-oije78j9uvaa6g2ujk54tktg8rh7qhth"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
