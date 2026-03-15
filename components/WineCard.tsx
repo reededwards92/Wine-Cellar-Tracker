@@ -82,7 +82,7 @@ export default function WineCard({ wine, onPress }: WineCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.light.white,
+    backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.divider,
     paddingLeft: 16,
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   pressed: {
-    backgroundColor: Colors.light.cardBackground,
+    opacity: 0.7,
   },
   row: {
     flexDirection: "row",

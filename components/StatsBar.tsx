@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import type { Stats } from "@/lib/api";
@@ -9,58 +9,69 @@ interface StatsBarProps {
   isLoading: boolean;
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.card}>
+    <View style={styles.stat}>
       <Text style={styles.value} numberOfLines={1}>{value}</Text>
       <Text style={styles.label} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
 
+function Divider() {
+  return <View style={styles.divider} />;
+}
+
 export default function StatsBar({ stats, isLoading }: StatsBarProps) {
   if (isLoading || !stats) {
     return (
       <View style={styles.container}>
-        {[1, 2, 3, 4].map((i) => (
-          <View key={i} style={[styles.card, styles.skeleton]} />
-        ))}
+        <View style={[styles.card, styles.skeleton]} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatCard label="Bottles" value={String(stats.total_bottles)} />
-      <StatCard
-        label="Value"
-        value={`$${Math.round(stats.total_value).toLocaleString()}`}
-      />
-      <StatCard label="Wines" value={String(stats.unique_wines)} />
-      <StatCard label="Consumed" value={String(stats.consumed_bottles)} />
+      <View style={styles.card}>
+        <Stat label="Bottles" value={String(stats.total_bottles)} />
+        <Divider />
+        <Stat label="Value" value={`$${Math.round(stats.total_value).toLocaleString()}`} />
+        <Divider />
+        <Stat label="Wines" value={String(stats.unique_wines)} />
+        <Divider />
+        <Stat label="Consumed" value={String(stats.consumed_bottles)} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   card: {
-    flex: 1,
+    flexDirection: "row",
     backgroundColor: Colors.light.cardBackground,
     borderRadius: theme.radius.xl,
-    ...theme.shadows.card,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    ...theme.shadows.elevated,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
     alignItems: "center",
   },
   skeleton: {
-    height: 56,
+    height: 60,
     opacity: 0.5,
+  },
+  stat: {
+    flex: 1,
+    alignItems: "center",
+  },
+  divider: {
+    width: 1,
+    height: 28,
+    backgroundColor: Colors.light.divider,
   },
   value: {
     fontSize: 18,

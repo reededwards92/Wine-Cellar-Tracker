@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingBottom: 8,
-    backgroundColor: Colors.light.white,
+    backgroundColor: Colors.light.background,
   },
   title: {
     fontSize: 28,
@@ -451,18 +451,17 @@ const styles = StyleSheet.create({
   searchRow: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    backgroundColor: Colors.light.background,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.light.cardBackground,
-    borderRadius: 12,
+    borderRadius: theme.radius.lg,
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === "web" ? 10 : 8,
     gap: 8,
+    ...theme.shadows.card,
   },
   searchInput: {
     flex: 1,
