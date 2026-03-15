@@ -121,10 +121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Recent unrated consumption
       const unrated = await pool.query(`
-        SELECT b.id as consumption_id, w.wine_name, w.producer, b.consumed_at
+        SELECT b.id as consumption_id, w.wine_name, w.producer, b.consumed_date
         FROM bottles b JOIN wines w ON b.wine_id = w.id
         WHERE b.status = 'consumed' AND b.user_id = $1 AND b.rating IS NULL
-        ORDER BY b.consumed_at DESC NULLS LAST LIMIT 1
+        ORDER BY b.consumed_date DESC NULLS LAST LIMIT 1
       `, [userId]);
 
       // Total bottles
