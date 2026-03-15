@@ -7,7 +7,6 @@ import {
   Pressable,
   StyleSheet,
   Platform,
-  ActivityIndicator,
   Linking,
   Image,
   Alert,
@@ -18,13 +17,26 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { fetch } from "expo/fetch";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "react-native-markdown-display";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
+const CruAvatar = require("@/assets/images/Cru.png");
 import { theme } from "@/constants/theme";
 import { getApiUrl, queryClient } from "@/lib/query-client";
+
+interface WineCard {
+  id: number;
+  producer: string;
+  wine_name: string;
+  vintage?: number;
+  color?: string;
+  region?: string;
+  varietal?: string;
+  score?: number;
+  bottle_count?: number;
+}
 
 interface Message {
   id: string;
@@ -33,6 +45,7 @@ interface Message {
   imageUri?: string;
   imageBase64?: string;
   imageMimeType?: string;
+  wineCards?: WineCard[];
 }
 
 let messageCounter = 0;
@@ -43,6 +56,7 @@ function generateUniqueId(): string {
 
 export default function SommelierScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const isWeb = Platform.OS === "web";
   const params = useLocalSearchParams<{ query?: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -268,6 +282,7 @@ export default function SommelierScreen() {
 
     let fullContent = "";
     let assistantAdded = false;
+    let pendingWineCards: WineCard[] = [];
 
     try {
       const baseUrl = getApiUrl();
@@ -344,6 +359,11 @@ export default function SommelierScreen() {
               continue;
             }
 
+            if (parsed.wine_cards) {
+              pendingWineCards = parsed.wine_cards;
+              continue;
+            }
+
             if (parsed.error) {
               fullContent += parsed.error;
             }
@@ -360,6 +380,7 @@ export default function SommelierScreen() {
                     id: generateUniqueId(),
                     role: "assistant",
                     content: fullContent,
+                    wineCards: pendingWineCards.length > 0 ? pendingWineCards : undefined,
                   },
                 ]);
                 assistantAdded = true;
@@ -369,6 +390,7 @@ export default function SommelierScreen() {
                   updated[updated.length - 1] = {
                     ...updated[updated.length - 1],
                     content: fullContent,
+                    wineCards: pendingWineCards.length > 0 ? pendingWineCards : updated[updated.length - 1].wineCards,
                   };
                   return updated;
                 });
@@ -421,145 +443,161 @@ export default function SommelierScreen() {
     delete_memory: "Updating notes",
   };
 
+  const colorDot: Record<string, string> = {
+    Red: Colors.light.colorRed,
+    White: Colors.light.colorWhite,
+    Rosé: Colors.light.colorRose,
+    Sparkling: Colors.light.colorSparkling,
+    Dessert: Colors.light.colorDessert,
+    Fortified: Colors.light.colorFortified,
+  };
+
+  const renderWineCards = (cards: WineCard[]) => (
+    <View style={styles.wineCardsContainer}>
+      {cards.map((wine) => (
+        <Pressable
+          key={wine.id}
+          style={styles.wineCardInline}
+          onPress={() => router.push(`/wine/${wine.id}`)}
+        >
+          <View style={styles.wineCardHeader}>
+            {wine.color && (
+              <View style={[styles.wineCardDot, { backgroundColor: colorDot[wine.color] || Colors.light.tint }]} />
+            )}
+            <Text style={styles.wineCardName} numberOfLines={1}>{wine.wine_name}</Text>
+          </View>
+          <Text style={styles.wineCardDetail} numberOfLines={1}>
+            {wine.producer}{wine.vintage ? ` · ${wine.vintage}` : ""}{wine.region ? ` · ${wine.region}` : ""}
+          </Text>
+          <View style={styles.wineCardFooter}>
+            {wine.score ? <Text style={styles.wineCardScore}>{wine.score} pts</Text> : null}
+            {wine.bottle_count ? <Text style={styles.wineCardBottles}>{wine.bottle_count} bottle{wine.bottle_count !== 1 ? "s" : ""}</Text> : null}
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isUser = item.role === "user";
     return (
-      <View
-        style={[
-          styles.bubbleRow,
-          isUser ? styles.bubbleRowUser : styles.bubbleRowAssistant,
-        ]}
-      >
-        {!isUser && (
-          <View style={styles.avatarContainer}>
-            <Ionicons name="wine" size={16} color={Colors.light.white} />
-          </View>
-        )}
+      <View>
         <View
           style={[
-            styles.bubble,
-            isUser ? styles.bubbleUser : styles.bubbleAssistant,
+            styles.bubbleRow,
+            isUser ? styles.bubbleRowUser : styles.bubbleRowAssistant,
           ]}
         >
-          {item.imageUri && (
-            <Image
-              source={{ uri: item.imageUri }}
-              style={styles.bubbleImage}
-              resizeMode="cover"
-            />
+          {!isUser && (
+            <Image source={CruAvatar} style={styles.avatarImage} />
           )}
-          {!!item.content && (
-            isUser ? (
-              <Text
-                style={[
-                  styles.bubbleText,
-                  styles.bubbleTextUser,
-                  item.imageUri ? styles.bubbleTextWithImage : null,
-                ]}
-                selectable
-              >
-                {item.content}
-              </Text>
-            ) : (
-              <Markdown style={markdownStyles}>
-                {item.content}
-              </Markdown>
-            )
-          )}
+          <View
+            style={[
+              styles.bubble,
+              isUser ? styles.bubbleUser : styles.bubbleAssistant,
+            ]}
+          >
+            {item.imageUri && (
+              <Image
+                source={{ uri: item.imageUri }}
+                style={styles.bubbleImage}
+                resizeMode="cover"
+              />
+            )}
+            {!!item.content && (
+              isUser ? (
+                <Text
+                  style={[
+                    styles.bubbleText,
+                    styles.bubbleTextUser,
+                    item.imageUri ? styles.bubbleTextWithImage : null,
+                  ]}
+                  selectable
+                >
+                  {item.content}
+                </Text>
+              ) : (
+                <Markdown style={markdownStyles}>
+                  {item.content}
+                </Markdown>
+              )
+            )}
+          </View>
         </View>
+        {!isUser && item.wineCards && item.wineCards.length > 0 && renderWineCards(item.wineCards)}
       </View>
     );
   };
 
-  const dotAnims = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!showTyping || activeTools.length > 0) return;
+    if (!showTyping) return;
 
-    const animations = dotAnims.map((anim, i) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(i * 200),
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 400,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 0,
-            duration: 400,
-            easing: Easing.in(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.delay((2 - i) * 200),
-        ])
-      )
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
     );
-
-    const composite = Animated.parallel(animations);
-    composite.start();
+    pulse.start();
 
     return () => {
-      composite.stop();
-      dotAnims.forEach((a) => a.setValue(0));
+      pulse.stop();
+      pulseAnim.setValue(0);
     };
-  }, [showTyping, activeTools.length]);
+  }, [showTyping]);
 
   const renderTypingIndicator = () => {
     if (!showTyping) return null;
+
+    const statusText = activeTools.length > 0
+      ? (toolDisplayNames[activeTools[activeTools.length - 1]] || activeTools[activeTools.length - 1]) + "..."
+      : "Thinking...";
+
     return (
-      <View style={[styles.bubbleRow, styles.bubbleRowAssistant]}>
-        <View style={styles.avatarContainer}>
-          <Ionicons name="wine" size={16} color={Colors.light.white} />
-        </View>
-        <View style={[styles.bubble, styles.bubbleAssistant]}>
-          {activeTools.length > 0 ? (
-            <View style={styles.toolIndicator}>
-              <ActivityIndicator size="small" color={Colors.light.tint} />
-              <Text style={styles.toolText}>
-                {toolDisplayNames[activeTools[activeTools.length - 1]] ||
-                  activeTools[activeTools.length - 1]}
-                ...
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.typingDots}>
-              {dotAnims.map((anim, i) => (
-                <Animated.View
-                  key={i}
-                  style={[
-                    styles.dot,
-                    {
-                      opacity: anim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.3, 1],
-                      }),
-                      transform: [
-                        {
-                          translateY: anim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, -6],
-                          }),
-                        },
-                        {
-                          scale: anim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.85, 1.15],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-        </View>
+      <View style={styles.thinkingContainer}>
+        <Animated.Image
+          source={CruAvatar}
+          style={[
+            styles.thinkingAvatar,
+            {
+              opacity: pulseAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.5, 1],
+              }),
+              transform: [{
+                scale: pulseAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.95, 1.05],
+                }),
+              }],
+            },
+          ]}
+        />
+        <Animated.Text
+          style={[
+            styles.thinkingText,
+            {
+              opacity: pulseAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.4, 0.8],
+              }),
+            },
+          ]}
+        >
+          {statusText}
+        </Animated.Text>
       </View>
     );
   };
@@ -923,13 +961,10 @@ const styles = StyleSheet.create({
   bubbleRowAssistant: {
     alignSelf: "flex-start" as const,
   },
-  avatarContainer: {
+  avatarImage: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.light.tint,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
     marginRight: 8,
     marginTop: 4,
   },
@@ -958,29 +993,23 @@ const styles = StyleSheet.create({
   bubbleTextUser: {
     color: Colors.light.white,
   },
-  toolIndicator: {
+  thinkingContainer: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    gap: 8,
+    alignSelf: "flex-start" as const,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 10,
   },
-  toolText: {
-    fontSize: 13,
-    color: Colors.light.textSecondary,
+  thinkingAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  thinkingText: {
+    fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    fontStyle: "italic" as const,
-  },
-  typingDots: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.light.tabIconDefault,
+    color: Colors.light.textSecondary,
   },
   inputContainer: {
     borderTopWidth: 1,
@@ -1127,6 +1156,56 @@ const styles = StyleSheet.create({
     ...theme.typography.caption,
     color: Colors.light.textSecondary,
     marginTop: 2,
+  },
+  wineCardsContainer: {
+    paddingLeft: 44,
+    paddingRight: 16,
+    marginTop: 4,
+    marginBottom: 4,
+    gap: 6,
+  },
+  wineCardInline: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: theme.radius.lg,
+    ...theme.shadows.card,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  wineCardHeader: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+  },
+  wineCardDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  wineCardName: {
+    ...theme.typography.heading3,
+    color: Colors.light.text,
+    flex: 1,
+  },
+  wineCardDetail: {
+    ...theme.typography.caption,
+    color: Colors.light.textSecondary,
+    marginTop: 2,
+    marginLeft: 14,
+  },
+  wineCardFooter: {
+    flexDirection: "row" as const,
+    gap: 10,
+    marginTop: 4,
+    marginLeft: 14,
+  },
+  wineCardScore: {
+    ...theme.typography.caption,
+    color: Colors.light.tint,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  wineCardBottles: {
+    ...theme.typography.caption,
+    color: Colors.light.textSecondary,
   },
   undoToast: {
     position: "absolute" as const,

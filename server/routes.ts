@@ -1476,6 +1476,27 @@ Be accurate — only include what you can clearly read from the label. For color
                 }
               } catch {}
             }
+            // Stream wine cards for recommendation/search results
+            if (block.name === "search_wines" || block.name === "get_recommendations") {
+              try {
+                const parsed = JSON.parse(result);
+                const wines = parsed.wines || parsed.recommendations || [];
+                const cards = wines.slice(0, 5).map((w: any) => ({
+                  id: w.id,
+                  producer: w.producer,
+                  wine_name: w.wine_name,
+                  vintage: w.vintage,
+                  color: w.color,
+                  region: w.region,
+                  varietal: w.varietal,
+                  score: w.ct_community_score,
+                  bottle_count: Number(w.bottle_count || 0),
+                }));
+                if (cards.length > 0) {
+                  res.write(`data: ${JSON.stringify({ wine_cards: cards })}\n\n`);
+                }
+              } catch {}
+            }
             toolResults.push({
               type: "tool_result",
               tool_use_id: block.id,
