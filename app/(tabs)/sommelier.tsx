@@ -768,19 +768,25 @@ export default function SommelierScreen() {
           ))}
         </Animated.View>
 
-        {/* Suggested prompts */}
+        {/* Suggested prompts — split into balanced rows */}
         <View style={styles.promptsContainer}>
-          <View style={styles.promptsRow}>
-            {SUGGESTED_PROMPTS.map((prompt) => (
-              <Pressable
-                key={prompt}
-                style={styles.promptChip}
-                onPress={() => handleSend(prompt)}
-              >
-                <Text style={styles.promptChipText}>{prompt}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {(() => {
+            const mid = Math.ceil(SUGGESTED_PROMPTS.length / 2);
+            const rows = [SUGGESTED_PROMPTS.slice(0, mid), SUGGESTED_PROMPTS.slice(mid)];
+            return rows.map((row, ri) => (
+              <View key={ri} style={styles.promptsRow}>
+                {row.map((prompt) => (
+                  <Pressable
+                    key={prompt}
+                    style={styles.promptChip}
+                    onPress={() => handleSend(prompt)}
+                  >
+                    <Text style={styles.promptChipText} numberOfLines={1}>{prompt}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ));
+          })()}
         </View>
       </View>
     );
@@ -1318,18 +1324,20 @@ const styles = StyleSheet.create({
   // Suggested prompt chips
   promptsContainer: {
     marginTop: 0,
+    gap: 8,
   },
   promptsRow: {
     flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
     gap: 8,
   },
   promptChip: {
+    flex: 1,
+    alignItems: "center" as const,
     backgroundColor: "rgba(255,255,255,0.70)",
     borderWidth: 1,
     borderColor: "rgba(114,47,55,0.25)",
     borderRadius: 22,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     shadowColor: "#2D1215",
     shadowOpacity: 0.06,
