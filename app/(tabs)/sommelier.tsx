@@ -23,6 +23,7 @@ import Markdown from "react-native-markdown-display";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { getApiUrl, queryClient } from "@/lib/query-client";
 
 interface Message {
@@ -70,6 +71,30 @@ export default function SommelierScreen() {
   } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoFadeAnim = useRef(new Animated.Value(0)).current;
+  const [homeData, setHomeData] = useState<any>(null);
+  const [homeLoading, setHomeLoading] = useState(true);
+
+  const fetchHomeData = useCallback(async () => {
+    try {
+      setHomeLoading(true);
+      const baseUrl = getApiUrl();
+      const { currentAuthToken } = await import("@/lib/auth-token");
+      const res = await fetch(new URL("/api/cru/home", baseUrl).toString(), {
+        headers: currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {},
+      });
+      if (res.ok) {
+        setHomeData(await res.json());
+      }
+    } catch (e) {
+      console.error("Failed to fetch home data:", e);
+    } finally {
+      setHomeLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHomeData();
+  }, [fetchHomeData]);
 
   useEffect(() => {
     (async () => {
@@ -217,9 +242,9 @@ export default function SommelierScreen() {
     }
   };
 
-  const handleSend = async () => {
-    const text = inputText.trim();
-    const image = pendingImage;
+  const handleSend = async (overrideText?: string) => {
+    const text = (overrideText || inputText).trim();
+    const image = overrideText ? null : pendingImage;
     if ((!text && !image) || isStreaming) return;
 
     const currentMessages = [...messages];
@@ -232,8 +257,10 @@ export default function SommelierScreen() {
       imageMimeType: image?.mimeType,
     };
 
-    setInputText("");
-    setPendingImage(null);
+    if (!overrideText) {
+      setInputText("");
+      setPendingImage(null);
+    }
     setMessages((prev) => [...prev, userMessage]);
     setIsStreaming(true);
     setShowTyping(true);
@@ -390,6 +417,8 @@ export default function SommelierScreen() {
     get_consumption_history: "Checking history",
     get_storage_locations: "Checking storage",
     undo_consumption: "Undoing consumption",
+    save_memory: "Noting that",
+    delete_memory: "Updating notes",
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -535,37 +564,102 @@ export default function SommelierScreen() {
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconContainer}>
-        <Ionicons name="wine" size={48} color={Colors.light.tint} />
-      </View>
-      <Text style={styles.emptyTitle}>Your Personal Sommelier</Text>
-      <Text style={styles.emptySubtitle}>
-        Ask me about your cellar, get recommendations, track what you drink, or
-        add new wines.
-      </Text>
-      <View style={styles.suggestionsContainer}>
-        {[
-          "What should I drink tonight?",
-          "Show me my best reds",
-          "What's in my cellar?",
-          "Any wines past their peak?",
-        ].map((suggestion) => (
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const renderHomeState = () => {
+    if (homeLoading) {
+      return (
+        <View style={styles.homeContainer}>
+          <View style={[styles.pickCard, { height: 120, opacity: 0.5 }]} />
+          <View style={styles.tilesRow}>
+            <View style={[styles.actionTile, { height: 70, opacity: 0.5 }]} />
+            <View style={[styles.actionTile, { height: 70, opacity: 0.5 }]} />
+          </View>
+        </View>
+      );
+    }
+
+    const tiles: { label: string; sub?: string; query: string; accent?: string }[] = [];
+
+    if (homeData?.alerts?.past_peak > 0) {
+      tiles.push({
+        label: `${homeData.alerts.past_peak} past peak`,
+        sub: "Drink soon",
+        query: "Which wines in my cellar are past their peak drinking window?",
+        accent: Colors.light.warning,
+      });
+    }
+    if (homeData?.alerts?.approaching_peak > 0) {
+      tiles.push({
+        label: `${homeData.alerts.approaching_peak} approaching peak`,
+        sub: "Plan ahead",
+        query: "Which wines are approaching the end of their drinking window?",
+      });
+    }
+    if (homeData?.recent_unrated) {
+      tiles.push({
+        label: `Rate ${homeData.recent_unrated.wine_name?.split(" ")[0] || "recent"}?`,
+        sub: homeData.recent_unrated.producer,
+        query: `I'd like to rate the ${homeData.recent_unrated.wine_name} by ${homeData.recent_unrated.producer} that I drank recently`,
+      });
+    }
+    tiles.push({
+      label: "What should I drink?",
+      sub: `${homeData?.total_bottles || 0} bottles`,
+      query: "What should I drink tonight?",
+    });
+
+    return (
+      <View style={styles.homeContainer}>
+        <Text style={styles.greeting}>{getGreeting()}</Text>
+
+        {homeData?.tonight_pick && (
           <Pressable
-            key={suggestion}
-            style={styles.suggestionChip}
-            onPress={() => {
-              setInputText(suggestion);
-              setTimeout(() => inputRef.current?.focus(), 100);
-            }}
+            style={styles.pickCard}
+            onPress={() => handleSend(`Tell me about the ${homeData.tonight_pick.wine_name} by ${homeData.tonight_pick.producer}`)}
           >
-            <Text style={styles.suggestionText}>{suggestion}</Text>
+            <Text style={styles.pickLabel}>Tonight's Pick</Text>
+            <Text style={styles.pickWineName} numberOfLines={1}>
+              {homeData.tonight_pick.wine_name}
+            </Text>
+            <Text style={styles.pickDetail} numberOfLines={1}>
+              {homeData.tonight_pick.producer}
+              {homeData.tonight_pick.vintage ? ` · ${homeData.tonight_pick.vintage}` : ""}
+              {homeData.tonight_pick.region ? ` · ${homeData.tonight_pick.region}` : ""}
+            </Text>
+            {homeData.tonight_pick.reason && (
+              <View style={styles.pickReasonTag}>
+                <Text style={styles.pickReasonText}>{homeData.tonight_pick.reason}</Text>
+              </View>
+            )}
           </Pressable>
-        ))}
+        )}
+
+        <View style={styles.tilesRow}>
+          {tiles.slice(0, 3).map((tile) => (
+            <Pressable
+              key={tile.label}
+              style={styles.actionTile}
+              onPress={() => handleSend(tile.query)}
+            >
+              {tile.accent && (
+                <View style={[styles.tileAccent, { backgroundColor: tile.accent }]} />
+              )}
+              <Text style={styles.tileText} numberOfLines={2}>{tile.label}</Text>
+              {tile.sub && (
+                <Text style={styles.tileSubtext} numberOfLines={1}>{tile.sub}</Text>
+              )}
+            </Pressable>
+          ))}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const reversedMessages = [...messages].reverse();
 
@@ -579,12 +673,13 @@ export default function SommelierScreen() {
           { paddingTop: Platform.OS !== "web" ? insets.top + 8 : 8 },
         ]}
       >
-        <Text style={styles.headerTitle}>AI Somm</Text>
+        <Text style={styles.headerTitle}>Cru</Text>
         {messages.length > 0 && (
           <Pressable
             onPress={() => {
               setMessages([]);
               setActiveTools([]);
+              fetchHomeData();
             }}
             hitSlop={8}
           >
@@ -603,7 +698,7 @@ export default function SommelierScreen() {
         keyboardVerticalOffset={0}
       >
         {messages.length === 0 ? (
-          renderEmptyState()
+          renderHomeState()
         ) : (
           <FlatList
             data={reversedMessages}
@@ -670,7 +765,7 @@ export default function SommelierScreen() {
             <TextInput
               ref={inputRef}
               style={styles.textInput}
-              placeholder="Ask your sommelier..."
+              placeholder="Ask Cru anything..."
               placeholderTextColor={Colors.light.tabIconDefault}
               value={inputText}
               onChangeText={setInputText}
@@ -806,8 +901,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between" as const,
     paddingHorizontal: 20,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
     backgroundColor: Colors.light.background,
   },
   headerTitle: {
@@ -959,54 +1052,81 @@ const styles = StyleSheet.create({
   bubbleTextWithImage: {
     marginTop: 6,
   },
-  emptyContainer: {
+  homeContainer: {
     flex: 1,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    paddingHorizontal: 32,
+    paddingHorizontal: 16,
+    paddingTop: 24,
   },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#F3E8E9",
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
+  greeting: {
+    ...theme.typography.heading1,
+    color: Colors.light.text,
     marginBottom: 20,
   },
-  emptyTitle: {
-    fontSize: 22,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-    marginBottom: 8,
-    textAlign: "center" as const,
+  pickCard: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.elevated,
+    padding: 16,
+    marginBottom: 16,
   },
-  emptySubtitle: {
-    fontSize: 15,
-    fontFamily: "Outfit_400Regular",
+  pickLabel: {
+    ...theme.typography.label,
     color: Colors.light.textSecondary,
-    textAlign: "center" as const,
-    lineHeight: 22,
-    marginBottom: 24,
   },
-  suggestionsContainer: {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
-    justifyContent: "center" as const,
-    gap: 8,
+  pickWineName: {
+    ...theme.typography.heading2,
+    color: Colors.light.text,
+    marginTop: 4,
   },
-  suggestionChip: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.light.tint,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: "#F3E8E9",
+  pickDetail: {
+    ...theme.typography.bodySmall,
+    color: Colors.light.textSecondary,
+    marginTop: 2,
   },
-  suggestionText: {
-    fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+  pickReasonTag: {
+    backgroundColor: "rgba(114, 47, 55, 0.1)",
+    borderRadius: theme.radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 8,
+    alignSelf: "flex-start" as const,
+  },
+  pickReasonText: {
+    ...theme.typography.caption,
     color: Colors.light.tint,
+  },
+  tilesRow: {
+    flexDirection: "row" as const,
+    gap: 10,
+    marginTop: 8,
+  },
+  actionTile: {
+    flex: 1,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
+    padding: 14,
+    minHeight: 70,
+    justifyContent: "center" as const,
+    overflow: "hidden" as const,
+  },
+  tileAccent: {
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    borderTopLeftRadius: theme.radius.xl,
+    borderTopRightRadius: theme.radius.xl,
+  },
+  tileText: {
+    ...theme.typography.label,
+    color: Colors.light.text,
+  },
+  tileSubtext: {
+    ...theme.typography.caption,
+    color: Colors.light.textSecondary,
+    marginTop: 2,
   },
   undoToast: {
     position: "absolute" as const,

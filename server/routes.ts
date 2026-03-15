@@ -6,7 +6,7 @@ import { parse } from "csv-parse/sync";
 import iconv from "iconv-lite";
 import Anthropic from "@anthropic-ai/sdk";
 import ExcelJS from "exceljs";
-import { CELLAR_TOOLS, executeTool } from "./ai-tools";
+import { CELLAR_TOOLS, executeTool, getUserMemories } from "./ai-tools";
 import { requireAuth, type AuthRequest } from "./auth";
 
 const anthropicClient = new Anthropic({
@@ -71,6 +71,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       unique_wines: Number(stats.unique_wines),
       consumed_bottles: Number(stats.consumed_bottles),
     });
+  });
+
+  app.get("/api/cru/home", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      const currentYear = new Date().getFullYear();
+
+      // Tonight's pick — top 5 in drink window by score, then pick one randomly
+      const pickResult = await pool.query(`
+        SELECT w.id as wine_id, w.producer, w.wine_name, w.vintage, w.color, w.region, w.varietal,
+          w.ct_community_score as score, COUNT(b.id) as bottle_count,
+          AVG(b.estimated_value) as avg_value
+        FROM wines w JOIN bottles b ON w.id = b.wine_id
+        WHERE b.status = 'in_cellar' AND b.user_id = $1
+          AND w.drink_window_start <= $2 AND w.drink_window_end >= $2
+        GROUP BY w.id
+        ORDER BY w.ct_community_score DESC NULLS LAST
+        LIMIT 5
+      `, [userId, currentYear]);
+
+      let tonight_pick = null;
+      if (pickResult.rows.length > 0) {
+        const pick = pickResult.rows[Math.floor(Math.random() * pickResult.rows.length)];
+        const parts: string[] = [];
+        if (pick.score) parts.push(`${pick.score} pts`);
+        if (pick.region) parts.push(pick.region);
+        else if (pick.varietal) parts.push(pick.varietal);
+        tonight_pick = {
+          ...pick,
+          bottle_count: Number(pick.bottle_count),
+          avg_value: pick.avg_value ? Math.round(Number(pick.avg_value)) : null,
+          reason: parts.length > 0 ? `In its prime • ${parts.join(" • ")}` : "In its prime",
+        };
+      }
+
+      // Past peak count
+      const pastPeak = await pool.query(`
+        SELECT COUNT(DISTINCT w.id) as count FROM wines w JOIN bottles b ON w.id = b.wine_id
+        WHERE b.status = 'in_cellar' AND b.user_id = $1 AND w.drink_window_end < $2
+      `, [userId, currentYear]);
+
+      // Approaching peak count (within 1 year of end)
+      const approachingPeak = await pool.query(`
+        SELECT COUNT(DISTINCT w.id) as count FROM wines w JOIN bottles b ON w.id = b.wine_id
+        WHERE b.status = 'in_cellar' AND b.user_id = $1
+          AND w.drink_window_end >= $2 AND w.drink_window_end <= $3
+      `, [userId, currentYear, currentYear + 1]);
+
+      // Recent unrated consumption
+      const unrated = await pool.query(`
+        SELECT b.id as consumption_id, w.wine_name, w.producer, b.consumed_at
+        FROM bottles b JOIN wines w ON b.wine_id = w.id
+        WHERE b.status = 'consumed' AND b.user_id = $1 AND b.rating IS NULL
+        ORDER BY b.consumed_at DESC NULLS LAST LIMIT 1
+      `, [userId]);
+
+      // Total bottles
+      const totalBottles = await pool.query(
+        `SELECT COUNT(*) as count FROM bottles WHERE status = 'in_cellar' AND user_id = $1`,
+        [userId]
+      );
+
+      res.json({
+        tonight_pick,
+        alerts: {
+          past_peak: Number(pastPeak.rows[0].count),
+          approaching_peak: Number(approachingPeak.rows[0].count),
+        },
+        recent_unrated: unrated.rows[0] || null,
+        total_bottles: Number(totalBottles.rows[0].count),
+      });
+    } catch (error) {
+      console.error("Error fetching cru home:", error);
+      res.status(500).json({ error: "Failed to fetch home data" });
+    }
   });
 
   app.get("/api/wines", requireAuth, async (req: AuthRequest, res: Response) => {
@@ -1143,19 +1218,28 @@ Return ONLY a valid JSON object with the field names as keys and CSV column name
     res.end();
   });
 
-  const SYSTEM_PROMPT = `You are a knowledgeable and personable sommelier who manages the user's wine cellar. You have direct access to their wine database and can search, add, update, and track wines and bottles.
+  const SYSTEM_PROMPT = `Your name is Cru. You are the user's personal sommelier — knowledgeable, warm, and opinionated in a charming way. You speak with quiet confidence, like a trusted friend who happens to know wine deeply. You never lecture; you suggest, nudge, and occasionally surprise. You manage the user's wine cellar through the Vin app. You have direct access to their wine database and can search, add, update, and track wines and bottles.
 
 Your personality:
 - Warm, knowledgeable, and conversational — like a trusted wine advisor
 - Share brief, relevant wine knowledge when appropriate (pairings, regions, aging)
 - Be concise but helpful — this is a mobile chat interface
-- When recommending wines, explain why briefly
+- When recommending wines, explain your reasoning briefly but naturally — don't list factors like a formula
 - Use the tools proactively to answer questions accurately — always check the database rather than guessing
+
+How to recommend wines:
+When the user asks for a recommendation ("what should I drink?", "pick something for tonight", etc.), think through these layers in order — but present only the conclusion, not the reasoning chain:
+
+1. **User context first**: If the user mentions food, an occasion, guests, or a mood — that's your primary signal. Lead with it.
+2. **Their taste**: Use get_consumption_history and get_cellar_stats to understand what they drink most, what they rate highly, and what styles they gravitate toward. A recommendation should feel personal, not generic.
+3. **Seasonality & location**: Consider the time of year and where the user is. A crisp white or rosé on a summer evening, a bold red on a winter night — let this inform your pick naturally without announcing it. You know the current date and may have GPS coordinates.
+4. **Weather** (subtle): If the user hasn't given you much to work with (no food, no occasion), you may silently check the weather using get_weather to refine your pick. But do NOT lead with "I checked the weather and..." — just let it shape your suggestion naturally. Only mention weather explicitly if the user brings it up, or if conditions are extreme/noteworthy enough to be a fun detail (e.g., "perfect night for it — it's gorgeous out").
+5. **Drink window & value**: Always factor in which wines are in their prime or approaching peak. Prefer wines that are ready now over those that could wait.
+
+Use get_recommendations with appropriate criteria (ready_to_drink, past_peak, highest_rated, best_value, by_color) to pull candidates, then apply your judgment to pick the best one given all the context above. Don't just echo back the top-rated result — curate.
 
 Key behaviors:
 - When the user mentions drinking a wine, use consume_bottle to record it immediately — do NOT ask for rating, occasion, food pairing, or other details unless the user volunteers them. Just remove it from the cellar. If the user provides extra details (rating, notes, etc.), include them, but never prompt for them.
-- When recommending wines, use get_recommendations. You have access to a get_weather tool — use it when weather context would genuinely help (e.g., the user asks what to drink tonight, mentions the weather, or you think conditions are relevant). But don't force weather into every recommendation — sometimes the user just wants your best pick regardless of conditions.
-- If the user shares their location or mentions weather/climate, feel free to check conditions and factor them in naturally.
 - For search queries, use search_wines and present results clearly.
 - If asked about cellar overview/stats, use get_cellar_stats.
 - When adding wines, confirm the details before using add_wine.
@@ -1164,10 +1248,19 @@ Key behaviors:
 - If the user asks about importing wines from CellarTracker, let them know they can use the CSV import feature on the Add tab.
 - If the user made a mistake logging a consumption, use undo_consumption to reverse it.
 
+Memory:
+You have a long-term memory that persists across conversations. Use it wisely:
+- Save preferences, tastes, habits, and personal details that would help future recommendations (e.g., "prefers Burgundy over Bordeaux", "partner Sarah doesn't like tannic wines", "usually drinks wine Friday evenings").
+- Save quietly — don't announce "I'll remember that!" every time. Just save it and move on naturally. Occasionally you can acknowledge it warmly if the user shares something personal ("noted" or weaving it in naturally).
+- When you notice something worth remembering, use save_memory. One concise fact per memory.
+- If a user corrects a previous preference, update or delete the old memory.
+- Use your memories to personalize naturally — "since you've been on a Pinot kick..." rather than "according to my records..."
+- If a user asks what you remember about them, you can share your memories conversationally.
+
 App navigation (to help users find what they need):
 - Cellar tab: browse, search, and filter the full wine inventory
 - Add tab (+ button): scan a wine label with the camera or enter details manually
-- Sommelier tab: this AI chat interface
+- Cru tab: this AI chat interface
 - History tab: view all consumed bottles, tasting logs, and consumption stats
 - Settings tab: account info, Face ID, storage locations, CSV import/export
 
@@ -1180,7 +1273,7 @@ Common workflows:
 - Add a wine: use add_wine (creates the wine record and initial bottles in one call)
 - Add more bottles of an existing wine: use add_bottles
 - Log drinking a bottle: use consume_bottle with the bottle_id — search for the wine first if the ID is unknown
-- Find something to drink: use get_recommendations('ready_to_drink'), optionally with get_weather for weather context
+- Find something to drink: use get_recommendations (try multiple criteria), get_consumption_history (to understand taste), and optionally get_weather — then curate a personal pick
 - View drinking history: use get_consumption_history
 - Organize storage: use get_storage_locations to see racks/fridges, then update_bottle to move bottles
 - Undo a logged consumption: use undo_consumption with the bottle_id
@@ -1312,6 +1405,12 @@ Be accurate — only include what you can clearly read from the label. For color
       }
       if (location && location.latitude && location.longitude) {
         systemPrompt += `\n\nUser's current GPS coordinates: latitude ${location.latitude}, longitude ${location.longitude}. These are available if you decide to use the get_weather tool — pass them as latitude/longitude parameters. You can also reverse-geocode to determine the city/region.`;
+      }
+
+      // Load user's Cru memories
+      const memories = await getUserMemories(req.userId!);
+      if (memories.length > 0) {
+        systemPrompt += `\n\nYour memories about this user (use these to personalize your responses — reference them naturally, never list them out):\n${memories.join("\n")}`;
       }
 
       const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];

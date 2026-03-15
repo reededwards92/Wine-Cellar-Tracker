@@ -83,6 +83,14 @@ export async function initializeDatabase() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS cru_memories (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      content TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -104,6 +112,7 @@ export async function initializeDatabase() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_consumption_log_user_id ON consumption_log(user_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_cru_memories_user_id ON cru_memories(user_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id)`);
 
   await seedAccounts();
