@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Switch, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import type { FilterOptions } from "@/lib/api";
 
 export interface FilterState {
@@ -261,8 +262,6 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     marginTop: 12,
     marginBottom: 6,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.5,
   },
   chipRow: {
     flexDirection: "row",
@@ -296,9 +295,7 @@ const styles = StyleSheet.create({
   },
   rangeInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: 6,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,

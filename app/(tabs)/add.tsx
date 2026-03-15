@@ -20,6 +20,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { apiRequest, getApiUrl } from "@/lib/query-client";
 import { queryClient } from "@/lib/query-client";
 
@@ -748,10 +749,9 @@ const styles = StyleSheet.create({
   },
   resultCard: {
     backgroundColor: Colors.light.white,
-    borderRadius: 12,
+    borderRadius: theme.radius.xl,
     padding: 20,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    ...theme.shadows.card,
     marginBottom: 16,
   },
   resultProducer: {
@@ -878,8 +878,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
     flexDirection: "row" as const,
     alignItems: "flex-end" as const,
     justifyContent: "space-between" as const,
@@ -912,8 +910,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.textSecondary,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.5,
     marginBottom: 12,
   },
   field: {
@@ -926,15 +922,13 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   input: {
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: 6,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: Colors.light.background,
   },
   textArea: {
     minHeight: 70,

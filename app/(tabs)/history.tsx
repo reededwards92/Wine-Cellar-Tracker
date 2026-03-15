@@ -20,6 +20,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { getColorDot } from "@/lib/api";
 import type { ConsumptionEntry } from "@/lib/api";
 import { apiRequest, queryClient } from "@/lib/query-client";
@@ -611,8 +612,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
   },
   headerRow: {
     flexDirection: "row",
@@ -685,9 +684,8 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: Colors.light.cardBackground,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
     padding: 16,
     alignItems: "center",
   },
@@ -712,9 +710,8 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     backgroundColor: Colors.light.cardBackground,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
     padding: 16,
   },
   chartTitle: {
@@ -814,7 +811,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: Colors.light.divider,
   },
   cardPressed: {
     backgroundColor: Colors.light.cardBackground,
@@ -936,12 +933,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.light.cardBackground,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
     marginBottom: 12,
   },
   filterSearchInput: {
@@ -955,8 +950,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.textSecondary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
     marginBottom: 6,
   },
   filterChips: {

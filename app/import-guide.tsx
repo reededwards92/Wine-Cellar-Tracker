@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { getApiUrl, queryClient } from "@/lib/query-client";
 import { currentAuthToken } from "@/lib/auth-token";
 
@@ -235,8 +236,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
   },
   backBtn: {
     width: 32,
@@ -291,9 +290,8 @@ const styles = StyleSheet.create({
   },
   stepCard: {
     backgroundColor: Colors.light.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
     marginBottom: 12,
     overflow: "hidden",
   },

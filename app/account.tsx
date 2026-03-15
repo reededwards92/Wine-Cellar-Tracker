@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl } from "@/lib/query-client";
 import { currentAuthToken } from "@/lib/auth-token";
@@ -248,8 +249,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
   },
   backBtn: {
     width: 32,
@@ -272,15 +271,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.textSecondary,
-    letterSpacing: 0.5,
     marginBottom: 8,
     paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: Colors.light.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
     overflow: "hidden",
   },
   field: {
@@ -305,11 +302,9 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.background,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
   },
   separator: {
     height: 1,

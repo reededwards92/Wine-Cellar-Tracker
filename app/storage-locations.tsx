@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { apiRequest, queryClient } from "@/lib/query-client";
 
 interface StorageLocation {
@@ -289,8 +290,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
   },
   headerRow: {
     flexDirection: "row",
@@ -330,16 +329,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.textSecondary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
     marginBottom: 10,
     paddingHorizontal: 4,
   },
   emptyCard: {
     backgroundColor: Colors.light.cardBackground,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
     padding: 24,
     alignItems: "center",
     gap: 6,
@@ -357,9 +353,8 @@ const styles = StyleSheet.create({
   },
   locationsList: {
     backgroundColor: Colors.light.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
     overflow: "hidden",
   },
   locationRow: {
@@ -368,7 +363,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: Colors.light.divider,
   },
   locationIcon: {
     width: 32,
@@ -403,9 +398,8 @@ const styles = StyleSheet.create({
   typeCard: {
     width: "31%",
     backgroundColor: Colors.light.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
     paddingVertical: 14,
     alignItems: "center",
     gap: 4,
@@ -427,14 +421,12 @@ const styles = StyleSheet.create({
   customInput: {
     flex: 1,
     height: 44,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 12,
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
-    backgroundColor: Colors.light.white,
+    backgroundColor: Colors.light.background,
   },
   addCustomBtn: {
     backgroundColor: Colors.light.tint,

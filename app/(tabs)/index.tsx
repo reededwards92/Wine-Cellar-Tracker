@@ -19,6 +19,7 @@ import { apiRequest, queryClient } from "@/lib/query-client";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import StatsBar from "@/components/StatsBar";
 import WineCard from "@/components/WineCard";
 import FilterPanel, { type FilterState } from "@/components/FilterPanel";
@@ -441,8 +442,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
     backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
   },
   title: {
     fontSize: 28,
@@ -460,12 +459,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.light.cardBackground,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === "web" ? 10 : 8,
     gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
   },
   searchInput: {
     flex: 1,
@@ -490,8 +487,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.tint,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.8,
   },
   scrubberContainer: {
     position: "absolute" as const,

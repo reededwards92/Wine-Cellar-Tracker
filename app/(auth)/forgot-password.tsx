@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
 
 export default function ForgotPasswordScreen() {
@@ -315,9 +316,7 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 48,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",

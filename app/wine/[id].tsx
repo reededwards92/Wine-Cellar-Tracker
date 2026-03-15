@@ -16,6 +16,7 @@ import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { getColorDot, getDrinkWindowStatus } from "@/lib/api";
 import { apiRequest, queryClient } from "@/lib/query-client";
 import type { WineDetail, Bottle } from "@/lib/api";
@@ -466,8 +467,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 10,
     backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
   },
   backBtn: {
     width: 40,
@@ -486,11 +485,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   wineHeader: {
-    backgroundColor: Colors.light.white,
-    borderRadius: 8,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: theme.radius.xl,
     padding: 20,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    ...theme.shadows.card,
     alignItems: "center",
     marginBottom: 12,
   },
@@ -532,19 +530,16 @@ const styles = StyleSheet.create({
     color: Colors.light.tint,
   },
   detailSection: {
-    backgroundColor: Colors.light.white,
-    borderRadius: 8,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: theme.radius.xl,
     padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    ...theme.shadows.card,
     marginBottom: 12,
   },
   detailSectionTitle: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.textSecondary,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.5,
     marginBottom: 12,
   },
   infoRow: {
@@ -552,7 +547,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 7,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: Colors.light.divider,
   },
   infoLabel: {
     fontSize: 14,
@@ -694,15 +689,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   modalInput: {
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: 6,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: Colors.light.background,
   },
   ratingRow: {
     flexDirection: "row",

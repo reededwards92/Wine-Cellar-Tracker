@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import Colors from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import type { Stats } from "@/lib/api";
 
 interface StatsBarProps {
@@ -51,9 +52,8 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: Colors.light.cardBackground,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderRadius: theme.radius.xl,
+    ...theme.shadows.card,
     paddingVertical: 12,
     paddingHorizontal: 8,
     alignItems: "center",

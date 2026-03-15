@@ -2,9 +2,10 @@ const Colors = {
   light: {
     text: "#111827",
     textSecondary: "#6B7280",
-    background: "#FFFFFF",
-    cardBackground: "#F9FAFB",
+    background: "#FAF9F7",
+    cardBackground: "#FFFFFF",
     border: "#E5E7EB",
+    divider: "#F0F0EE",
     tint: "#722F37",
     tabIconDefault: "#9CA3AF",
     tabIconSelected: "#722F37",
