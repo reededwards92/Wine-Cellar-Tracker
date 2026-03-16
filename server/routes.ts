@@ -125,14 +125,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentYear = new Date().getFullYear();
       const cards: any[] = [];
 
-      // Daily seed from today's date (YYYYMMDD as float between 0–1)
+      // Daily date string for deterministic ordering (changes each day)
       const today = new Date();
-      const dateSeed = (today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()) / 99999999;
+      const dateStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
       // Daily pick count: 1–3, rotates by day-of-year
       const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
       const dailyLimit = (dayOfYear % 3) + 1; // cycles 1, 2, 3, 1, 2, 3 ...
 
-      // ready_to_drink: daily random selection of wines in their drinking window
+      // ready_to_drink: daily random selection using md5(id || date) for stable daily ordering
       const readyResult = await pool.query(`
         SELECT w.id, w.producer, w.wine_name, w.vintage, w.color,
                COUNT(b.id)::int as bottle_count
@@ -142,9 +142,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND w.drink_window_start IS NOT NULL AND w.drink_window_start <= $2
           AND w.drink_window_end IS NOT NULL AND w.drink_window_end >= $2
         GROUP BY w.id
-        ORDER BY setseed($3), random()
+        ORDER BY md5(w.id::text || $3)
         LIMIT $4
-      `, [userId, currentYear, dateSeed, dailyLimit]);
+      `, [userId, currentYear, dateStr, dailyLimit]);
 
       if (readyResult.rows.length > 0) {
         const count = readyResult.rows.length;
@@ -162,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // drink_soon: daily random selection of wines entering window soon
+      // drink_soon: daily random selection (offset date string so picks differ from ready_to_drink)
       const soonResult = await pool.query(`
         SELECT w.id, w.producer, w.wine_name, w.vintage, w.color,
                COUNT(b.id)::int as bottle_count
@@ -173,9 +173,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND w.drink_window_start > $2
           AND w.drink_window_start <= $3
         GROUP BY w.id
-        ORDER BY setseed($4), random()
+        ORDER BY md5(w.id::text || $4 || 'soon')
         LIMIT $5
-      `, [userId, currentYear, currentYear + 2, dateSeed + 0.1, dailyLimit]);
+      `, [userId, currentYear, currentYear + 2, dateStr, dailyLimit]);
 
       if (soonResult.rows.length > 0) {
         const count = soonResult.rows.length;
