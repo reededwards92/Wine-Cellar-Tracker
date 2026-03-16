@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -509,7 +509,7 @@ export default function SommelierScreen() {
     </View>
   );
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  const renderMessage = useCallback(({ item }: { item: Message }) => {
     const isUser = item.role === "user";
     return (
       <View>
@@ -566,7 +566,7 @@ export default function SommelierScreen() {
         {!isUser && item.wineCards && item.wineCards.length > 0 && renderWineCards(item.wineCards)}
       </View>
     );
-  };
+  }, []);
 
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
@@ -789,7 +789,7 @@ export default function SommelierScreen() {
     );
   };
 
-  const reversedMessages = [...messages].reverse();
+  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   const tabBarHeight = isWeb ? 84 : Platform.OS === "ios" ? 49 + insets.bottom : 56;
 
@@ -843,8 +843,10 @@ export default function SommelierScreen() {
               keyboardShouldPersistTaps="handled"
               scrollEnabled={messages.length > 0}
               removeClippedSubviews={Platform.OS !== "web"}
-              maxToRenderPerBatch={6}
-              windowSize={7}
+              maxToRenderPerBatch={5}
+              windowSize={5}
+              initialNumToRender={8}
+              updateCellsBatchingPeriod={50}
             />
           )}
         </Pressable>
