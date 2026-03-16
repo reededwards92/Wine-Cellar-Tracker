@@ -31,6 +31,18 @@ const aiRateBuckets = new Map<number, { count: number; resetAt: number }>();
 const AI_RATE_WINDOW_MS = 60 * 1000; // 1 minute
 const AI_RATE_MAX = 20; // max AI calls per user per minute
 
+const CRU_RATE_LIMIT_MESSAGES = [
+  "Cru overindulged and is sleeping it off at the moment. Try again in a minute!",
+  "Cru is exhausted and taking a quick nap. Back shortly!",
+  "Cru uncorked one too many and needs a moment to recover.",
+  "Cru stepped into the wine cellar for a breather. Try again shortly!",
+  "Cru is decanting... which is to say, resting. Give it a minute!",
+];
+
+function getCruRateLimitMessage(): string {
+  return CRU_RATE_LIMIT_MESSAGES[Math.floor(Math.random() * CRU_RATE_LIMIT_MESSAGES.length)];
+}
+
 function checkAiRateLimit(userId: number): boolean {
   const now = Date.now();
   const bucket = aiRateBuckets.get(userId);
@@ -196,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Rate limit only on cache miss (actual AI call)
       if (!checkAiRateLimit(userId!)) {
-        return res.status(429).json({ error: "Too many requests. Please slow down." });
+        return res.status(429).json({ error: getCruRateLimitMessage() });
       }
 
       // Fetch wine details
@@ -1709,7 +1721,7 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
 
   app.post("/api/analyze-wine-image", requireAuth, async (req: AuthRequest, res: Response) => {
     if (!checkAiRateLimit(req.userId!)) {
-      return res.status(429).json({ error: "Too many requests. Please slow down." });
+      return res.status(429).json({ error: getCruRateLimitMessage() });
     }
     try {
       const { image, mimeType } = req.body;
@@ -1801,7 +1813,7 @@ Be accurate — only include what you can clearly read from the label. For color
 
   app.post("/api/chat", requireAuth, async (req: AuthRequest, res: Response) => {
     if (!checkAiRateLimit(req.userId!)) {
-      return res.status(429).json({ error: "Too many requests. Please slow down." });
+      return res.status(429).json({ error: getCruRateLimitMessage() });
     }
     let clientDisconnected = false;
     res.on("close", () => {

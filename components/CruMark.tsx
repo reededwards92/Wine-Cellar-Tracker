@@ -146,6 +146,8 @@ const styles = StyleSheet.create({
   },
   sparkle: {
     color: "#fff",
-    marginTop: -1,
+    textAlign: "center",
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
 });
