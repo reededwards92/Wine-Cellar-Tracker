@@ -116,8 +116,16 @@ export default function SommelierScreen() {
   const undoFadeAnim = useRef(new Animated.Value(0)).current;
   const [homeData, setHomeData] = useState<any>(null);
   const [homeLoading, setHomeLoading] = useState(false);
+  const [homeDataLoaded, setHomeDataLoaded] = useState(false);
+  const pickAnim = useRef(new Animated.Value(0)).current;
+  const cardsAnim = useRef(new Animated.Value(0)).current;
+  const promptsAnim = useRef(new Animated.Value(0)).current;
 
   const fetchHomeData = useCallback(async () => {
+    pickAnim.setValue(0);
+    cardsAnim.setValue(0);
+    promptsAnim.setValue(0);
+    setHomeDataLoaded(false);
     try {
       setHomeLoading(true);
       const baseUrl = getApiUrl();
@@ -132,12 +140,24 @@ export default function SommelierScreen() {
       console.error("Failed to fetch home data:", e);
     } finally {
       setHomeLoading(false);
+      setHomeDataLoaded(true);
     }
-  }, []);
+  }, [pickAnim, cardsAnim, promptsAnim]);
 
   useEffect(() => {
     fetchHomeData();
   }, [fetchHomeData]);
+
+  useEffect(() => {
+    if (!homeDataLoaded) return;
+    Animated.sequence([
+      Animated.timing(pickAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.delay(100),
+      Animated.timing(cardsAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.delay(100),
+      Animated.timing(promptsAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+    ]).start();
+  }, [homeDataLoaded, pickAnim, cardsAnim, promptsAnim]);
 
   useEffect(() => {
     (async () => {
@@ -687,7 +707,6 @@ export default function SommelierScreen() {
   ];
 
   const renderHomeState = () => {
-    const fadeOpacity = homeLoading ? 0.4 : 1;
 
     // Build insight cards
     type InsightCard = {
@@ -769,7 +788,7 @@ export default function SommelierScreen() {
     return (
       <View style={styles.homeContainer}>
         {/* Tonight's Pick — hero card */}
-        <Animated.View style={{ opacity: fadeOpacity }}>
+        <Animated.View style={{ opacity: pickAnim }}>
           {homeData?.tonight_pick ? (
             <Pressable
               style={styles.pickCardOuter}
@@ -800,7 +819,7 @@ export default function SommelierScreen() {
         </Animated.View>
 
         {/* Three insight cards */}
-        <Animated.View style={[styles.tilesRow, { opacity: fadeOpacity }]}>
+        <Animated.View style={[styles.tilesRow, { opacity: cardsAnim }]}>
           {insightCards.slice(0, 3).map((card) => (
             <Pressable
               key={card.topLabel}
@@ -820,7 +839,7 @@ export default function SommelierScreen() {
         </Animated.View>
 
         {/* Suggested prompts — split into balanced rows */}
-        <View style={styles.promptsContainer}>
+        <Animated.View style={[styles.promptsContainer, { opacity: promptsAnim }]}>
           {(() => {
             const mid = Math.ceil(SUGGESTED_PROMPTS.length / 2);
             const rows = [SUGGESTED_PROMPTS.slice(0, mid), SUGGESTED_PROMPTS.slice(mid)];
@@ -838,7 +857,7 @@ export default function SommelierScreen() {
               </View>
             ));
           })()}
-        </View>
+        </Animated.View>
       </View>
     );
   };
