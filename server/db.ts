@@ -6,6 +6,7 @@ const pool = new pg.Pool({
 });
 
 export async function initializeDatabase() {
+  await pool.query(`CREATE EXTENSION IF NOT EXISTS unaccent`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,

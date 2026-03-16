@@ -12,6 +12,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Keyboard,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -831,21 +832,23 @@ export default function SommelierScreen() {
         behavior="padding"
         keyboardVerticalOffset={0}
       >
-        {messages.length === 0 ? (
-          renderHomeState()
-        ) : (
-          <FlatList
-            data={reversedMessages}
-            keyExtractor={(item) => item.id}
-            renderItem={renderMessage}
-            inverted={messages.length > 0}
-            ListHeaderComponent={renderTypingIndicator}
-            contentContainerStyle={styles.messageList}
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="handled"
-            scrollEnabled={messages.length > 0}
-          />
-        )}
+        <Pressable style={styles.flex} onPress={Keyboard.dismiss} accessible={false}>
+          {messages.length === 0 ? (
+            renderHomeState()
+          ) : (
+            <FlatList
+              data={reversedMessages}
+              keyExtractor={(item) => item.id}
+              renderItem={renderMessage}
+              inverted={messages.length > 0}
+              ListHeaderComponent={renderTypingIndicator}
+              contentContainerStyle={styles.messageList}
+              keyboardDismissMode="interactive"
+              keyboardShouldPersistTaps="handled"
+              scrollEnabled={messages.length > 0}
+            />
+          )}
+        </Pressable>
 
         <BlurView intensity={40} tint="light" style={styles.inputBlur}>
           <View

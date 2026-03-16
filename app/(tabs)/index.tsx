@@ -12,9 +12,11 @@ import {
   PanResponder,
   LayoutChangeEvent,
   Animated,
+  Alert,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/query-client";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -207,9 +209,8 @@ function SectionScrubber({
 
   const availableHeight = containerLayout.height;
   const itemHeight = availableHeight > 0
-    ? Math.min(20, availableHeight / sections.length)
+    ? availableHeight / sections.length
     : 15;
-  const totalHeight = Math.min(availableHeight, itemHeight * sections.length);
   const bubbleTopOffset = activeIndex >= 0 ? activeIndex * itemHeight + itemHeight / 2 - 22 : 0;
   const showEveryN = itemHeight < 8 ? Math.ceil(8 / itemHeight) : 1;
 
@@ -220,7 +221,7 @@ function SectionScrubber({
       onLayout={onLayout}
       {...panResponder.panHandlers}
     >
-      <View style={[styles.scrubberLetters, { height: totalHeight }]}>
+      <View style={[styles.scrubberLetters, { height: availableHeight }]}>
         {sections.map((section, i) => (
           <Pressable
             key={section.title}
@@ -272,6 +273,9 @@ export default function CellarScreen() {
   const [searchText, setSearchText] = useState("");
   const isWeb = Platform.OS === "web";
   const sectionListRef = useRef<SectionList>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [locationPickerVisible, setLocationPickerVisible] = useState(false);
 
   // Handle incoming filter params from other tabs
   useEffect(() => {
@@ -331,6 +335,45 @@ export default function CellarScreen() {
     queryKey: ["/api/filters"],
   });
 
+  const { data: storageLocs } = useQuery<{ name: string; type: string }[]>({
+    queryKey: ["/api/storage-locations"],
+  });
+  const locationNames = (storageLocs || []).map((l) => l.name);
+
+  const bulkMoveMutation = useMutation({
+    mutationFn: async (location: string) => {
+      const res = await apiRequest("PATCH", "/api/bottles/bulk-move", {
+        wine_ids: Array.from(selectedIds),
+        location,
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSelectMode(false);
+      setSelectedIds(new Set());
+      setLocationPickerVisible(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
+    },
+    onError: (err: any) => {
+      Alert.alert("Error", err.message || "Failed to move bottles");
+    },
+  });
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
   const sections = useMemo(() => {
     if (!wines || wines.length === 0) return [];
     return groupWinesIntoSections(wines, filters.sort);
@@ -355,9 +398,23 @@ export default function CellarScreen() {
   const renderItem = useCallback(({ item }: { item: WineListItem }) => (
     <WineCard
       wine={item}
-      onPress={() => router.push({ pathname: "/wine/[id]", params: { id: String(item.id) } })}
+      onPress={() => {
+        if (selectMode) {
+          toggleSelect(item.id);
+        } else {
+          router.push({ pathname: "/wine/[id]", params: { id: String(item.id) } });
+        }
+      }}
+      onLongPress={() => {
+        if (!selectMode) {
+          setSelectMode(true);
+          setSelectedIds(new Set([item.id]));
+        }
+      }}
+      selectable={selectMode}
+      selected={selectedIds.has(item.id)}
     />
-  ), []);
+  ), [selectMode, selectedIds, toggleSelect]);
 
   const renderSectionHeader = useCallback(({ section }: { section: Section }) => (
     <View style={styles.sectionHeader}>
@@ -387,7 +444,33 @@ export default function CellarScreen() {
       style={styles.screen}
     >
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
-        <Text style={styles.title}>Cellar</Text>
+        {selectMode ? (
+          <View style={styles.selectHeader}>
+            <Pressable onPress={exitSelectMode} hitSlop={8}>
+              <Text style={styles.selectCancel}>Cancel</Text>
+            </Pressable>
+            <Text style={styles.selectCount}>
+              {selectedIds.size} selected
+            </Text>
+            <Pressable
+              onPress={() => {
+                const allIds = wines.map((w) => w.id);
+                if (selectedIds.size === allIds.length) {
+                  setSelectedIds(new Set());
+                } else {
+                  setSelectedIds(new Set(allIds));
+                }
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.selectCancel}>
+                {selectedIds.size === wines.length ? "None" : "All"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={styles.title}>Cellar</Text>
+        )}
       </View>
 
       <StatsBar stats={stats} isLoading={statsLoading} />
@@ -461,6 +544,56 @@ export default function CellarScreen() {
         />
         <SectionScrubber sections={sections} onSectionPress={handleScrubberPress} />
       </View>
+
+      {selectMode && selectedIds.size > 0 && (
+        <View style={[styles.bulkBar, { paddingBottom: isWeb ? 34 : insets.bottom + 12 }]}>
+          <Pressable
+            style={styles.bulkMoveBtn}
+            onPress={() => {
+              if (locationNames.length === 0) {
+                Alert.alert("No Locations", "Set up storage locations in Settings first.");
+              } else {
+                setLocationPickerVisible(true);
+              }
+            }}
+          >
+            <Ionicons name="swap-horizontal" size={18} color="#fff" />
+            <Text style={styles.bulkMoveBtnText}>
+              Move {selectedIds.size} {selectedIds.size === 1 ? "Wine" : "Wines"} to Location
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      <Modal visible={locationPickerVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Move to Location</Text>
+              <Pressable onPress={() => setLocationPickerVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.light.text} />
+              </Pressable>
+            </View>
+            <View style={styles.modalBody}>
+              {locationNames.map((loc) => (
+                <Pressable
+                  key={loc}
+                  style={styles.locationOption}
+                  onPress={() => bulkMoveMutation.mutate(loc)}
+                  disabled={bulkMoveMutation.isPending}
+                >
+                  <Ionicons name="location-outline" size={20} color={Colors.light.tint} />
+                  <Text style={styles.locationOptionText}>{loc}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.light.tabIconDefault} />
+                </Pressable>
+              ))}
+              {bulkMoveMutation.isPending && (
+                <ActivityIndicator size="small" color={Colors.light.tint} style={{ marginTop: 12 }} />
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -593,5 +726,87 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     textAlign: "center",
     paddingHorizontal: 40,
+  },
+  selectHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  selectCancel: {
+    fontSize: 15,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
+  },
+  selectCount: {
+    fontSize: 17,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  bulkBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(114, 47, 55, 0.1)",
+    paddingTop: 12,
+    paddingHorizontal: 16,
+  },
+  bulkMoveBtn: {
+    backgroundColor: Colors.light.tint,
+    borderRadius: 10,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  bulkMoveBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#fff",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: Colors.light.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "60%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(114, 47, 55, 0.10)",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  modalBody: {
+    padding: 16,
+  },
+  locationOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(114, 47, 55, 0.07)",
+    gap: 12,
+  },
+  locationOptionText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.text,
   },
 });

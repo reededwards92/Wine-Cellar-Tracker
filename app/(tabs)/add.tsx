@@ -35,6 +35,18 @@ const CORNER_THICKNESS = 3;
 
 type ScanPhase = "idle" | "camera" | "analyzing" | "results" | "add_form";
 
+interface FuzzyMatch {
+  id: number;
+  producer: string;
+  wine_name: string;
+  vintage?: number;
+  color?: string;
+  region?: string;
+  varietal?: string;
+  score?: number;
+  bottle_count?: number;
+}
+
 interface ScanResult {
   producer: string;
   wine_name: string;
@@ -48,7 +60,9 @@ interface ScanResult {
   designation: string;
   vineyard: string;
   size: string;
+  estimated_value: string;
   cellar_wine_id: number | null;
+  fuzzyMatches: FuzzyMatch[];
 }
 
 const EMPTY_FORM = {
@@ -104,6 +118,7 @@ export default function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
+  const [showFuzzyMatches, setShowFuzzyMatches] = useState(false);
 
   const { data: storageLocs } = useQuery<{ name: string; type: string }[]>({
     queryKey: ["/api/storage-locations"],
@@ -119,6 +134,7 @@ export default function ScanScreen() {
     setForm({ ...EMPTY_FORM });
     hasLaunched.current = false;
     setIsCapturing(false);
+    setShowFuzzyMatches(false);
   };
 
   const openCamera = async () => {
@@ -194,6 +210,28 @@ export default function ScanScreen() {
           (data.wine_name || "").toLowerCase().includes(w.wine_name?.toLowerCase()))
       );
 
+      // If no exact match, try fuzzy matching
+      let fuzzyMatches: FuzzyMatch[] = [];
+      if (!match) {
+        try {
+          const fuzzyResp = await fetch(
+            new URL("/api/wines/fuzzy-match", baseUrl).toString(),
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", ...authHeaders },
+              body: JSON.stringify({
+                producer: data.producer || "",
+                wine_name: data.wine_name || "",
+                vineyard: data.vineyard || "",
+              }),
+            }
+          );
+          if (fuzzyResp.ok) {
+            fuzzyMatches = await fuzzyResp.json();
+          }
+        } catch {}
+      }
+
       setScanResult({
         producer: data.producer || "",
         wine_name: data.wine_name || "",
@@ -207,7 +245,9 @@ export default function ScanScreen() {
         designation: data.designation || "",
         vineyard: data.vineyard || "",
         size: data.size || "750ml",
+        estimated_value: data.estimated_value ? String(data.estimated_value) : "",
         cellar_wine_id: match?.id || null,
+        fuzzyMatches,
       });
       setPhase("results");
     } catch {
@@ -258,6 +298,7 @@ export default function ScanScreen() {
       designation: scanResult.designation || prev.designation,
       vineyard: scanResult.vineyard || prev.vineyard,
       size: scanResult.size || prev.size,
+      estimated_value: scanResult.estimated_value || prev.estimated_value,
     }));
     setPhase("add_form");
   };
@@ -469,6 +510,58 @@ export default function ScanScreen() {
                     </View>
                     <Ionicons name="chevron-forward" size={18} color={Colors.light.tabIconDefault} />
                   </Pressable>
+                ) : scanResult.fuzzyMatches.length > 0 ? (
+                  <>
+                    <Pressable
+                      style={styles.actionBtn}
+                      onPress={() => setShowFuzzyMatches(!showFuzzyMatches)}
+                      testID="fuzzy-match"
+                    >
+                      <View style={[styles.actionIcon, { backgroundColor: "#FFF3E0" }]}>
+                        <Ionicons name="help-circle" size={20} color="#E65100" />
+                      </View>
+                      <View style={styles.actionContent}>
+                        <Text style={styles.actionTitle}>May Be in Your Cellar</Text>
+                        <Text style={styles.actionSub}>
+                          {scanResult.fuzzyMatches.length} possible {scanResult.fuzzyMatches.length === 1 ? "match" : "matches"} found
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={showFuzzyMatches ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color={Colors.light.tabIconDefault}
+                      />
+                    </Pressable>
+                    {showFuzzyMatches && (
+                      <View style={styles.fuzzyMatchList}>
+                        {scanResult.fuzzyMatches.map((wine) => (
+                          <Pressable
+                            key={wine.id}
+                            style={styles.fuzzyMatchCard}
+                            onPress={() => router.push({ pathname: "/wine/[id]", params: { id: String(wine.id) } })}
+                          >
+                            <View style={styles.fuzzyMatchInfo}>
+                              <Text style={styles.fuzzyMatchProducer} numberOfLines={1}>{wine.producer}</Text>
+                              <Text style={styles.fuzzyMatchName} numberOfLines={1}>
+                                {wine.wine_name}{wine.vintage ? ` ${wine.vintage}` : ""}
+                              </Text>
+                              <Text style={styles.fuzzyMatchMeta} numberOfLines={1}>
+                                {[wine.region, wine.varietal].filter(Boolean).join(" · ")}
+                              </Text>
+                            </View>
+                            <View style={styles.fuzzyMatchRight}>
+                              {wine.bottle_count ? (
+                                <Text style={styles.fuzzyMatchCount}>
+                                  {wine.bottle_count} {Number(wine.bottle_count) === 1 ? "btl" : "btls"}
+                                </Text>
+                              ) : null}
+                              <Ionicons name="chevron-forward" size={16} color={Colors.light.tabIconDefault} />
+                            </View>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                  </>
                 ) : null}
 
                 <Pressable style={styles.actionBtn} onPress={handleAddToCellar} testID="add-to-cellar">
@@ -1171,5 +1264,56 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center" as const,
     justifyContent: "center" as const,
+  },
+  fuzzyMatchList: {
+    gap: 1,
+    marginTop: -4,
+    marginBottom: 8,
+  },
+  fuzzyMatchCard: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: Colors.light.glassBg,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.light.glassBorder,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 6,
+  },
+  fuzzyMatchInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  fuzzyMatchProducer: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  fuzzyMatchName: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+  },
+  fuzzyMatchMeta: {
+    fontSize: 11,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.tabIconDefault,
+    marginTop: 2,
+  },
+  fuzzyMatchRight: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    marginLeft: 8,
+  },
+  fuzzyMatchCount: {
+    fontSize: 12,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
+    backgroundColor: Colors.light.tint + "15",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
   },
 });

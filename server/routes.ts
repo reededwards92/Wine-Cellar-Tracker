@@ -82,6 +82,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  app.post("/api/wines/fuzzy-match", requireAuth, async (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    const { producer, wine_name, vineyard } = req.body;
+    if (!producer && !wine_name) {
+      return res.json([]);
+    }
+
+    // Tokenize scanned fields into meaningful words (3+ chars, lowercased)
+    const tokenize = (s: string) =>
+      (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+        .split(/[\s,\-''.·]+/).filter(w => w.length >= 3);
+
+    const producerTokens = tokenize(producer || "");
+    const nameTokens = tokenize(wine_name || "");
+    const vineyardTokens = tokenize(vineyard || "");
+    const identityTokens = [...producerTokens, ...nameTokens, ...vineyardTokens];
+
+    if (identityTokens.length === 0) {
+      return res.json([]);
+    }
+
+    // Fetch all in-cellar wines for this user (with bottle counts)
+    const result = await pool.query(`
+      SELECT w.id, w.producer, w.wine_name, w.vintage, w.color, w.region, w.varietal,
+        w.vineyard, w.appellation, w.designation,
+        ROUND(w.ct_community_score) as score,
+        COUNT(CASE WHEN b.status = 'in_cellar' THEN 1 END) as bottle_count
+      FROM wines w
+      JOIN bottles b ON w.id = b.wine_id AND b.user_id = w.user_id
+      WHERE w.user_id = $1
+      GROUP BY w.id
+      HAVING COUNT(CASE WHEN b.status = 'in_cellar' THEN 1 END) > 0
+    `, [userId]);
+
+    // Score each wine by word overlap with producer/name/vineyard fields
+    const scored = result.rows.map((w: any) => {
+      const wProducer = tokenize(w.producer || "");
+      const wName = tokenize(w.wine_name || "");
+      const wVineyard = tokenize(w.vineyard || "");
+      const wAll = [...wProducer, ...wName, ...wVineyard];
+
+      // Count how many identity tokens match any wine field token
+      let matchCount = 0;
+      let hasProducerOrNameMatch = false;
+      for (const token of identityTokens) {
+        if (wAll.some(wt => wt.includes(token) || token.includes(wt))) {
+          matchCount++;
+          if (wProducer.some(wt => wt.includes(token) || token.includes(wt)) ||
+              wName.some(wt => wt.includes(token) || token.includes(wt))) {
+            hasProducerOrNameMatch = true;
+          }
+        }
+      }
+
+      // Require at least one match on producer, name, or vineyard (not just region/varietal)
+      const score = hasProducerOrNameMatch ? matchCount / Math.max(identityTokens.length, 1) : 0;
+      return { ...w, score };
+    });
+
+    const matches = scored
+      .filter((w: any) => w.score >= 0.3)
+      .sort((a: any, b: any) => b.score - a.score)
+      .slice(0, 3)
+      .map(({ score, ...w }: any) => w);
+
+    res.json(matches);
+  });
+
   app.get("/api/cru/home", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.userId;
@@ -220,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     if (search) {
       whereClauses.push(
-        `(w.producer ILIKE $${paramIdx} OR w.wine_name ILIKE $${paramIdx} OR w.varietal ILIKE $${paramIdx} OR w.region ILIKE $${paramIdx} OR w.appellation ILIKE $${paramIdx})`
+        `(unaccent(w.producer) ILIKE unaccent($${paramIdx}) OR unaccent(w.wine_name) ILIKE unaccent($${paramIdx}) OR unaccent(w.varietal) ILIKE unaccent($${paramIdx}) OR unaccent(w.region) ILIKE unaccent($${paramIdx}) OR unaccent(w.appellation) ILIKE unaccent($${paramIdx}))`
       );
       params.push(`%${search}%`);
       paramIdx++;
@@ -457,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     if (search) {
       whereClauses.push(
-        `(w.producer ILIKE $${paramIdx} OR w.wine_name ILIKE $${paramIdx} OR w.varietal ILIKE $${paramIdx} OR cl.occasion ILIKE $${paramIdx} OR cl.tasting_notes ILIKE $${paramIdx})`
+        `(unaccent(w.producer) ILIKE unaccent($${paramIdx}) OR unaccent(w.wine_name) ILIKE unaccent($${paramIdx}) OR unaccent(w.varietal) ILIKE unaccent($${paramIdx}) OR unaccent(cl.occasion) ILIKE unaccent($${paramIdx}) OR unaccent(cl.tasting_notes) ILIKE unaccent($${paramIdx}))`
       );
       params.push(`%${search}%`);
       paramIdx++;
@@ -689,6 +757,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
+  app.patch("/api/bottles/bulk-move", requireAuth, async (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    const { wine_ids, location } = req.body;
+    if (!wine_ids || !Array.isArray(wine_ids) || wine_ids.length === 0) {
+      return res.status(400).json({ error: "wine_ids array required" });
+    }
+    if (location === undefined) {
+      return res.status(400).json({ error: "location required" });
+    }
+
+    const placeholders = wine_ids.map((_: any, i: number) => `$${i + 3}`);
+    const result = await pool.query(
+      `UPDATE bottles SET location = $1 WHERE user_id = $2 AND status = 'in_cellar' AND wine_id IN (${placeholders.join(",")})`,
+      [location || null, userId, ...wine_ids]
+    );
+
+    res.json({ updated: result.rowCount });
+  });
+
   app.get("/api/storage-locations", requireAuth, async (req: AuthRequest, res: Response) => {
     const result = await pool.query(
       "SELECT * FROM storage_locations WHERE user_id = $1 ORDER BY sort_order ASC, id ASC",
@@ -720,18 +807,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const loc = locations[idx];
         if (loc.name && loc.name.trim()) {
           const name = loc.name.trim();
-          if (!newNames.has(name)) {
+          const nameKey = name.toLowerCase();
+          if (!newNames.has(nameKey)) {
             await client.query(
               "INSERT INTO storage_locations (user_id, name, type, sort_order) VALUES ($1, $2, $3, $4)",
               [userId, name, loc.type || "other", idx]
             );
-            newNames.add(name);
+            newNames.add(nameKey);
           }
         }
       }
 
       for (const [oldName, newName] of Object.entries(renameMap)) {
-        if (oldName !== newName && newNames.has(newName)) {
+        if (oldName !== newName && newNames.has(newName.toLowerCase())) {
           await client.query(
             "UPDATE bottles SET location = $1 WHERE location = $2 AND user_id = $3",
             [newName, oldName, userId]
@@ -740,7 +828,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       for (const oldName of oldNames) {
-        if (!newNames.has(oldName) && !renameMap[oldName]) {
+        if (!newNames.has(oldName.toLowerCase()) && !renameMap[oldName]) {
           await client.query(
             "UPDATE bottles SET location = NULL WHERE location = $1 AND user_id = $2 AND status = 'in_cellar'",
             [oldName, userId]
@@ -1358,7 +1446,8 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
   "varietal": "grape variety/varieties",
   "designation": "reserve/grand cru/etc if visible",
   "vineyard": "vineyard name if visible",
-  "size": "bottle size if visible, default 750ml"
+  "size": "bottle size if visible, default 750ml",
+  "estimated_value": "estimated retail price in USD as a number (no $ sign), based on the wine identified. Use your knowledge of typical retail pricing. Return 0 if uncertain."
 }
 
 Be accurate — only include what you can clearly read from the label. For color, infer from the wine type/varietal if not explicitly stated.`,
@@ -1373,10 +1462,11 @@ Be accurate — only include what you can clearly read from the label. For color
         return res.status(500).json({ error: "No response from AI" });
       }
 
-      const defaults = {
+      const defaults: Record<string, string | number> = {
         producer: "", wine_name: "", vintage: "", color: "Red",
         country: "", region: "", sub_region: "", appellation: "",
         varietal: "", designation: "", vineyard: "", size: "750ml",
+        estimated_value: 0,
       };
 
       let wineData = { ...defaults };
@@ -1385,12 +1475,15 @@ Be accurate — only include what you can clearly read from the label. For color
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           for (const key of Object.keys(defaults)) {
-            if (parsed[key] && typeof parsed[key] === "string") {
-              wineData[key as keyof typeof defaults] = parsed[key];
+            if (parsed[key] !== undefined && parsed[key] !== null && parsed[key] !== "") {
+              wineData[key] = parsed[key];
             }
           }
         }
       } catch {
+      }
+      if (!wineData.estimated_value) {
+        console.warn("[analyze-wine-image] estimated_value missing from AI response");
       }
       res.json(wineData);
     } catch (err: any) {

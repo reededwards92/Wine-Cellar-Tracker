@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Platform,
   Pressable,
   TextInput,
@@ -14,6 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-native-draggable-flatlist";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import { apiRequest, queryClient } from "@/lib/query-client";
@@ -63,6 +64,9 @@ export default function StorageLocationsScreen() {
     }
   }, [savedLocations]);
 
+  const hasDuplicateName = (name: string) =>
+    locations.some((l) => l.name.toLowerCase() === name.toLowerCase());
+
   const addLocation = (type: string) => {
     if (type === "other") {
       setAddingType("other");
@@ -75,6 +79,11 @@ export default function StorageLocationsScreen() {
 
     const existingCount = locations.filter((l) => l.type === type).length;
     const name = existingCount > 0 ? `${typeInfo.label} ${existingCount + 1}` : typeInfo.label;
+
+    if (hasDuplicateName(name)) {
+      Alert.alert("Duplicate Name", `A location named "${name}" already exists.`);
+      return;
+    }
 
     if (existingCount > 0) {
       const updated = locations.map((l) => {
@@ -92,7 +101,12 @@ export default function StorageLocationsScreen() {
 
   const addCustomLocation = () => {
     if (!customName.trim()) return;
-    setLocations([...locations, { name: customName.trim(), type: "other" }]);
+    const name = customName.trim();
+    if (hasDuplicateName(name)) {
+      Alert.alert("Duplicate Name", `A location named "${name}" already exists.`);
+      return;
+    }
+    setLocations([...locations, { name, type: "other" }]);
     setHasChanges(true);
     setAddingType(null);
     setCustomName("");
@@ -153,6 +167,17 @@ export default function StorageLocationsScreen() {
   };
 
   const handleSave = async () => {
+    // Check for case-insensitive duplicate names before saving
+    const seen = new Set<string>();
+    for (const loc of locations) {
+      const key = loc.name.trim().toLowerCase();
+      if (!key) continue;
+      if (seen.has(key)) {
+        Alert.alert("Duplicate Name", `"${loc.name.trim()}" appears more than once. Please rename or remove the duplicate.`);
+        return;
+      }
+      seen.add(key);
+    }
     setSaving(true);
     try {
       await apiRequest("PUT", "/api/storage-locations", {
@@ -171,8 +196,78 @@ export default function StorageLocationsScreen() {
     }
   };
 
+  const renderLocationItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<StorageLocation>) => {
+    const idx = getIndex() ?? 0;
+    return (
+      <ScaleDecorator>
+        <View style={[styles.locationRow, isActive && styles.locationRowDragging]}>
+          <Pressable onLongPress={drag} delayLongPress={150} style={styles.dragHandle}>
+            <Ionicons name="reorder-three" size={20} color={Colors.light.tabIconDefault} />
+          </Pressable>
+          <View style={styles.locationIcon}>
+            <Ionicons name={getIconForType(item.type)} size={18} color={Colors.light.tint} />
+          </View>
+          <TextInput
+            style={styles.locationNameInput}
+            value={item.name}
+            onChangeText={(val) => renameLocation(idx, val)}
+            placeholder="Location name"
+            placeholderTextColor="rgba(114, 47, 55, 0.38)"
+          />
+          <Pressable onPress={() => removeLocation(idx)} hitSlop={8} style={styles.removeBtn}>
+            <Ionicons name="close-circle" size={20} color={Colors.light.danger} />
+          </Pressable>
+        </View>
+      </ScaleDecorator>
+    );
+  }, [locations, renameLocation, removeLocation]);
+
+  const listFooter = (
+    <>
+      <Text style={[styles.sectionTitle, { marginTop: 24 }]}>ADD LOCATION</Text>
+      <View style={styles.typesGrid}>
+        {STORAGE_TYPES.map((st) => (
+          <Pressable
+            key={st.type}
+            style={({ pressed }) => [styles.typeCard, pressed && styles.typeCardPressed]}
+            onPress={() => addLocation(st.type)}
+          >
+            <Ionicons name={st.icon} size={22} color={Colors.light.tint} />
+            <Text style={styles.typeLabel}>{st.label}</Text>
+            <Ionicons name="add-circle-outline" size={16} color={Colors.light.tabIconDefault} style={{ marginTop: 2 }} />
+          </Pressable>
+        ))}
+      </View>
+
+      {addingType === "other" ? (
+        <View style={styles.customInputRow}>
+          <TextInput
+            style={styles.customInput}
+            value={customName}
+            onChangeText={setCustomName}
+            placeholder="Enter custom location name"
+            placeholderTextColor="rgba(114, 47, 55, 0.38)"
+            autoFocus
+            onSubmitEditing={addCustomLocation}
+            returnKeyType="done"
+          />
+          <Pressable onPress={addCustomLocation} style={styles.addCustomBtn}>
+            <Text style={styles.addCustomBtnText}>Add</Text>
+          </Pressable>
+          <Pressable onPress={() => setAddingType(null)} hitSlop={8}>
+            <Ionicons name="close" size={20} color={Colors.light.tabIconDefault} />
+          </Pressable>
+        </View>
+      ) : null}
+
+      <Text style={styles.hint}>
+        Tap a type to add it. If you add more than one of the same type, they'll be numbered automatically. Use "Other" for custom names. Long-press the drag handle to reorder.
+      </Text>
+    </>
+  );
+
   return (
-    <View style={styles.screen}>
+    <GestureHandlerRootView style={styles.screen}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
@@ -193,91 +288,38 @@ export default function StorageLocationsScreen() {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: isWeb ? 34 + 20 : insets.bottom + 20 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.light.tint} />
-          </View>
-        ) : (
-          <>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.light.tint} />
+        </View>
+      ) : (
+        <DraggableFlatList
+          data={locations}
+          keyExtractor={(item, idx) => `${item.type}-${idx}`}
+          renderItem={renderLocationItem}
+          onDragEnd={({ data }) => {
+            setLocations(data);
+            setHasChanges(true);
+          }}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: isWeb ? 34 + 20 : insets.bottom + 20 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
             <Text style={styles.sectionTitle}>YOUR LOCATIONS</Text>
-            {locations.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Ionicons name="location-outline" size={32} color={Colors.light.tabIconDefault} />
-                <Text style={styles.emptyText}>No storage locations set up yet</Text>
-                <Text style={styles.emptySubtext}>Add locations below to organize your cellar</Text>
-              </View>
-            ) : (
-              <View style={styles.locationsList}>
-                {locations.map((loc, idx) => (
-                  <View key={`${loc.type}-${idx}`} style={styles.locationRow}>
-                    <View style={styles.locationIcon}>
-                      <Ionicons name={getIconForType(loc.type)} size={18} color={Colors.light.tint} />
-                    </View>
-                    <TextInput
-                      style={styles.locationNameInput}
-                      value={loc.name}
-                      onChangeText={(val) => renameLocation(idx, val)}
-                      placeholder="Location name"
-                      placeholderTextColor="rgba(114, 47, 55, 0.38)"
-                    />
-                    <Pressable onPress={() => removeLocation(idx)} hitSlop={8} style={styles.removeBtn}>
-                      <Ionicons name="close-circle" size={20} color={Colors.light.danger} />
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>ADD LOCATION</Text>
-            <View style={styles.typesGrid}>
-              {STORAGE_TYPES.map((st) => (
-                <Pressable
-                  key={st.type}
-                  style={({ pressed }) => [styles.typeCard, pressed && styles.typeCardPressed]}
-                  onPress={() => addLocation(st.type)}
-                >
-                  <Ionicons name={st.icon} size={22} color={Colors.light.tint} />
-                  <Text style={styles.typeLabel}>{st.label}</Text>
-                  <Ionicons name="add-circle-outline" size={16} color={Colors.light.tabIconDefault} style={{ marginTop: 2 }} />
-                </Pressable>
-              ))}
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              <Ionicons name="location-outline" size={32} color={Colors.light.tabIconDefault} />
+              <Text style={styles.emptyText}>No storage locations set up yet</Text>
+              <Text style={styles.emptySubtext}>Add locations below to organize your cellar</Text>
             </View>
-
-            {addingType === "other" ? (
-              <View style={styles.customInputRow}>
-                <TextInput
-                  style={styles.customInput}
-                  value={customName}
-                  onChangeText={setCustomName}
-                  placeholder="Enter custom location name"
-                  placeholderTextColor="rgba(114, 47, 55, 0.38)"
-                  autoFocus
-                  onSubmitEditing={addCustomLocation}
-                  returnKeyType="done"
-                />
-                <Pressable onPress={addCustomLocation} style={styles.addCustomBtn}>
-                  <Text style={styles.addCustomBtnText}>Add</Text>
-                </Pressable>
-                <Pressable onPress={() => setAddingType(null)} hitSlop={8}>
-                  <Ionicons name="close" size={20} color={Colors.light.tabIconDefault} />
-                </Pressable>
-              </View>
-            ) : null}
-
-            <Text style={styles.hint}>
-              Tap a type to add it. If you add more than one of the same type, they'll be numbered automatically. Use "Other" for custom names.
-            </Text>
-          </>
-        )}
-      </ScrollView>
-    </View>
+          }
+          ListFooterComponent={listFooter}
+        />
+      )}
+    </GestureHandlerRootView>
   );
 }
 
@@ -362,8 +404,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 14,
+    backgroundColor: Colors.light.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.divider,
+  },
+  locationRowDragging: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: theme.radius.xl,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dragHandle: {
+    paddingRight: 8,
+    paddingVertical: 4,
   },
   locationIcon: {
     width: 32,

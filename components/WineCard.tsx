@@ -8,9 +8,12 @@ import type { WineListItem } from "@/lib/api";
 interface WineCardProps {
   wine: WineListItem;
   onPress: () => void;
+  onLongPress?: () => void;
+  selectable?: boolean;
+  selected?: boolean;
 }
 
-export default function WineCard({ wine, onPress }: WineCardProps) {
+export default function WineCard({ wine, onPress, onLongPress, selectable, selected }: WineCardProps) {
   const dwStatus = getDrinkWindowStatus(wine.drink_window_start, wine.drink_window_end);
 
   const dwColor =
@@ -29,11 +32,19 @@ export default function WineCard({ wine, onPress }: WineCardProps) {
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.container, pressed && styles.pressed, selected && styles.selectedContainer]}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={300}
     >
       <View style={styles.row}>
-        <View style={[styles.colorDot, { backgroundColor: getColorDot(wine.color) }]} />
+        {selectable ? (
+          <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+            {selected ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+          </View>
+        ) : (
+          <View style={[styles.colorDot, { backgroundColor: getColorDot(wine.color) }]} />
+        )}
         <View style={styles.content}>
           <Text style={styles.producer} numberOfLines={1}>{wine.producer}</Text>
           <Text style={styles.wineName} numberOfLines={1}>
@@ -91,6 +102,24 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  selectedContainer: {
+    backgroundColor: Colors.light.tint + "08",
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "rgba(114, 47, 55, 0.25)",
+    marginTop: 3,
+    marginRight: 10,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  checkboxSelected: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
   },
   row: {
     flexDirection: "row",

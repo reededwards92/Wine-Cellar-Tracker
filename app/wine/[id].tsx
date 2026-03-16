@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
@@ -114,6 +115,48 @@ export default function WineDetailScreen() {
     estimated_value: "",
     size: "750ml",
   });
+  const [undoToast, setUndoToast] = useState<{ bottle_id: number; message: string } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoFadeAnim = useRef(new Animated.Value(0)).current;
+
+  const showUndoToast = (data: { bottle_id: number; message: string }) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoToast(data);
+    Animated.timing(undoFadeAnim, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    undoTimerRef.current = setTimeout(() => {
+      Animated.timing(undoFadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => setUndoToast(null));
+    }, 10000);
+  };
+
+  const handleUndo = async () => {
+    if (!undoToast) return;
+    const bottleId = undoToast.bottle_id;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    Animated.timing(undoFadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setUndoToast(null));
+    try {
+      await apiRequest("POST", "/api/consumption/undo", { bottle_id: bottleId });
+      queryClient.invalidateQueries({ queryKey: ["/api/wines", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wines"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/consumption"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/consumption/stats"] });
+    } catch {
+      Alert.alert("Error", "Failed to undo consumption");
+    }
+  };
+
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
     producer: "",
@@ -154,6 +197,7 @@ export default function WineDetailScreen() {
       return res.json();
     },
     onSuccess: () => {
+      const bottleId = consumeBottleId!;
       setConsumeModal(false);
       setConsumeForm({ occasion: "", paired_with: "", who_with: "", rating: 0, tasting_notes: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/wines", id] });
@@ -161,6 +205,10 @@ export default function WineDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/consumption"] });
       queryClient.invalidateQueries({ queryKey: ["/api/consumption/stats"] });
+      showUndoToast({
+        bottle_id: bottleId,
+        message: `Marked as consumed.`,
+      });
     },
     onError: (err) => {
       Alert.alert("Error", err.message);
@@ -172,8 +220,28 @@ export default function WineDetailScreen() {
       const res = await apiRequest("PUT", `/api/bottles/${bottleId}`, { location });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/wines", id] });
+    onMutate: async ({ bottleId, location }) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["/api/wines", id] });
+      const previous = queryClient.getQueryData<WineDetail>(["/api/wines", id]);
+      // Optimistically update the bottle location immediately
+      queryClient.setQueryData(["/api/wines", id], (old: WineDetail | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          bottles: old.bottles?.map((b) =>
+            b.id === bottleId ? { ...b, location } : b
+          ),
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      // Revert to the previous state on error
+      if (context?.previous) {
+        queryClient.setQueryData(["/api/wines", id], context.previous);
+      }
+      Alert.alert("Error", "Failed to update location");
     },
   });
 
@@ -653,6 +721,18 @@ export default function WineDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {undoToast ? (
+        <Animated.View style={[styles.undoToast, { opacity: undoFadeAnim }]}>
+          <Ionicons name="wine-outline" size={18} color="#FFFFFF" />
+          <Text style={styles.undoToastText} numberOfLines={2}>
+            {undoToast.message}
+          </Text>
+          <Pressable onPress={handleUndo} style={styles.undoButton}>
+            <Text style={styles.undoButtonText}>Undo</Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
     </LinearGradient>
   );
 }
@@ -974,5 +1054,40 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     minWidth: 40,
     textAlign: "center",
+  },
+  undoToast: {
+    position: "absolute" as const,
+    bottom: 100,
+    left: 16,
+    right: 16,
+    backgroundColor: Colors.light.tint,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  undoToastText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: "#FFFFFF",
+  },
+  undoButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  undoButtonText: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#FFFFFF",
   },
 });

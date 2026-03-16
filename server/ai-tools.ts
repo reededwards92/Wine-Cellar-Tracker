@@ -283,7 +283,7 @@ async function searchWines(input: any, userId?: number): Promise<string> {
   const currentYear = new Date().getFullYear();
 
   if (input.query) {
-    conditions.push(`(w.producer ILIKE $${paramIdx} OR w.wine_name ILIKE $${paramIdx} OR w.varietal ILIKE $${paramIdx} OR w.region ILIKE $${paramIdx} OR w.appellation ILIKE $${paramIdx})`);
+    conditions.push(`(unaccent(w.producer) ILIKE unaccent($${paramIdx}) OR unaccent(w.wine_name) ILIKE unaccent($${paramIdx}) OR unaccent(w.varietal) ILIKE unaccent($${paramIdx}) OR unaccent(w.region) ILIKE unaccent($${paramIdx}) OR unaccent(w.appellation) ILIKE unaccent($${paramIdx}))`);
     params.push(`%${input.query}%`);
     paramIdx++;
   }
@@ -292,7 +292,7 @@ async function searchWines(input: any, userId?: number): Promise<string> {
     params.push(input.color);
   }
   if (input.region) {
-    conditions.push(`(w.region ILIKE $${paramIdx} OR w.sub_region ILIKE $${paramIdx})`);
+    conditions.push(`(unaccent(w.region) ILIKE unaccent($${paramIdx}) OR unaccent(w.sub_region) ILIKE unaccent($${paramIdx}))`);
     params.push(`%${input.region}%`);
     paramIdx++;
   }
@@ -301,7 +301,7 @@ async function searchWines(input: any, userId?: number): Promise<string> {
     params.push(input.country);
   }
   if (input.varietal) {
-    conditions.push(`w.varietal ILIKE $${paramIdx++}`);
+    conditions.push(`unaccent(w.varietal) ILIKE unaccent($${paramIdx++})`);
     params.push(`%${input.varietal}%`);
   }
   if (input.vintage_min) {
