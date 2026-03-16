@@ -908,7 +908,7 @@ export default function SommelierScreen() {
             style={[
               styles.inputContainer,
               {
-                paddingBottom: 8,
+                paddingBottom: 20,
               },
             ]}
           >
