@@ -36,12 +36,22 @@ function AuthGate() {
     if (!navigationState?.key) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const inOnboardingGroup = segments[0] === "(onboarding)";
+    const inTabsGroup = segments[0] === "(tabs)";
 
     if (!user && !inAuthGroup) {
       hasNavigated.current = false;
       router.replace("/(auth)/login");
     } else if (user && inAuthGroup && !hasNavigated.current) {
       hasNavigated.current = true;
+      if (!user.has_completed_onboarding) {
+        router.replace("/(onboarding)");
+      } else {
+        router.replace("/(tabs)");
+      }
+    } else if (user && inTabsGroup && !user.has_completed_onboarding) {
+      router.replace("/(onboarding)");
+    } else if (user && inOnboardingGroup && user.has_completed_onboarding) {
       router.replace("/(tabs)");
     }
 
@@ -62,6 +72,7 @@ function AuthGate() {
   return (
     <Stack screenOptions={{ headerShown: false, headerBackTitle: "Back" }}>
       <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(onboarding)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="wine/[id]" />
       <Stack.Screen name="account" />

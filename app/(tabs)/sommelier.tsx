@@ -845,7 +845,7 @@ export default function SommelierScreen() {
 
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
-  const tabBarHeight = isWeb ? 84 : Platform.OS === "ios" ? 70 + insets.bottom : 70;
+  const tabBarHeight = isWeb ? 84 : 70;
 
   return (
     <View style={[styles.container, { paddingTop: isWeb ? 67 : 0, paddingBottom: tabBarHeight }]}>
@@ -908,7 +908,7 @@ export default function SommelierScreen() {
             style={[
               styles.inputContainer,
               {
-                paddingBottom: 8,
+                paddingBottom: Math.max(insets.bottom, 8),
               },
             ]}
           >
@@ -1097,7 +1097,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 34,
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "LibreBaskerville_700Bold",
     color: "#1A0A0C",
   },
   messageList: {
@@ -1185,8 +1185,6 @@ const styles = StyleSheet.create({
     color: CruColors.textPrimary,
   },
   inputBlur: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(114,47,55,0.12)",
     overflow: "hidden" as const,
   },
   inputContainer: {

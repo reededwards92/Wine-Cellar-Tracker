@@ -339,6 +339,7 @@ export default function HistoryScreen() {
     params.rated === "false" ? "unrated" : params.rated === "true" ? "rated" : "all"
   );
   const [showFilters, setShowFilters] = useState(!!params.rated);
+  const [showList, setShowList] = useState(false);
 
   useEffect(() => {
     if (params.rated === "false") {
@@ -446,6 +447,19 @@ export default function HistoryScreen() {
     refetch();
   };
 
+  const hasActiveFilters = filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all";
+
+  const openList = () => {
+    setShowList(true);
+    setShowFilters(false);
+  };
+
+  const closeList = () => {
+    setShowList(false);
+    setEditing(false);
+    setSelected(new Set());
+  };
+
   return (
     <LinearGradient colors={[Colors.light.bgGradientStart, Colors.light.bgGradientEnd]} style={styles.screen}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
@@ -457,11 +471,13 @@ export default function HistoryScreen() {
             ) : null}
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            {entries.length > 0 ? (
-              <Pressable
-                onPress={editing ? exitEditing : () => setEditing(true)}
-                hitSlop={8}
-              >
+            {showList ? (
+              <Pressable onPress={closeList} hitSlop={8}>
+                <Ionicons name="stats-chart-outline" size={20} color={Colors.light.textSecondary} />
+              </Pressable>
+            ) : null}
+            {showList && entries.length > 0 ? (
+              <Pressable onPress={editing ? exitEditing : () => setEditing(true)} hitSlop={8}>
                 <Text style={styles.editBtn}>{editing ? "Done" : "Edit"}</Text>
               </Pressable>
             ) : null}
@@ -471,6 +487,7 @@ export default function HistoryScreen() {
             />
           </View>
         </View>
+
         {editing ? (
           <View style={styles.editBar}>
             <Pressable onPress={selectAll} style={styles.selectAllBtn} hitSlop={4}>
@@ -498,147 +515,184 @@ export default function HistoryScreen() {
           </View>
         ) : null}
 
-        {!editing ? (
-          <View>
-            <Pressable
-              style={styles.filterToggle}
-              onPress={() => setShowFilters(!showFilters)}
-            >
-              <Ionicons name="options-outline" size={16} color={filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all" ? Colors.light.tint : Colors.light.textSecondary} />
-              <Text style={[styles.filterToggleText, (filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all") && { color: Colors.light.tint }]}>
-                Filter{filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all" ? " (active)" : ""}
-              </Text>
-              <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={14} color={Colors.light.tabIconDefault} />
-            </Pressable>
+        {/* Search bar — only visible in list view */}
+        {showList && !editing ? (
+          <View style={styles.searchRow}>
+            <Ionicons name="search" size={15} color={Colors.light.tabIconDefault} />
+            <TextInput
+              style={styles.searchInput}
+              value={filterSearch}
+              onChangeText={setFilterSearch}
+              placeholder="Search history..."
+              placeholderTextColor="rgba(114, 47, 55, 0.40)"
+              returnKeyType="search"
+            />
+            {filterSearch ? (
+              <Pressable onPress={() => setFilterSearch("")}>
+                <Ionicons name="close-circle" size={15} color={Colors.light.tabIconDefault} />
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
 
-            {showFilters ? (
-              <View style={styles.filterPanel}>
-                <View style={styles.filterSearchRow}>
-                  <Ionicons name="search" size={15} color={Colors.light.tabIconDefault} />
-                  <TextInput
-                    style={styles.filterSearchInput}
-                    value={filterSearch}
-                    onChangeText={setFilterSearch}
-                    placeholder="Search history..."
-                    placeholderTextColor="rgba(114, 47, 55, 0.40)"
-                    returnKeyType="search"
-                  />
-                  {filterSearch ? (
-                    <Pressable onPress={() => setFilterSearch("")}>
-                      <Ionicons name="close-circle" size={15} color={Colors.light.tabIconDefault} />
-                    </Pressable>
-                  ) : null}
-                </View>
+        {/* Filter toggle — only visible in list view */}
+        {showList && !editing ? (
+          <Pressable
+            style={styles.filterToggle}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Ionicons name="options-outline" size={16} color={hasActiveFilters ? Colors.light.tint : Colors.light.textSecondary} />
+            <Text style={[styles.filterToggleText, hasActiveFilters && { color: Colors.light.tint }]}>
+              Filter{hasActiveFilters ? " (active)" : ""}
+            </Text>
+            <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={14} color={Colors.light.tabIconDefault} />
+          </Pressable>
+        ) : null}
 
-                <Text style={styles.filterLabel}>Color</Text>
-                <View style={styles.filterChips}>
-                  {["Red", "White", "Rosé", "Sparkling", "Dessert", "Fortified"].map((c) => (
-                    <Pressable
-                      key={c}
-                      style={[styles.filterChip, filterColor.includes(c) && styles.filterChipActive]}
-                      onPress={() =>
-                        setFilterColor((prev) =>
-                          prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
-                        )
-                      }
-                    >
-                      <Text style={[styles.filterChipText, filterColor.includes(c) && styles.filterChipTextActive]}>{c}</Text>
-                    </Pressable>
-                  ))}
-                </View>
+        {showList && showFilters && !editing ? (
+          <View style={styles.filterPanel}>
+            <Text style={styles.filterLabel}>Color</Text>
+            <View style={styles.filterChips}>
+              {["Red", "White", "Rosé", "Sparkling", "Dessert", "Fortified"].map((c) => (
+                <Pressable
+                  key={c}
+                  style={[styles.filterChip, filterColor.includes(c) && styles.filterChipActive]}
+                  onPress={() =>
+                    setFilterColor((prev) =>
+                      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
+                    )
+                  }
+                >
+                  <Text style={[styles.filterChipText, filterColor.includes(c) && styles.filterChipTextActive]}>{c}</Text>
+                </Pressable>
+              ))}
+            </View>
 
-                <Text style={styles.filterLabel}>Min Rating</Text>
-                <View style={styles.ratingFilter}>
-                  {[0, 1, 2, 3, 4, 5].map((r) => (
-                    <Pressable key={r} onPress={() => setFilterMinRating(r === filterMinRating ? 0 : r)}>
-                      {r === 0 ? (
-                        <Text style={[styles.ratingFilterAny, filterMinRating === 0 && styles.ratingFilterAnyActive]}>Any</Text>
-                      ) : (
-                        <Ionicons
-                          name={r <= filterMinRating ? "star" : "star-outline"}
-                          size={24}
-                          color={r <= filterMinRating ? Colors.light.warning : Colors.light.tabIconDefault}
-                        />
-                      )}
-                    </Pressable>
-                  ))}
-                </View>
+            <Text style={styles.filterLabel}>Min Rating</Text>
+            <View style={styles.ratingFilter}>
+              {[0, 1, 2, 3, 4, 5].map((r) => (
+                <Pressable key={r} onPress={() => setFilterMinRating(r === filterMinRating ? 0 : r)}>
+                  {r === 0 ? (
+                    <Text style={[styles.ratingFilterAny, filterMinRating === 0 && styles.ratingFilterAnyActive]}>Any</Text>
+                  ) : (
+                    <Ionicons
+                      name={r <= filterMinRating ? "star" : "star-outline"}
+                      size={24}
+                      color={r <= filterMinRating ? Colors.light.warning : Colors.light.tabIconDefault}
+                    />
+                  )}
+                </Pressable>
+              ))}
+            </View>
 
-                <Text style={styles.filterLabel}>Rating Status</Text>
-                <View style={styles.filterChips}>
-                  {([["all", "All"], ["rated", "Rated"], ["unrated", "Unrated"]] as const).map(([val, label]) => (
-                    <Pressable
-                      key={val}
-                      style={[styles.filterChip, filterRated === val && styles.filterChipActive]}
-                      onPress={() => setFilterRated(val)}
-                    >
-                      <Text style={[styles.filterChipText, filterRated === val && styles.filterChipTextActive]}>{label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
+            <Text style={styles.filterLabel}>Rating Status</Text>
+            <View style={styles.filterChips}>
+              {([["all", "All"], ["rated", "Rated"], ["unrated", "Unrated"]] as const).map(([val, label]) => (
+                <Pressable
+                  key={val}
+                  style={[styles.filterChip, filterRated === val && styles.filterChipActive]}
+                  onPress={() => setFilterRated(val)}
+                >
+                  <Text style={[styles.filterChipText, filterRated === val && styles.filterChipTextActive]}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
 
-                {(filterColor.length > 0 || filterMinRating > 0 || filterSearch || filterRated !== "all") ? (
-                  <Pressable
-                    style={styles.clearFiltersBtn}
-                    onPress={() => { setFilterColor([]); setFilterMinRating(0); setFilterSearch(""); setFilterRated("all"); }}
-                  >
-                    <Text style={styles.clearFiltersBtnText}>Clear All Filters</Text>
-                  </Pressable>
-                ) : null}
-              </View>
+            {hasActiveFilters ? (
+              <Pressable
+                style={styles.clearFiltersBtn}
+                onPress={() => { setFilterColor([]); setFilterMinRating(0); setFilterSearch(""); setFilterRated("all"); }}
+              >
+                <Text style={styles.clearFiltersBtnText}>Clear All Filters</Text>
+              </Pressable>
             ) : null}
           </View>
         ) : null}
       </View>
 
-      <FlatList
-        data={entries}
-        renderItem={({ item }) => (
-          <ConsumptionCard
-            entry={item}
-            onPress={() => router.push({ pathname: "/wine/[id]", params: { id: String(item.wine_id) } })}
-            editing={editing}
-            selected={selected.has(item.id)}
-            onToggle={() => toggleSelect(item.id)}
-          />
-        )}
-        keyExtractor={(item) => String(item.id)}
-        ListHeaderComponent={
-          stats && stats.totalBottles > 0 && !editing ? (
-            <StatsSection stats={stats} />
-          ) : null
-        }
-        ListEmptyComponent={
-          isLoading ? (
+      {/* Stats view (default) */}
+      {!showList ? (
+        <ScrollView
+          contentContainerStyle={[
+            styles.statsScrollContent,
+            { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
+          ]}
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={Colors.light.tint} />
+          }
+        >
+          {isLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={Colors.light.tint} />
             </View>
-          ) : (
+          ) : entries.length === 0 ? (
             <View style={styles.centered}>
               <Ionicons name="time-outline" size={48} color={Colors.light.tabIconDefault} />
               <Text style={styles.emptyTitle}>No consumption history</Text>
               <Text style={styles.emptyText}>When you mark bottles as consumed, they'll appear here</Text>
             </View>
-          )
-        }
-        refreshControl={
-          <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={Colors.light.tint} />
-        }
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
-        ]}
-        scrollEnabled={entries.length > 0}
-        onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
-        onEndReachedThreshold={0.3}
-        ListFooterComponent={
-          isFetchingNextPage ? (
-            <View style={{ paddingVertical: 20, alignItems: "center" }}>
-              <ActivityIndicator size="small" color={Colors.light.tint} />
-            </View>
-          ) : null
-        }
-      />
+          ) : (
+            <>
+              {stats && stats.totalBottles > 0 ? (
+                <StatsSection stats={stats} />
+              ) : null}
+              <Pressable
+                style={({ pressed }) => [styles.accordionBtn, pressed && styles.accordionBtnPressed]}
+                onPress={openList}
+              >
+                <Ionicons name="chevron-down" size={16} color={Colors.light.tint} />
+                <Text style={styles.accordionBtnText}>
+                  Show all consumed wines ({totalCount})
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </ScrollView>
+      ) : (
+        /* List view */
+        <FlatList
+          data={entries}
+          renderItem={({ item }) => (
+            <ConsumptionCard
+              entry={item}
+              onPress={() => router.push({ pathname: "/wine/[id]", params: { id: String(item.wine_id) } })}
+              editing={editing}
+              selected={selected.has(item.id)}
+              onToggle={() => toggleSelect(item.id)}
+            />
+          )}
+          keyExtractor={(item) => String(item.id)}
+          ListEmptyComponent={
+            isLoading ? (
+              <View style={styles.centered}>
+                <ActivityIndicator size="large" color={Colors.light.tint} />
+              </View>
+            ) : (
+              <View style={styles.centered}>
+                <Ionicons name="search-outline" size={40} color={Colors.light.tabIconDefault} />
+                <Text style={styles.emptyTitle}>No results</Text>
+                <Text style={styles.emptyText}>Try adjusting your search or filters</Text>
+              </View>
+            )
+          }
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={Colors.light.tint} />
+          }
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
+          ]}
+          onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <ActivityIndicator size="small" color={Colors.light.tint} />
+              </View>
+            ) : null
+          }
+        />
+      )}
     </LinearGradient>
   );
 }
@@ -655,7 +709,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
   },
   title: {
     fontSize: 28,
@@ -672,7 +726,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.tint,
-    marginTop: 6,
   },
   editBar: {
     flexDirection: "row",
@@ -954,12 +1007,55 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
+  statsScrollContent: {
+    flexGrow: 1,
+  },
+  accordionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(114,47,55,0.10)",
+  },
+  accordionBtnPressed: {
+    backgroundColor: Colors.light.cardBackground,
+  },
+  accordionBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.tint,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.60)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(114,47,55,0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 8,
+    marginTop: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.text,
+    padding: 0,
+  },
   filterToggle: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "rgba(114, 47, 55, 0.08)",
   },
@@ -970,26 +1066,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   filterPanel: {
-    paddingTop: 12,
-  },
-  filterSearchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.60)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.15)",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 8,
-    marginBottom: 12,
-  },
-  filterSearchInput: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
-    padding: 0,
+    paddingTop: 8,
   },
   filterLabel: {
     fontSize: 11,

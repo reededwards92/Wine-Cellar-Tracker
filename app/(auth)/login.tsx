@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -87,9 +88,11 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="wine" size={36} color={Colors.light.white} />
-          </View>
+          <Image
+            source={require("@/assets/images/icon.png")}
+            style={styles.iconImage}
+            resizeMode="contain"
+          />
           <Text style={styles.appName}>Vin</Text>
           <Text style={styles.tagline}>Your personal wine cellar</Text>
         </View>
@@ -219,14 +222,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 40,
   },
-  iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.light.tint,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
+  iconImage: {
+    width: 96,
+    height: 96,
+    marginBottom: 8,
   },
   appName: {
     fontSize: 32,

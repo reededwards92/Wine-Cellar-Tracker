@@ -527,6 +527,37 @@ User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m:
     }
   });
 
+  app.post("/api/memories", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const { content, category } = req.body;
+      if (!content || typeof content !== "string") {
+        return res.status(400).json({ error: "content is required" });
+      }
+      const cat = category || "preference";
+      const result = await pool.query(
+        "INSERT INTO cru_memories (user_id, content, category) VALUES ($1, $2, $3) RETURNING id, content, category, created_at",
+        [req.userId, content.trim(), cat]
+      );
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      console.error("Create memory error:", error);
+      res.status(500).json({ error: "Failed to create memory" });
+    }
+  });
+
+  app.post("/api/onboarding/complete", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      await pool.query(
+        "UPDATE users SET has_completed_onboarding = true WHERE id = $1",
+        [req.userId]
+      );
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Onboarding complete error:", error);
+      res.status(500).json({ error: "Failed to mark onboarding complete" });
+    }
+  });
+
   app.delete("/api/memories/:id", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       const result = await pool.query(

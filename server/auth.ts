@@ -47,7 +47,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 
-  const result = await pool.query("SELECT id, email, display_name FROM users WHERE id = $1", [decoded.userId]);
+  const result = await pool.query("SELECT id, email, display_name, has_completed_onboarding FROM users WHERE id = $1", [decoded.userId]);
   if (result.rows.length === 0) {
     return res.status(401).json({ message: "User not found" });
   }
@@ -77,7 +77,7 @@ export function registerAuthRoutes(app: any) {
 
     const hash = bcrypt.hashSync(password, 10);
     const result = await pool.query(
-      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name",
+      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name, has_completed_onboarding",
       [email, hash, display_name || null]
     );
 
@@ -94,7 +94,7 @@ export function registerAuthRoutes(app: any) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const result = await pool.query("SELECT id, email, password_hash, display_name FROM users WHERE email = $1", [email]);
+    const result = await pool.query("SELECT id, email, password_hash, display_name, has_completed_onboarding FROM users WHERE email = $1", [email]);
     if (result.rows.length === 0) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
@@ -107,7 +107,7 @@ export function registerAuthRoutes(app: any) {
 
     const token = generateToken(user.id);
     res.json({
-      user: { id: user.id, email: user.email, display_name: user.display_name },
+      user: { id: user.id, email: user.email, display_name: user.display_name, has_completed_onboarding: user.has_completed_onboarding },
       token,
     });
   });
@@ -119,11 +119,11 @@ export function registerAuthRoutes(app: any) {
       return res.status(400).json({ message: "Google sign-in data is required" });
     }
 
-    let result = await pool.query("SELECT id, email, display_name FROM users WHERE google_id = $1", [google_id]);
+    let result = await pool.query("SELECT id, email, display_name, has_completed_onboarding FROM users WHERE google_id = $1", [google_id]);
     let user = result.rows[0];
 
     if (!user) {
-      result = await pool.query("SELECT id, email, display_name, google_id FROM users WHERE email = $1", [email]);
+      result = await pool.query("SELECT id, email, display_name, google_id, has_completed_onboarding FROM users WHERE email = $1", [email]);
       user = result.rows[0];
       if (user) {
         await pool.query("UPDATE users SET google_id = $1 WHERE id = $2", [google_id, user.id]);
@@ -133,14 +133,14 @@ export function registerAuthRoutes(app: any) {
     if (!user) {
       const dummyHash = bcrypt.hashSync(Math.random().toString(36), 10);
       result = await pool.query(
-        "INSERT INTO users (email, password_hash, display_name, google_id) VALUES ($1, $2, $3, $4) RETURNING id, email, display_name",
+        "INSERT INTO users (email, password_hash, display_name, google_id) VALUES ($1, $2, $3, $4) RETURNING id, email, display_name, has_completed_onboarding",
         [email, dummyHash, name || null, google_id]
       );
       user = result.rows[0];
     }
 
     const token = generateToken(user.id);
-    res.json({ user: { id: user.id, email: user.email, display_name: user.display_name }, token });
+    res.json({ user: { id: user.id, email: user.email, display_name: user.display_name, has_completed_onboarding: user.has_completed_onboarding }, token });
   });
 
   app.get("/api/auth/me", async (req: AuthRequest, res: Response) => {
@@ -155,7 +155,7 @@ export function registerAuthRoutes(app: any) {
       return res.status(401).json({ message: "Invalid token" });
     }
 
-    const result = await pool.query("SELECT id, email, display_name FROM users WHERE id = $1", [decoded.userId]);
+    const result = await pool.query("SELECT id, email, display_name, has_completed_onboarding FROM users WHERE id = $1", [decoded.userId]);
     if (result.rows.length === 0) {
       return res.status(401).json({ message: "User not found" });
     }

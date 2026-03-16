@@ -15,6 +15,7 @@ interface User {
   id: number;
   email: string;
   display_name: string | null;
+  has_completed_onboarding: boolean;
 }
 
 interface AuthContextType {
@@ -32,6 +33,7 @@ interface AuthContextType {
   googleSignIn: (googleData: { email: string; name: string; google_id: string; id_token: string }) => Promise<void>;
   logout: () => Promise<void>;
   toggleBiometrics: () => Promise<boolean>;
+  markOnboardingComplete: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -49,6 +51,7 @@ const AuthContext = createContext<AuthContextType>({
   googleSignIn: async () => {},
   logout: async () => {},
   toggleBiometrics: async () => false,
+  markOnboardingComplete: () => {},
 });
 
 const TOKEN_KEY = "vin_auth_token";
@@ -269,12 +272,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return newValue;
   }, [biometricsAvailable, biometricsEnabled]);
 
+  const markOnboardingComplete = useCallback(() => {
+    setUser((prev) => prev ? { ...prev, has_completed_onboarding: true } : null);
+  }, []);
+
   return (
     <AuthContext.Provider value={{
       user, token, isLoading,
       biometricsAvailable, biometricsEnabled, biometricType,
       hasStoredSession, biometricFailed,
       login, loginWithBiometrics, register, googleSignIn, logout, toggleBiometrics,
+      markOnboardingComplete,
     }}>
       {children}
     </AuthContext.Provider>

@@ -115,6 +115,7 @@ export async function initializeDatabase() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL`);
   await pool.query(`ALTER TABLE cru_memories ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'general'`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token TEXT`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS has_completed_onboarding BOOLEAN DEFAULT false`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notification_preferences (
       user_id INTEGER PRIMARY KEY REFERENCES users(id),
