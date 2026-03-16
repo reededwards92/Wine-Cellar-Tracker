@@ -46,7 +46,47 @@ const SORT_OPTIONS = [
   { value: "community_score", label: "Score" },
 ];
 
+function AccordionSection({
+  label,
+  count,
+  expanded,
+  onToggle,
+  children,
+}: {
+  label: string;
+  count: number;
+  expanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.accordionSection}>
+      <Pressable style={styles.accordionHeader} onPress={onToggle}>
+        <Text style={styles.accordionLabel}>{label}</Text>
+        <View style={styles.accordionRight}>
+          {count > 0 && !expanded && (
+            <View style={styles.accordionBadge}>
+              <Text style={styles.accordionBadgeText}>{count}</Text>
+            </View>
+          )}
+          <Ionicons
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={14}
+            color="rgba(114, 47, 55, 0.45)"
+          />
+        </View>
+      </Pressable>
+      {expanded && <View style={styles.accordionBody}>{children}</View>}
+    </View>
+  );
+}
+
 export default function FilterPanel({ filters, onChange, options, isExpanded, onToggle }: FilterPanelProps) {
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const toggleSection = (key: string) =>
+    setOpenSection((prev) => (prev === key ? null : key));
+
   const toggleColor = (c: string) => {
     const next = filters.colors.includes(c)
       ? filters.colors.filter((x) => x !== c)
@@ -102,35 +142,51 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
 
       {isExpanded ? (
         <View style={styles.body}>
-          <Text style={styles.sectionLabel}>Color</Text>
-          <View style={styles.chipRow}>
-            {WINE_COLORS.map((c) => (
-              <Pressable
-                key={c}
-                style={[styles.chip, filters.colors.includes(c) && styles.chipActive]}
-                onPress={() => toggleColor(c)}
-              >
-                <Text style={[styles.chipText, filters.colors.includes(c) && styles.chipTextActive]}>{c}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <AccordionSection
+            label="Color"
+            count={filters.colors.length}
+            expanded={openSection === "color"}
+            onToggle={() => toggleSection("color")}
+          >
+            <View style={styles.chipRow}>
+              {WINE_COLORS.map((c) => (
+                <Pressable
+                  key={c}
+                  style={[styles.chip, filters.colors.includes(c) && styles.chipActive]}
+                  onPress={() => toggleColor(c)}
+                >
+                  <Text style={[styles.chipText, filters.colors.includes(c) && styles.chipTextActive]}>{c}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </AccordionSection>
 
-          <Text style={styles.sectionLabel}>Drink Window</Text>
-          <View style={styles.chipRow}>
-            {DW_OPTIONS.map((o) => (
-              <Pressable
-                key={o.value}
-                style={[styles.chip, filters.drinkWindow.includes(o.value) && styles.chipActive]}
-                onPress={() => toggleDW(o.value)}
-              >
-                <Text style={[styles.chipText, filters.drinkWindow.includes(o.value) && styles.chipTextActive]}>{o.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <AccordionSection
+            label="Drink Window"
+            count={filters.drinkWindow.length}
+            expanded={openSection === "dw"}
+            onToggle={() => toggleSection("dw")}
+          >
+            <View style={styles.chipRow}>
+              {DW_OPTIONS.map((o) => (
+                <Pressable
+                  key={o.value}
+                  style={[styles.chip, filters.drinkWindow.includes(o.value) && styles.chipActive]}
+                  onPress={() => toggleDW(o.value)}
+                >
+                  <Text style={[styles.chipText, filters.drinkWindow.includes(o.value) && styles.chipTextActive]}>{o.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </AccordionSection>
 
-          {locationOptions.length > 0 ? (
-            <>
-              <Text style={styles.sectionLabel}>Location</Text>
+          {locationOptions.length > 0 && (
+            <AccordionSection
+              label="Location"
+              count={filters.locations.length}
+              expanded={openSection === "location"}
+              onToggle={() => toggleSection("location")}
+            >
               <View style={styles.chipRow}>
                 {locationOptions.map((loc) => (
                   <Pressable
@@ -142,29 +198,35 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
                   </Pressable>
                 ))}
               </View>
-            </>
-          ) : null}
+            </AccordionSection>
+          )}
 
-          <Text style={styles.sectionLabel}>Value Range</Text>
-          <View style={styles.rangeRow}>
-            <TextInput
-              style={styles.rangeInput}
-              placeholder="Min"
-              placeholderTextColor="rgba(114, 47, 55, 0.38)"
-              value={filters.minValue}
-              onChangeText={(v) => onChange({ ...filters, minValue: v })}
-              keyboardType="numeric"
-            />
-            <Text style={styles.rangeSep}>–</Text>
-            <TextInput
-              style={styles.rangeInput}
-              placeholder="Max"
-              placeholderTextColor="rgba(114, 47, 55, 0.38)"
-              value={filters.maxValue}
-              onChangeText={(v) => onChange({ ...filters, maxValue: v })}
-              keyboardType="numeric"
-            />
-          </View>
+          <AccordionSection
+            label="Value Range"
+            count={(filters.minValue ? 1 : 0) + (filters.maxValue ? 1 : 0)}
+            expanded={openSection === "value"}
+            onToggle={() => toggleSection("value")}
+          >
+            <View style={styles.rangeRow}>
+              <TextInput
+                style={styles.rangeInput}
+                placeholder="Min"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                value={filters.minValue}
+                onChangeText={(v) => onChange({ ...filters, minValue: v })}
+                keyboardType="numeric"
+              />
+              <Text style={styles.rangeSep}>–</Text>
+              <TextInput
+                style={styles.rangeInput}
+                placeholder="Max"
+                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                value={filters.maxValue}
+                onChangeText={(v) => onChange({ ...filters, maxValue: v })}
+                keyboardType="numeric"
+              />
+            </View>
+          </AccordionSection>
 
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>In stock only</Text>
@@ -175,27 +237,33 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
             />
           </View>
 
-          <Text style={styles.sectionLabel}>Sort by</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroll}>
-            {SORT_OPTIONS.map((o) => (
-              <Pressable
-                key={o.value}
-                style={[styles.chip, filters.sort === o.value && styles.chipActive]}
-                onPress={() => {
-                  if (filters.sort === o.value) {
-                    onChange({ ...filters, order: filters.order === "asc" ? "desc" : "asc" });
-                  } else {
-                    onChange({ ...filters, sort: o.value, order: "asc" });
-                  }
-                }}
-              >
-                <Text style={[styles.chipText, filters.sort === o.value && styles.chipTextActive]}>
-                  {o.label}
-                  {filters.sort === o.value ? (filters.order === "asc" ? " ↑" : " ↓") : ""}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <AccordionSection
+            label="Sort by"
+            count={0}
+            expanded={openSection === "sort"}
+            onToggle={() => toggleSection("sort")}
+          >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {SORT_OPTIONS.map((o) => (
+                <Pressable
+                  key={o.value}
+                  style={[styles.chip, styles.sortChip, filters.sort === o.value && styles.chipActive]}
+                  onPress={() => {
+                    if (filters.sort === o.value) {
+                      onChange({ ...filters, order: filters.order === "asc" ? "desc" : "asc" });
+                    } else {
+                      onChange({ ...filters, sort: o.value, order: "asc" });
+                    }
+                  }}
+                >
+                  <Text style={[styles.chipText, filters.sort === o.value && styles.chipTextActive]}>
+                    {o.label}
+                    {filters.sort === o.value ? (filters.order === "asc" ? " ↑" : " ↓") : ""}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </AccordionSection>
 
           {activeCount > 0 ? (
             <Pressable
@@ -254,14 +322,44 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
-  sectionLabel: {
-    fontSize: 12,
+  accordionSection: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(114, 47, 55, 0.06)",
+  },
+  accordionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+  },
+  accordionLabel: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.text,
+  },
+  accordionRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  accordionBadge: {
+    backgroundColor: "rgba(114, 47, 55, 0.12)",
+    borderRadius: 8,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  accordionBadgeText: {
+    fontSize: 11,
     fontFamily: "Outfit_600SemiBold",
-    color: "rgba(114, 47, 55, 0.55)",
-    marginTop: 12,
-    marginBottom: 6,
+    color: Colors.light.tint,
+  },
+  accordionBody: {
+    paddingBottom: 10,
   },
   chipRow: {
     flexDirection: "row",
@@ -275,6 +373,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(114, 47, 55, 0.20)",
     backgroundColor: "rgba(255, 255, 255, 0.55)",
+  },
+  sortChip: {
+    marginRight: 6,
   },
   chipActive: {
     backgroundColor: "rgba(114, 47, 55, 0.15)",
@@ -313,18 +414,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(114, 47, 55, 0.06)",
   },
   switchLabel: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
   },
-  sortScroll: {
-    marginBottom: 4,
-  },
   clearBtn: {
-    marginTop: 12,
+    marginTop: 8,
     alignItems: "center",
   },
   clearText: {

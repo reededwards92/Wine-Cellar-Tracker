@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, FlatList, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
@@ -26,31 +26,47 @@ function SkeletonCard() {
 }
 
 export default function InsightsRow({ insights, onCardPress, isLoading }: Props) {
+  const [expanded, setExpanded] = useState(true);
+
   if (!isLoading && insights.length === 0) return null;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="sparkles" size={16} color={Colors.light.tint} />
-        <Text style={styles.headerText}>Cru's Picks</Text>
-      </View>
-      {isLoading ? (
-        <View style={styles.skeletonRow}>
-          <SkeletonCard />
-          <SkeletonCard />
-        </View>
-      ) : (
-        <FlatList
-          horizontal
-          data={insights}
-          keyExtractor={(item) => item.type}
-          renderItem={({ item }) => (
-            <InsightCard card={item} onPress={() => onCardPress(item)} />
+      <Pressable style={styles.header} onPress={() => setExpanded((p) => !p)}>
+        <View style={styles.headerLeft}>
+          <Ionicons name="sparkles" size={16} color={Colors.light.tint} />
+          <Text style={styles.headerText}>Cru's Picks</Text>
+          {!expanded && insights.length > 0 && (
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{insights.length}</Text>
+            </View>
           )}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+        </View>
+        <Ionicons
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={16}
+          color="rgba(45, 18, 21, 0.45)"
         />
+      </Pressable>
+      {expanded && (
+        isLoading ? (
+          <View style={styles.skeletonRow}>
+            <SkeletonCard />
+            <SkeletonCard />
+          </View>
+        ) : (
+          <FlatList
+            horizontal
+            data={insights}
+            keyExtractor={(item) => item.type}
+            renderItem={({ item }) => (
+              <InsightCard card={item} onPress={() => onCardPress(item)} />
+            )}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+          />
+        )
       )}
     </View>
   );
@@ -58,26 +74,47 @@ export default function InsightsRow({ insights, onCardPress, isLoading }: Props)
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: 12,
+    paddingBottom: 4,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingVertical: 8,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   headerText: {
     fontFamily: theme.fonts.libre.bold,
     fontSize: 16,
     color: Colors.light.text,
   },
+  countBadge: {
+    backgroundColor: Colors.light.tint,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  countText: {
+    fontSize: 11,
+    fontFamily: theme.fonts.outfit.semiBold,
+    color: "#fff",
+  },
   listContent: {
     paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   skeletonRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
+    paddingBottom: 8,
     gap: 12,
   },
   skeleton: {
