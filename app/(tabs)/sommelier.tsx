@@ -845,7 +845,7 @@ export default function SommelierScreen() {
 
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
-  const tabBarHeight = isWeb ? 84 : 60;
+  const tabBarHeight = isWeb ? 84 : 68;
 
   return (
     <View style={[styles.container, { paddingTop: isWeb ? 67 : 0, paddingBottom: tabBarHeight }]}>

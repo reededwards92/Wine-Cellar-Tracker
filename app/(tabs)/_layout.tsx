@@ -33,7 +33,7 @@ export default function TabLayout() {
             borderTopWidth: 0.5,
             borderTopColor: "rgba(114, 47, 55, 0.10)",
             elevation: 0,
-            height: Platform.OS === "web" ? 84 : 60,
+            height: Platform.OS === "web" ? 84 : 68,
           },
           tabBarBackground: () =>
             isIOS ? (
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    top: -8,
+    top: -13,
   },
   scanButton: {
     width: 56,
