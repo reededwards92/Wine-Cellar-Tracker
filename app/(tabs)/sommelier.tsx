@@ -708,6 +708,21 @@ export default function SommelierScreen() {
 
   const renderHomeState = () => {
 
+    // Empty cellar state
+    if (homeData && homeData.total_bottles === 0) {
+      return (
+        <Animated.View style={[styles.homeContainer, styles.emptyCellarContainer, { opacity: pickAnim }]}>
+          <Text style={styles.emptyCellarHeading}>Start your cellar</Text>
+          <Text style={styles.emptyCellarBody}>
+            Scan a label to add your first bottle. I'll track your collection, suggest tonight's pour, and help you drink everything at its best.
+          </Text>
+          <Pressable style={styles.emptyCellarButton} onPress={() => router.push("/(tabs)/add")}>
+            <Text style={styles.emptyCellarButtonText}>Scan a Label</Text>
+          </Pressable>
+        </Animated.View>
+      );
+    }
+
     // Build insight cards
     type InsightCard = {
       topLabel: string;
@@ -1506,6 +1521,39 @@ const styles = StyleSheet.create({
   },
   undoButtonText: {
     fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#FFFFFF",
+  },
+  emptyCellarContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  emptyCellarHeading: {
+    fontSize: 28,
+    fontFamily: "LibreBaskerville_700Bold",
+    color: "#1A0A0C",
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  emptyCellarBody: {
+    fontSize: 15,
+    fontFamily: "Outfit_400Regular",
+    color: "rgba(45,18,21,0.55)",
+    textAlign: "center",
+    lineHeight: 23,
+    marginBottom: 32,
+  },
+  emptyCellarButton: {
+    height: 50,
+    paddingHorizontal: 32,
+    backgroundColor: "#722F37",
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyCellarButtonText: {
+    fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
     color: "#FFFFFF",
   },
