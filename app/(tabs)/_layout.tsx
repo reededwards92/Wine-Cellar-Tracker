@@ -126,8 +126,7 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  const content = isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />;
-  return <CruInsightsProvider>{content}</CruInsightsProvider>;
+  return <CruInsightsProvider><ClassicTabLayout /></CruInsightsProvider>;
 }
 
 const styles = StyleSheet.create({
