@@ -27,6 +27,7 @@ import { BlurView } from "expo-blur";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import CruMark, { type CruMarkState } from "@/components/CruMark";
+import CruThinking from "@/components/CruThinking";
 import { getApiUrl, queryClient } from "@/lib/query-client";
 import { useCruInsights } from "@/contexts/CruInsightsContext";
 
@@ -605,7 +606,7 @@ export default function SommelierScreen() {
 
     return (
       <View style={styles.thinkingContainer}>
-        <CruMark size="sm" state={cruState} />
+        <CruThinking size={28} />
         <Animated.Text
           style={[
             styles.thinkingText,
