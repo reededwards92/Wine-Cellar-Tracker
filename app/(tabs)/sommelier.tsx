@@ -25,9 +25,10 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import Colors from "@/constants/colors";
-const CruAvatar = require("../../assets/images/Cru.png");
 import { theme } from "@/constants/theme";
+import CruMark, { type CruMarkState } from "@/components/CruMark";
 import { getApiUrl, queryClient } from "@/lib/query-client";
+import { useCruInsights } from "@/contexts/CruInsightsContext";
 
 // Cru tab color palette
 const CruColors = {
@@ -76,12 +77,17 @@ export default function SommelierScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isWeb = Platform.OS === "web";
+  const { markSeen } = useCruInsights();
+
+  useEffect(() => { markSeen(); }, [markSeen]);
   const params = useLocalSearchParams<{ query?: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [showTyping, setShowTyping] = useState(false);
   const [activeTools, setActiveTools] = useState<string[]>([]);
+  const [cruState, setCruState] = useState<CruMarkState>("idle");
+  const celebrateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
   const abortRef = useRef<AbortController | null>(null);
   const pendingQueryRef = useRef<string | null>(null);
@@ -297,6 +303,7 @@ export default function SommelierScreen() {
     setIsStreaming(true);
     setShowTyping(true);
     setActiveTools([]);
+    setCruState("thinking");
 
     let fullContent = "";
     let assistantAdded = false;
@@ -374,6 +381,9 @@ export default function SommelierScreen() {
 
             if (parsed.consumption_completed) {
               showUndoToast(parsed.consumption_completed);
+              setCruState("celebrating");
+              if (celebrateTimerRef.current) clearTimeout(celebrateTimerRef.current);
+              celebrateTimerRef.current = setTimeout(() => setCruState("speaking"), 2000);
               continue;
             }
 
@@ -392,6 +402,7 @@ export default function SommelierScreen() {
               if (!assistantAdded) {
                 setShowTyping(false);
                 setActiveTools([]);
+                setCruState("speaking");
                 setMessages((prev) => [
                   ...prev,
                   {
@@ -440,6 +451,7 @@ export default function SommelierScreen() {
       setIsStreaming(false);
       setShowTyping(false);
       setActiveTools([]);
+      setCruState("idle");
     }
   };
 
@@ -508,7 +520,7 @@ export default function SommelierScreen() {
         >
           {!isUser && (
             <View style={styles.avatarGlass}>
-              <Image source={CruAvatar} style={styles.avatarImage} />
+              <CruMark size="sm" state="idle" />
             </View>
           )}
           {isUser ? (
@@ -593,24 +605,7 @@ export default function SommelierScreen() {
 
     return (
       <View style={styles.thinkingContainer}>
-        <Animated.Image
-          source={CruAvatar}
-          style={[
-            styles.thinkingAvatar,
-            {
-              opacity: pulseAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.5, 1],
-              }),
-              transform: [{
-                scale: pulseAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.95, 1.05],
-                }),
-              }],
-            },
-          ]}
-        />
+        <CruMark size="md" state={cruState} />
         <Animated.Text
           style={[
             styles.thinkingText,

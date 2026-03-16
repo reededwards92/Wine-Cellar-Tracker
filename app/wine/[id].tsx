@@ -22,6 +22,7 @@ import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import { getColorDot, getDrinkWindowStatus } from "@/lib/api";
 import { apiRequest, queryClient } from "@/lib/query-client";
+import CruInsightBanner from "@/components/CruInsightBanner";
 import type { WineDetail, Bottle } from "@/lib/api";
 
 function InfoRow({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -180,6 +181,16 @@ export default function WineDetailScreen() {
 
   const { data: storageLocs } = useQuery<StorageLocation[]>({
     queryKey: ["/api/storage-locations"],
+  });
+
+  const { data: wineInsight, isLoading: insightLoading } = useQuery<{ insight: string }>({
+    queryKey: ["wine-insight", id],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/wines/${id}/insight`);
+      return res.json();
+    },
+    staleTime: 60 * 60 * 1000,
+    enabled: !!wine,
   });
 
   const locationNames = (storageLocs || []).map((l) => l.name);
@@ -366,6 +377,11 @@ export default function WineDetailScreen() {
             </View>
           ) : null}
         </View>
+
+        <CruInsightBanner
+          insight={wineInsight?.insight ?? null}
+          isLoading={insightLoading}
+        />
 
         <View style={styles.detailSection}>
           <Text style={styles.detailSectionTitle}>Details</Text>

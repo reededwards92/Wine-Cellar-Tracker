@@ -119,6 +119,7 @@ export default function ScanScreen() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
   const [showFuzzyMatches, setShowFuzzyMatches] = useState(false);
+  const [scanContext, setScanContext] = useState<string | null>(null);
 
   const { data: storageLocs } = useQuery<{ name: string; type: string }[]>({
     queryKey: ["/api/storage-locations"],
@@ -135,6 +136,7 @@ export default function ScanScreen() {
     hasLaunched.current = false;
     setIsCapturing(false);
     setShowFuzzyMatches(false);
+    setScanContext(null);
   };
 
   const openCamera = async () => {
@@ -250,6 +252,12 @@ export default function ScanScreen() {
         fuzzyMatches,
       });
       setPhase("results");
+
+      // Fetch Cru scan context (fire-and-forget)
+      apiRequest("POST", "/api/scan/context", {
+        producer: data.producer, wine_name: data.wine_name,
+        region: data.region, country: data.country,
+      }).then((r) => r.json()).then((d) => setScanContext(d.comment)).catch(() => {});
     } catch {
       setScanResult(null);
       setPhase("results");
@@ -562,6 +570,16 @@ export default function ScanScreen() {
                       </View>
                     )}
                   </>
+                ) : null}
+
+                {scanContext ? (
+                  <View style={{ flexDirection: "row", marginBottom: 12, backgroundColor: Colors.light.cardBackground, borderRadius: theme.radius.md, overflow: "hidden", ...theme.shadows.card }}>
+                    <View style={{ width: 2, backgroundColor: Colors.light.tint }} />
+                    <View style={{ flex: 1, padding: 12 }}>
+                      <Text style={{ fontFamily: theme.fonts.outfit.semiBold, fontSize: 11, color: Colors.light.tint, marginBottom: 4 }}>{"\u2726"} Cru</Text>
+                      <Text style={{ ...theme.typography.bodySmall, color: Colors.light.textSecondary }}>{scanContext}</Text>
+                    </View>
+                  </View>
                 ) : null}
 
                 <Pressable style={styles.actionBtn} onPress={handleAddToCellar} testID="add-to-cellar">

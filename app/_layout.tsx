@@ -13,7 +13,7 @@ import { useFonts } from "expo-font";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useSegments, useRouter, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -44,6 +44,11 @@ function AuthGate() {
       hasNavigated.current = true;
       router.replace("/(tabs)");
     }
+
+    // Register for push notifications after auth (fire-and-forget)
+    if (user) {
+      import("@/lib/notifications").then((m) => m.registerForPushNotifications()).catch(() => {});
+    }
   }, [user, isLoading, segments, navigationState?.key]);
 
   if (isLoading || !navigationState?.key) {
@@ -62,6 +67,7 @@ function AuthGate() {
       <Stack.Screen name="account" />
       <Stack.Screen name="import-guide" />
       <Stack.Screen name="storage-locations" />
+      <Stack.Screen name="cru-profile" />
     </Stack>
   );
 }

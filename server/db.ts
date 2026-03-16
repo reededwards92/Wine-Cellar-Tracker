@@ -113,6 +113,26 @@ export async function initializeDatabase() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_consumption_log_user_id ON consumption_log(user_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL`);
+  await pool.query(`ALTER TABLE cru_memories ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'general'`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token TEXT`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_preferences (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id),
+      drink_window_alerts BOOLEAN DEFAULT true,
+      weekly_digest BOOLEAN DEFAULT true,
+      daily_max INTEGER DEFAULT 2,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_log (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
+      wine_id INTEGER REFERENCES wines(id),
+      type VARCHAR(50),
+      sent_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_cru_memories_user_id ON cru_memories(user_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id)`);
 

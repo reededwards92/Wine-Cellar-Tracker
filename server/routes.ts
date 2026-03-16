@@ -82,6 +82,275 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  app.get("/api/insights", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      const currentYear = new Date().getFullYear();
+      const cards: any[] = [];
+
+      // ready_to_drink: wines currently in their drinking window with bottles in cellar
+      const readyResult = await pool.query(`
+        SELECT w.id, w.producer, w.wine_name, w.vintage, w.color,
+               COUNT(b.id)::int as bottle_count
+        FROM wines w
+        JOIN bottles b ON b.wine_id = w.id AND b.status = 'in_cellar' AND b.user_id = $1
+        WHERE w.user_id = $1
+          AND w.drink_window_start IS NOT NULL AND w.drink_window_start <= $2
+          AND w.drink_window_end IS NOT NULL AND w.drink_window_end >= $2
+        GROUP BY w.id
+        ORDER BY w.drink_window_end ASC
+        LIMIT 5
+      `, [userId, currentYear]);
+
+      if (readyResult.rows.length > 0) {
+        const count = readyResult.rows.length;
+        cards.push({
+          type: 'ready_to_drink',
+          title: 'In Their Window',
+          subtitle: `${count} wine${count > 1 ? 's' : ''} at peak drinking right now`,
+          wines: readyResult.rows.map((r: any) => ({
+            id: r.id, producer: r.producer, wine_name: r.wine_name,
+            vintage: r.vintage, color: r.color,
+          })),
+          cta_label: 'View Wines',
+          cta_filter: { drinkWindow: 'in_window' },
+        });
+      }
+
+      // drink_soon: wines entering window in next 1-2 years
+      const soonResult = await pool.query(`
+        SELECT w.id, w.producer, w.wine_name, w.vintage, w.color,
+               COUNT(b.id)::int as bottle_count
+        FROM wines w
+        JOIN bottles b ON b.wine_id = w.id AND b.status = 'in_cellar' AND b.user_id = $1
+        WHERE w.user_id = $1
+          AND w.drink_window_start IS NOT NULL
+          AND w.drink_window_start > $2
+          AND w.drink_window_start <= $3
+        GROUP BY w.id
+        ORDER BY w.drink_window_start ASC
+        LIMIT 5
+      `, [userId, currentYear, currentYear + 2]);
+
+      if (soonResult.rows.length > 0) {
+        const count = soonResult.rows.length;
+        cards.push({
+          type: 'drink_soon',
+          title: 'Opening Soon',
+          subtitle: `${count} wine${count > 1 ? 's' : ''} entering their window soon`,
+          wines: soonResult.rows.map((r: any) => ({
+            id: r.id, producer: r.producer, wine_name: r.wine_name,
+            vintage: r.vintage, color: r.color,
+          })),
+          cta_label: 'View Wines',
+          cta_filter: { drinkWindow: 'approaching' },
+        });
+      }
+
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Insights error:", error);
+      res.status(500).json({ error: "Failed to fetch insights" });
+    }
+  });
+
+  // In-memory cache for wine insights (avoid calling Claude on every page view)
+  const wineInsightCache = new Map<string, { text: string; ts: number }>();
+  const INSIGHT_TTL = 60 * 60 * 1000; // 1 hour
+
+  app.get("/api/wines/:id/insight", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      const wineId = parseInt(req.params.id as string, 10);
+      const cacheKey = `${userId}:${wineId}`;
+
+      const cached = wineInsightCache.get(cacheKey);
+      if (cached && Date.now() - cached.ts < INSIGHT_TTL) {
+        return res.json({ insight: cached.text });
+      }
+
+      // Fetch wine details
+      const wineResult = await pool.query(
+        `SELECT w.*, COUNT(b.id) FILTER (WHERE b.status = 'in_cellar') as bottle_count
+         FROM wines w LEFT JOIN bottles b ON b.wine_id = w.id AND b.user_id = $1
+         WHERE w.id = $2 AND w.user_id = $1 GROUP BY w.id`,
+        [userId, wineId]
+      );
+      if (wineResult.rows.length === 0) {
+        return res.status(404).json({ error: "Wine not found" });
+      }
+      const wine = wineResult.rows[0];
+
+      // Fetch last 5 consumption entries for this wine
+      const historyResult = await pool.query(
+        `SELECT consumed_date, occasion, rating, tasting_notes
+         FROM consumption_log WHERE wine_id = $1 AND user_id = $2
+         ORDER BY consumed_date DESC LIMIT 5`,
+        [wineId, userId]
+      );
+
+      // Fetch user memories
+      const memoriesResult = await pool.query(
+        `SELECT content FROM cru_memories WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 10`,
+        [userId]
+      );
+
+      const currentYear = new Date().getFullYear();
+      const prompt = `You are Cru, a sommelier. Given this wine and user data, write ONE brief insight (2-3 sentences max). Focus on: drinking window status, personal history with this wine, or a specific recommendation. Be warm, specific, and actionable.
+
+Wine: ${wine.producer} ${wine.wine_name} ${wine.vintage || "NV"}, ${wine.color}, ${wine.region || wine.country || ""}. Drink window: ${wine.drink_window_start || "?"}-${wine.drink_window_end || "?"}. Current year: ${currentYear}. Bottles in cellar: ${wine.bottle_count}.
+${wine.ct_community_score ? `Community score: ${wine.ct_community_score}` : ""}
+
+Consumption history: ${historyResult.rows.length > 0 ? historyResult.rows.map((h: any) => `${h.consumed_date}${h.rating ? ` (rated ${h.rating}/5)` : ""}${h.occasion ? ` - ${h.occasion}` : ""}`).join("; ") : "No history with this wine yet."}
+
+User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m: any) => m.content).join(". ") : "No preferences recorded yet."}`;
+
+      const response = await callAnthropic({
+        model: "claude-sonnet-4-6",
+        max_tokens: 200,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const insightText = response.content
+        .filter((b: any) => b.type === "text")
+        .map((b: any) => b.text)
+        .join("");
+
+      wineInsightCache.set(cacheKey, { text: insightText, ts: Date.now() });
+      res.json({ insight: insightText });
+    } catch (error: any) {
+      console.error("Wine insight error:", error);
+      res.status(500).json({ error: "Failed to generate insight" });
+    }
+  });
+
+  app.post("/api/scan/context", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      const { producer, wine_name, region, country } = req.body;
+      const comments: string[] = [];
+
+      if (producer) {
+        const existing = await pool.query(
+          `SELECT COUNT(DISTINCT w.id) as wine_count, COUNT(b.id) as bottle_count
+           FROM wines w JOIN bottles b ON b.wine_id = w.id AND b.status = 'in_cellar' AND b.user_id = $1
+           WHERE w.user_id = $1 AND LOWER(w.producer) = LOWER($2)`,
+          [userId, producer]
+        );
+        const { wine_count, bottle_count } = existing.rows[0];
+        if (parseInt(bottle_count) > 0) {
+          comments.push(`You already have ${bottle_count} bottle${parseInt(bottle_count) > 1 ? "s" : ""} from ${producer}.`);
+        }
+      }
+
+      const regionName = region || country;
+      if (regionName) {
+        const regionResult = await pool.query(
+          `SELECT COUNT(DISTINCT w.id) as count FROM wines w
+           JOIN bottles b ON b.wine_id = w.id AND b.status = 'in_cellar' AND b.user_id = $1
+           WHERE w.user_id = $1 AND (LOWER(w.region) = LOWER($2) OR LOWER(w.country) = LOWER($2))`,
+          [userId, regionName]
+        );
+        const regionCount = parseInt(regionResult.rows[0].count);
+        if (regionCount < 2 && regionCount >= 0) {
+          comments.push(`This fills a gap in your ${regionName} collection.`);
+        }
+      }
+
+      res.json({ comment: comments.length > 0 ? comments.join(" ") : null });
+    } catch (error: any) {
+      console.error("Scan context error:", error);
+      res.json({ comment: null });
+    }
+  });
+
+  // Push notifications
+  app.post("/api/auth/push-token", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ error: "Token required" });
+      await pool.query("UPDATE users SET push_token = $1 WHERE id = $2", [token, req.userId]);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Push token error:", error);
+      res.status(500).json({ error: "Failed to save push token" });
+    }
+  });
+
+  app.get("/api/notifications/preferences", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      // Create default row if doesn't exist
+      await pool.query(
+        "INSERT INTO notification_preferences (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING",
+        [req.userId]
+      );
+      const result = await pool.query(
+        "SELECT drink_window_alerts, weekly_digest, daily_max FROM notification_preferences WHERE user_id = $1",
+        [req.userId]
+      );
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      console.error("Notification prefs error:", error);
+      res.status(500).json({ error: "Failed to fetch preferences" });
+    }
+  });
+
+  app.patch("/api/notifications/preferences", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const { drink_window_alerts, weekly_digest, daily_max } = req.body;
+      await pool.query(
+        "INSERT INTO notification_preferences (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING",
+        [req.userId]
+      );
+      const updates: string[] = [];
+      const params: any[] = [];
+      let idx = 1;
+      if (drink_window_alerts !== undefined) { updates.push(`drink_window_alerts = $${idx++}`); params.push(drink_window_alerts); }
+      if (weekly_digest !== undefined) { updates.push(`weekly_digest = $${idx++}`); params.push(weekly_digest); }
+      if (daily_max !== undefined) { updates.push(`daily_max = $${idx++}`); params.push(daily_max); }
+      if (updates.length === 0) return res.json({ success: true });
+      updates.push(`updated_at = NOW()`);
+      params.push(req.userId);
+      await pool.query(
+        `UPDATE notification_preferences SET ${updates.join(", ")} WHERE user_id = $${idx}`,
+        params
+      );
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Update notification prefs error:", error);
+      res.status(500).json({ error: "Failed to update preferences" });
+    }
+  });
+
+  app.get("/api/memories", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const result = await pool.query(
+        "SELECT id, content, category, created_at FROM cru_memories WHERE user_id = $1 ORDER BY created_at DESC",
+        [req.userId]
+      );
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Memories error:", error);
+      res.status(500).json({ error: "Failed to fetch memories" });
+    }
+  });
+
+  app.delete("/api/memories/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const result = await pool.query(
+        "DELETE FROM cru_memories WHERE id = $1 AND user_id = $2 RETURNING id",
+        [parseInt(req.params.id as string, 10), req.userId]
+      );
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Memory not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete memory error:", error);
+      res.status(500).json({ error: "Failed to delete memory" });
+    }
+  });
+
   app.post("/api/wines/fuzzy-match", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const { producer, wine_name, vineyard } = req.body;

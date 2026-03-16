@@ -298,6 +298,13 @@ function setupErrorHandler(app: express.Application) {
     },
     () => {
       log(`express server serving on port ${port}`);
+
+      // Start notification scheduler (gated behind env var)
+      if (process.env.NODE_ENV !== "test" && process.env.ENABLE_SCHEDULER === "true") {
+        import("./scheduler").then((m) => m.initializeScheduler()).catch((err) => {
+          console.error("[scheduler] Failed to initialize:", err);
+        });
+      }
     },
   );
 })();

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
+
 import {
   View,
   Text,
@@ -17,8 +18,11 @@ import * as Linking from "expo-linking";
 import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { getApiUrl } from "@/lib/query-client";
+import { useCruInsights } from "@/contexts/CruInsightsContext";
+import CruHeaderIcon from "@/components/CruHeaderIcon";
+import { getApiUrl, apiRequest, queryClient } from "@/lib/query-client";
 import { currentAuthToken } from "@/lib/auth-token";
 
 function SettingsRow({
@@ -103,7 +107,20 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { user, logout, biometricsAvailable, biometricsEnabled, biometricType, toggleBiometrics } = useAuth();
+  const { hasNewInsight } = useCruInsights();
   const [exporting, setExporting] = useState(false);
+
+  const { data: notifPrefs } = useQuery<{ drink_window_alerts: boolean; weekly_digest: boolean; daily_max: number }>({
+    queryKey: ["/api/notifications/preferences"],
+  });
+
+  const notifMutation = useMutation({
+    mutationFn: async (prefs: Record<string, any>) => {
+      const res = await apiRequest("PATCH", "/api/notifications/preferences", prefs);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications/preferences"] }),
+  });
 
   const handleBiometricsToggle = async (_val: boolean) => {
     await toggleBiometrics();
@@ -186,7 +203,13 @@ export default function SettingsScreen() {
       style={styles.screen}
     >
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 12 }]}>
-        <Text style={styles.title}>Settings</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={styles.title}>Settings</Text>
+          <CruHeaderIcon
+            onPress={() => router.navigate("/(tabs)/sommelier")}
+            showBadge={hasNewInsight}
+          />
+        </View>
       </View>
 
       <ScrollView
@@ -195,6 +218,31 @@ export default function SettingsScreen() {
           { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
         ]}
       >
+        <SettingsSection title="Cru">
+          <SettingsRow
+            icon="sparkles"
+            label="What Cru Knows"
+            subtitle="View and manage Cru's notes about you"
+            onPress={() => router.push("/cru-profile" as any)}
+          />
+          <SettingsRow
+            icon="notifications-outline"
+            label="Drink Window Alerts"
+            subtitle="Get notified when wines enter their window"
+            toggle
+            toggleValue={notifPrefs?.drink_window_alerts ?? true}
+            onToggle={(val) => notifMutation.mutate({ drink_window_alerts: val })}
+          />
+          <SettingsRow
+            icon="calendar-outline"
+            label="Weekly Cellar Digest"
+            subtitle="A weekly summary from Cru"
+            toggle
+            toggleValue={notifPrefs?.weekly_digest ?? true}
+            onToggle={(val) => notifMutation.mutate({ weekly_digest: val })}
+          />
+        </SettingsSection>
+
         <SettingsSection title="Account">
           <SettingsRow
             icon="person-outline"

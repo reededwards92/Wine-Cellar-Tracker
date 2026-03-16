@@ -101,6 +101,15 @@ export interface ImportPreview {
   unique_wines: number;
 }
 
+export interface InsightCard {
+  type: 'ready_to_drink' | 'drink_soon';
+  title: string;
+  subtitle: string;
+  wines: Array<{ id: number; producer: string; wine_name: string; vintage?: number; color?: string }>;
+  cta_label: string;
+  cta_filter?: Record<string, string>;
+}
+
 export function getDrinkWindowStatus(start: number | null, end: number | null): "in_window" | "approaching" | "past_peak" | "not_set" {
   const currentYear = new Date().getFullYear();
   // Treat obviously invalid years (e.g. 9999) as not set

@@ -6,6 +6,7 @@ import { Platform, StyleSheet, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import Colors from "@/constants/colors";
+import { CruInsightsProvider } from "@/contexts/CruInsightsContext";
 
 function ScanTabButton({ children, onPress, accessibilityState }: any) {
   const focused = accessibilityState?.selected;
@@ -125,10 +126,8 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
+  const content = isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />;
+  return <CruInsightsProvider>{content}</CruInsightsProvider>;
 }
 
 const styles = StyleSheet.create({

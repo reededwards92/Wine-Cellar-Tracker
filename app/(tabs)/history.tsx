@@ -26,6 +26,8 @@ import { theme } from "@/constants/theme";
 import { getColorDot } from "@/lib/api";
 import type { ConsumptionEntry } from "@/lib/api";
 import { apiRequest, queryClient } from "@/lib/query-client";
+import CruHeaderIcon from "@/components/CruHeaderIcon";
+import { useCruInsights } from "@/contexts/CruInsightsContext";
 
 const WINE_COLORS: Record<string, string> = {
   Red: Colors.light.colorRed,
@@ -325,6 +327,7 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const router = useRouter();
+  const { hasNewInsight } = useCruInsights();
   const params = useLocalSearchParams<{ rated?: string }>();
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -453,14 +456,20 @@ export default function HistoryScreen() {
               <Text style={styles.subtitle}>{totalCount} bottle{totalCount !== 1 ? "s" : ""} consumed</Text>
             ) : null}
           </View>
-          {entries.length > 0 ? (
-            <Pressable
-              onPress={editing ? exitEditing : () => setEditing(true)}
-              hitSlop={8}
-            >
-              <Text style={styles.editBtn}>{editing ? "Done" : "Edit"}</Text>
-            </Pressable>
-          ) : null}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {entries.length > 0 ? (
+              <Pressable
+                onPress={editing ? exitEditing : () => setEditing(true)}
+                hitSlop={8}
+              >
+                <Text style={styles.editBtn}>{editing ? "Done" : "Edit"}</Text>
+              </Pressable>
+            ) : null}
+            <CruHeaderIcon
+              onPress={() => router.navigate("/(tabs)/sommelier")}
+              showBadge={hasNewInsight}
+            />
+          </View>
         </View>
         {editing ? (
           <View style={styles.editBar}>

@@ -26,7 +26,10 @@ import { theme } from "@/constants/theme";
 import StatsBar from "@/components/StatsBar";
 import WineCard from "@/components/WineCard";
 import FilterPanel, { type FilterState } from "@/components/FilterPanel";
-import type { WineListItem, Stats, FilterOptions } from "@/lib/api";
+import InsightsRow from "@/components/InsightsRow";
+import CruHeaderIcon from "@/components/CruHeaderIcon";
+import { useCruInsights } from "@/contexts/CruInsightsContext";
+import type { WineListItem, Stats, FilterOptions, InsightCard } from "@/lib/api";
 
 const DEFAULT_FILTERS: FilterState = {
   colors: [],
@@ -262,6 +265,7 @@ function SectionScrubber({
 
 export default function CellarScreen() {
   const insets = useSafeAreaInsets();
+  const { hasNewInsight } = useCruInsights();
   const params = useLocalSearchParams<{ drinkWindow?: string }>();
   const [filters, setFilters] = useState<FilterState>(() => {
     if (params.drinkWindow) {
@@ -333,6 +337,11 @@ export default function CellarScreen() {
 
   const { data: filterOptions } = useQuery<FilterOptions>({
     queryKey: ["/api/filters"],
+  });
+
+  const { data: insights, isLoading: insightsLoading } = useQuery<InsightCard[]>({
+    queryKey: ["/api/insights"],
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: storageLocs } = useQuery<{ name: string; type: string }[]>({
@@ -469,11 +478,34 @@ export default function CellarScreen() {
             </Pressable>
           </View>
         ) : (
-          <Text style={styles.title}>Cellar</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={styles.title}>Cellar</Text>
+            <CruHeaderIcon
+              onPress={() => router.navigate("/(tabs)/sommelier")}
+              showBadge={hasNewInsight}
+            />
+          </View>
         )}
       </View>
 
       <StatsBar stats={stats} isLoading={statsLoading} />
+
+      <InsightsRow
+        insights={insights ?? []}
+        onCardPress={(card) => {
+          if (card.cta_filter) {
+            setFilters((prev) => ({
+              ...prev,
+              ...Object.fromEntries(
+                Object.entries(card.cta_filter!).map(([k, v]) =>
+                  Array.isArray(prev[k as keyof FilterState]) ? [k, [v]] : [k, v]
+                )
+              ),
+            }));
+          }
+        }}
+        isLoading={insightsLoading}
+      />
 
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>

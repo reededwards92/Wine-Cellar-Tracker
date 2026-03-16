@@ -207,11 +207,12 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "save_memory",
-    description: "Save something about the user to your long-term memory. Use this to remember preferences, tastes, habits, dietary restrictions, people they drink with, occasions, or anything that would help you make better recommendations in future conversations. Each memory should be a single, concise fact. You can also update an existing memory by passing its ID.",
+    description: "Save something about the user to your long-term memory. Use this to remember preferences, tastes, habits, dietary restrictions, people they drink with, occasions, milestones, or anything that would help you make better recommendations in future conversations. Each memory should be a single, concise fact. You can also update an existing memory by passing its ID. When you learn something meaningful about the user's preferences, occasions, or taste profile, use this tool to store it.",
     input_schema: {
       type: "object" as const,
       properties: {
         content: { type: "string", description: "The fact to remember, e.g. 'Prefers bold, full-bodied reds' or 'Partner is Sarah, doesn\\'t like tannic wines' or 'Friday night is usually pizza night'" },
+        category: { type: "string", enum: ["preference", "occasion", "milestone", "general"], description: "Category of the memory: 'preference' for tastes/dislikes, 'occasion' for events/people, 'milestone' for achievements, 'general' for other" },
         memory_id: { type: "number", description: "If updating an existing memory, pass its ID. Otherwise omit to create a new one." },
       },
       required: ["content"],
@@ -784,11 +785,13 @@ async function saveMemory(input: any, userId?: number): Promise<string> {
   if (!userId) return JSON.stringify({ error: "Authentication required" });
   if (!input.content?.trim()) return JSON.stringify({ error: "Memory content is required" });
 
+  const category = input.category || "general";
+
   if (input.memory_id) {
     // Update existing memory
     const result = await pool.query(
-      "UPDATE cru_memories SET content = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING id",
-      [input.content.trim(), input.memory_id, userId]
+      "UPDATE cru_memories SET content = $1, category = $2, updated_at = NOW() WHERE id = $3 AND user_id = $4 RETURNING id",
+      [input.content.trim(), category, input.memory_id, userId]
     );
     if (result.rows.length === 0) return JSON.stringify({ error: "Memory not found" });
     return JSON.stringify({ success: true, memory_id: result.rows[0].id, action: "updated" });
@@ -796,8 +799,8 @@ async function saveMemory(input: any, userId?: number): Promise<string> {
 
   // Create new memory
   const result = await pool.query(
-    "INSERT INTO cru_memories (user_id, content) VALUES ($1, $2) RETURNING id",
-    [userId, input.content.trim()]
+    "INSERT INTO cru_memories (user_id, content, category) VALUES ($1, $2, $3) RETURNING id",
+    [userId, input.content.trim(), category]
   );
   return JSON.stringify({ success: true, memory_id: result.rows[0].id, action: "saved" });
 }
@@ -814,8 +817,19 @@ async function deleteMemory(input: any, userId?: number): Promise<string> {
 
 export async function getUserMemories(userId: number): Promise<string[]> {
   const result = await pool.query(
-    "SELECT id, content FROM cru_memories WHERE user_id = $1 ORDER BY updated_at DESC",
+    "SELECT id, content, category FROM cru_memories WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 15",
     [userId]
   );
-  return result.rows.map((r: any) => `[#${r.id}] ${r.content}`);
+  const grouped: Record<string, string[]> = {};
+  for (const r of result.rows) {
+    const cat = r.category || "general";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(`[#${r.id}] ${r.content}`);
+  }
+  const lines: string[] = [];
+  for (const [cat, items] of Object.entries(grouped)) {
+    lines.push(`${cat.charAt(0).toUpperCase() + cat.slice(1)}:`);
+    lines.push(...items.map((i: string) => `  - ${i}`));
+  }
+  return lines;
 }
