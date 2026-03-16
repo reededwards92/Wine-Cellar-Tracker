@@ -274,6 +274,7 @@ export default function CellarScreen() {
     return DEFAULT_FILTERS;
   });
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [filterOpenSection, setFilterOpenSection] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
   const isWeb = Platform.OS === "web";
   const sectionListRef = useRef<SectionList>(null);
@@ -505,6 +506,7 @@ export default function CellarScreen() {
               ),
             }));
             setFiltersExpanded(true);
+            setFilterOpenSection("dw");
           }
         }}
         isLoading={insightsLoading}
@@ -534,7 +536,11 @@ export default function CellarScreen() {
         onChange={setFilters}
         options={filterOptions}
         isExpanded={filtersExpanded}
-        onToggle={() => setFiltersExpanded(!filtersExpanded)}
+        onToggle={() => {
+          setFiltersExpanded((prev) => !prev);
+          if (filtersExpanded) setFilterOpenSection(null);
+        }}
+        defaultOpenSection={filterOpenSection}
       />
 
       <View style={styles.listWrapper}>

@@ -43,8 +43,8 @@ export default function InsightCard({ card, onPress }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 210,
-    height: 155,
+    width: 200,
+    height: 140,
     backgroundColor: Colors.light.cardBackground,
     borderRadius: theme.radius.lg,
     flexDirection: "row",

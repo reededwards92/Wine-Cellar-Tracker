@@ -26,6 +26,7 @@ interface FilterPanelProps {
   options: FilterOptions | undefined;
   isExpanded: boolean;
   onToggle: () => void;
+  defaultOpenSection?: string | null;
 }
 
 const WINE_COLORS = ["Red", "White", "Rosé", "Sparkling", "Dessert", "Fortified"];
@@ -81,8 +82,12 @@ function AccordionSection({
   );
 }
 
-export default function FilterPanel({ filters, onChange, options, isExpanded, onToggle }: FilterPanelProps) {
-  const [openSection, setOpenSection] = useState<string | null>(null);
+export default function FilterPanel({ filters, onChange, options, isExpanded, onToggle, defaultOpenSection }: FilterPanelProps) {
+  const [openSection, setOpenSection] = useState<string | null>(defaultOpenSection ?? null);
+
+  React.useEffect(() => {
+    if (defaultOpenSection !== undefined) setOpenSection(defaultOpenSection ?? null);
+  }, [defaultOpenSection]);
 
   const toggleSection = (key: string) =>
     setOpenSection((prev) => (prev === key ? null : key));

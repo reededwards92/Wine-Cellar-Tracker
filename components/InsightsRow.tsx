@@ -118,8 +118,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   skeleton: {
-    width: 210,
-    height: 155,
+    width: 200,
+    height: 140,
     backgroundColor: Colors.light.cardBackground,
     borderRadius: theme.radius.lg,
     flexDirection: "row",
