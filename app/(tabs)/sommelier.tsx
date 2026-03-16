@@ -22,7 +22,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "react-native-markdown-display";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
+import CruMeshBackground from "@/components/CruMeshBackground";
 import { BlurView } from "expo-blur";
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
@@ -848,11 +848,8 @@ export default function SommelierScreen() {
   const tabBarHeight = isWeb ? 84 : Platform.OS === "ios" ? 70 + insets.bottom : 70;
 
   return (
-    <LinearGradient
-      colors={['#6B2A32', '#8B3D46', '#BF7A82', '#E8C8CB', '#F5E8E9', '#FDF6F0', '#FDF6F0', '#FDF6F0']}
-      locations={[0, 0.12, 0.22, 0.32, 0.42, 0.55, 0.78, 1.0]}
-      style={[styles.container, { paddingTop: isWeb ? 67 : 0, paddingBottom: tabBarHeight }]}
-    >
+    <View style={[styles.container, { paddingTop: isWeb ? 67 : 0, paddingBottom: tabBarHeight }]}>
+      <CruMeshBackground />
       <View
         style={[
           styles.header,
@@ -1009,7 +1006,7 @@ export default function SommelierScreen() {
           </Pressable>
         </Animated.View>
       ) : null}
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -1085,6 +1082,7 @@ const markdownStyles = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#1A0608",
   },
   flex: {
     flex: 1,
