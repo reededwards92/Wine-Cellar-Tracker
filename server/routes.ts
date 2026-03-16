@@ -26,6 +26,31 @@ async function callAnthropic(params: {
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
+// Per-user rate limiter for AI endpoints
+const aiRateBuckets = new Map<number, { count: number; resetAt: number }>();
+const AI_RATE_WINDOW_MS = 60 * 1000; // 1 minute
+const AI_RATE_MAX = 20; // max AI calls per user per minute
+
+function checkAiRateLimit(userId: number): boolean {
+  const now = Date.now();
+  const bucket = aiRateBuckets.get(userId);
+  if (!bucket || now >= bucket.resetAt) {
+    aiRateBuckets.set(userId, { count: 1, resetAt: now + AI_RATE_WINDOW_MS });
+    return true;
+  }
+  if (bucket.count >= AI_RATE_MAX) return false;
+  bucket.count++;
+  return true;
+}
+
+// Clean up stale buckets every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of aiRateBuckets) {
+    if (now >= bucket.resetAt) aiRateBuckets.delete(key);
+  }
+}, 5 * 60 * 1000);
+
 function cleanValue(val: string | undefined | null): string | null {
   if (!val || val.trim() === "" || val.trim().toLowerCase() === "unknown") return null;
   return val.trim();
@@ -169,6 +194,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ insight: cached.text });
       }
 
+      // Rate limit only on cache miss (actual AI call)
+      if (!checkAiRateLimit(userId!)) {
+        return res.status(429).json({ error: "Too many requests. Please slow down." });
+      }
+
       // Fetch wine details
       const wineResult = await pool.query(
         `SELECT w.*, COUNT(b.id) FILTER (WHERE b.status = 'in_cellar') as bottle_count
@@ -196,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       const currentYear = new Date().getFullYear();
-      const prompt = `You are Cru, a sommelier. Given this wine and user data, write ONE brief insight (2-3 sentences max). Focus on: drinking window status, personal history with this wine, or a specific recommendation. Be warm, specific, and actionable.
+      const prompt = `You are Cru, a sommelier. Given this wine and user data, write ONE brief insight (2-3 sentences max). Include what tasting notes the user should expect from this wine (e.g., aromas, flavors, texture). You can also touch on drinking window status or personal history if relevant. Be warm, specific, and actionable.
 
 Wine: ${wine.producer} ${wine.wine_name} ${wine.vintage || "NV"}, ${wine.color}, ${wine.region || wine.country || ""}. Drink window: ${wine.drink_window_start || "?"}-${wine.drink_window_end || "?"}. Current year: ${currentYear}. Bottles in cellar: ${wine.bottle_count}.
 ${wine.ct_community_score ? `Community score: ${wine.ct_community_score}` : ""}
@@ -1620,8 +1650,11 @@ Your personality:
 - When recommending wines, explain your reasoning briefly but naturally — don't list factors like a formula
 - Use the tools proactively to answer questions accurately — always check the database rather than guessing
 
-How to recommend wines:
-When the user asks for a recommendation ("what should I drink?", "pick something for tonight", etc.), think through these layers in order — but present only the conclusion, not the reasoning chain:
+Conversational approach:
+Your default mode is to engage with what the user is already talking about. If they mention a specific wine, ask about a bottle they're considering, or want to discuss something in their cellar — talk about THAT wine. Share knowledge, tasting notes, food pairings, or drinking window advice for the wine at hand. Do NOT immediately pivot to searching the cellar or pulling up alternatives unless the user explicitly asks for a recommendation or a comparison.
+
+How to recommend wines (only when asked):
+When the user explicitly asks for a recommendation ("what should I drink?", "pick something for tonight", etc.), think through these layers in order — but present only the conclusion, not the reasoning chain. **Never recommend more than 3 wines** — usually 1 is best, with a brief mention of an alternative if relevant.
 
 1. **User context first**: If the user mentions food, an occasion, guests, or a mood — that's your primary signal. Lead with it.
 2. **Their taste**: Use get_consumption_history and get_cellar_stats to understand what they drink most, what they rate highly, and what styles they gravitate toward. A recommendation should feel personal, not generic.
@@ -1675,6 +1708,9 @@ Common workflows:
 Current date: ${new Date().toISOString().split("T")[0]}`;
 
   app.post("/api/analyze-wine-image", requireAuth, async (req: AuthRequest, res: Response) => {
+    if (!checkAiRateLimit(req.userId!)) {
+      return res.status(429).json({ error: "Too many requests. Please slow down." });
+    }
     try {
       const { image, mimeType } = req.body;
       if (!image) {
@@ -1764,6 +1800,9 @@ Be accurate — only include what you can clearly read from the label. For color
   const MAX_TOOL_ITERATIONS = 12;
 
   app.post("/api/chat", requireAuth, async (req: AuthRequest, res: Response) => {
+    if (!checkAiRateLimit(req.userId!)) {
+      return res.status(429).json({ error: "Too many requests. Please slow down." });
+    }
     let clientDisconnected = false;
     res.on("close", () => {
       clientDisconnected = true;

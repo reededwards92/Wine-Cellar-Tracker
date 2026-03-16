@@ -155,7 +155,7 @@ export const CELLAR_TOOLS: Anthropic.Tool[] = [
         color: { type: "string", description: "Filter by color if relevant" },
         occasion: { type: "string", description: "The occasion to recommend for" },
         food_pairing: { type: "string", description: "What food will be served" },
-        limit: { type: "number", description: "Max recommendations (default 5)" },
+        limit: { type: "number", description: "Max recommendations (default 3)" },
       },
       required: ["criteria"],
     },
@@ -524,7 +524,7 @@ async function getCellarStats(userId?: number): Promise<string> {
 
 async function getRecommendations(input: any, userId?: number): Promise<string> {
   const currentYear = new Date().getFullYear();
-  const limit = input.limit || 5;
+  const limit = Math.min(input.limit || 3, 3);
   const params: any[] = [];
   let paramIdx = 1;
   let query = "";
