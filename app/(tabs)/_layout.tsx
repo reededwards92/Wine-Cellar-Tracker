@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    top: -19,
+    top: -8,
   },
   scanButton: {
     width: 56,

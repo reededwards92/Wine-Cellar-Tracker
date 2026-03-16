@@ -869,7 +869,7 @@ export default function SommelierScreen() {
             <Ionicons
               name="refresh"
               size={20}
-              color="rgba(245,232,234,0.7)"
+              color="rgba(26,10,12,0.4)"
             />
           </Pressable>
         )}
@@ -1098,10 +1098,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 34,
     fontFamily: "LibreBaskerville_400Regular",
-    color: "#FFFFFF",
-    textShadowColor: "rgba(0,0,0,0.25)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    color: "#1A0A0C",
   },
   messageList: {
     paddingHorizontal: 16,

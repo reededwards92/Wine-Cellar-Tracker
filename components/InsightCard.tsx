@@ -44,7 +44,7 @@ export default function InsightCard({ card, onPress }: Props) {
 const styles = StyleSheet.create({
   container: {
     width: 200,
-    height: 140,
+    height: 118,
     backgroundColor: Colors.light.cardBackground,
     borderRadius: theme.radius.lg,
     flexDirection: "row",
@@ -76,14 +76,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 6,
-    marginTop: 8,
+    gap: 4,
+    marginTop: 6,
   },
   wineChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    maxWidth: 85,
+    maxWidth: 80,
   },
   wineDot: {
     width: 6,

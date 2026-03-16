@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "LibreBaskerville_700Bold",
     color: Colors.light.text,
   },
   subtitle: {

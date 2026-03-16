@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet } from "react-native";
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
-import { LinearGradient } from "expo-linear-gradient";
 
 interface BlobConfig {
   id: string;
@@ -144,13 +143,6 @@ export default function CruMeshBackground() {
       {BLOBS.map((cfg) => (
         <Blob key={cfg.id} cfg={cfg} />
       ))}
-      {/* Keeps the header area dark enough for white text */}
-      <LinearGradient
-        colors={["#6B2A32", "#722F37", "rgba(114,47,55,0.0)"]}
-        locations={[0, 0.14, 0.38]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
     </Animated.View>
   );
 }
