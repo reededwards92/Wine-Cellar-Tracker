@@ -1,95 +1,135 @@
-import React, { useEffect } from "react";
-import { StyleSheet, useWindowDimensions } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
-import Svg, { Defs, Ellipse, RadialGradient, Stop } from "react-native-svg";
-import { LinearGradient } from "expo-linear-gradient";
+import React, { useEffect, useRef } from "react";
+import { Animated, Easing, StyleSheet } from "react-native";
+import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 
 interface BlobConfig {
   id: string;
+  size: number;
   color: string;
-  opacity: number;
-  /** blob center as fraction of screen width/height */
-  fx: number;
-  fy: number;
-  /** blob radius as fraction of screen width (used for both axes) */
-  r: number;
-  /** drift range in pixels */
+  stopOpacity: number;
+  position: {
+    top?: number;
+    left?: number;
+    right?: number;
+    bottom?: number;
+  };
+  /** max translation in each direction */
   dx: number;
   dy: number;
-  /** animation duration ms */
-  duration: number;
-  /** 0–1 starting offset so blobs don't all move in sync */
-  phase: number;
+  /** full cycle duration ms (X and Y are independent) */
+  durationX: number;
+  durationY: number;
+  /** initial offset to stagger phase at mount */
+  initX: number;
+  initY: number;
 }
 
 const BLOBS: BlobConfig[] = [
-  // Large cream bloom — main light source, center stage
-  { id: "cream",  color: "#FDF0E8", opacity: 0.90, fx: 0.42, fy: 0.58, r: 0.72, dx:  44, dy:  28, duration: 6400, phase: 0.00 },
-  // Rose — upper-right of lower section
-  { id: "rose1",  color: "#C4787F", opacity: 0.62, fx: 0.84, fy: 0.50, r: 0.50, dx: -52, dy:  34, duration: 5200, phase: 0.30 },
-  // Amber — left side
-  { id: "amber",  color: "#D4A574", opacity: 0.58, fx: 0.10, fy: 0.72, r: 0.48, dx:  46, dy: -38, duration: 6000, phase: 0.60 },
-  // Soft blush — lower right
-  { id: "blush",  color: "#EBC4C8", opacity: 0.72, fx: 0.68, fy: 0.82, r: 0.56, dx: -34, dy:  44, duration: 7200, phase: 0.15 },
-  // Deep rose — bottom left
-  { id: "rose2",  color: "#B86068", opacity: 0.50, fx: 0.26, fy: 0.91, r: 0.44, dx:  38, dy: -24, duration: 5600, phase: 0.75 },
+  {
+    id: "b1",
+    size: 340,
+    color: "#722F37",
+    stopOpacity: 0.08,
+    position: { top: -80, left: -80 },
+    dx: 40, dy: 30,
+    durationX: 18000, durationY: 14000,
+    initX: 15, initY: -10,
+  },
+  {
+    id: "b2",
+    size: 260,
+    color: "#A0404A",
+    stopOpacity: 0.07,
+    position: { top: 80, right: -50 },
+    dx: 30, dy: 45,
+    durationX: 22000, durationY: 16000,
+    initX: -20, initY: 18,
+  },
+  {
+    id: "b3",
+    size: 300,
+    color: "#E8C4B0",
+    stopOpacity: 0.60,
+    position: { top: 180, left: 20 },
+    dx: 45, dy: 35,
+    durationX: 15000, durationY: 19000,
+    initX: 25, initY: -15,
+  },
+  {
+    id: "b4",
+    size: 300,
+    color: "#722F37",
+    stopOpacity: 0.09,
+    position: { bottom: -60, right: -60 },
+    dx: 35, dy: 40,
+    durationX: 24000, durationY: 18000,
+    initX: -18, initY: 22,
+  },
+  {
+    id: "b5",
+    size: 240,
+    color: "#E8C4B0",
+    stopOpacity: 0.50,
+    position: { bottom: 140, left: -30 },
+    dx: 50, dy: 28,
+    durationX: 13000, durationY: 21000,
+    initX: 30, initY: -8,
+  },
+  {
+    id: "b6",
+    size: 220,
+    color: "#A0404A",
+    stopOpacity: 0.06,
+    position: { top: 350, right: 10 },
+    dx: 28, dy: 50,
+    durationX: 20000, durationY: 12000,
+    initX: -12, initY: 35,
+  },
 ];
 
-interface BlobProps {
-  cfg: BlobConfig;
-  screenW: number;
-  screenH: number;
+function makeLoop(value: Animated.Value, max: number, duration: number) {
+  const q = Math.round(duration / 4);
+  return Animated.loop(
+    Animated.sequence([
+      Animated.timing(value, { toValue:  max, duration: q,     easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(value, { toValue: -max, duration: q * 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(value, { toValue:    0, duration: q,     easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ])
+  );
 }
 
-function AnimatedBlob({ cfg, screenW, screenH }: BlobProps) {
-  const diameter = cfg.r * screenW * 2;
-  const baseLeft = cfg.fx * screenW - diameter / 2;
-  const baseTop  = cfg.fy * screenH - diameter / 2;
-
-  const tx = useSharedValue(cfg.phase * cfg.dx);
-  const ty = useSharedValue(cfg.phase * cfg.dy);
+function Blob({ cfg }: { cfg: BlobConfig }) {
+  const tx = useRef(new Animated.Value(cfg.initX)).current;
+  const ty = useRef(new Animated.Value(cfg.initY)).current;
 
   useEffect(() => {
-    tx.value = withRepeat(
-      withTiming(cfg.dx, { duration: cfg.duration, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
-    );
-    ty.value = withRepeat(
-      withTiming(cfg.dy, { duration: Math.round(cfg.duration * 1.33), easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
-    );
+    const xa = makeLoop(tx, cfg.dx, cfg.durationX);
+    const ya = makeLoop(ty, cfg.dy, cfg.durationY);
+    xa.start();
+    ya.start();
+    return () => { xa.stop(); ya.stop(); };
   }, []);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { translateY: ty.value }],
-  }));
 
   return (
     <Animated.View
-      style={[{ position: "absolute", left: baseLeft, top: baseTop, width: diameter, height: diameter }, animStyle]}
       pointerEvents="none"
+      style={[
+        styles.blob,
+        cfg.position,
+        { transform: [{ translateX: tx }, { translateY: ty }] },
+      ]}
     >
-      <Svg width={diameter} height={diameter}>
+      <Svg width={cfg.size} height={cfg.size}>
         <Defs>
           <RadialGradient id={`rg_${cfg.id}`} cx="50%" cy="50%" r="50%">
-            <Stop offset="0%"   stopColor={cfg.color} stopOpacity={cfg.opacity} />
-            <Stop offset="55%"  stopColor={cfg.color} stopOpacity={cfg.opacity * 0.35} />
+            <Stop offset="0%"   stopColor={cfg.color} stopOpacity={cfg.stopOpacity} />
             <Stop offset="100%" stopColor={cfg.color} stopOpacity={0} />
           </RadialGradient>
         </Defs>
-        <Ellipse
-          cx={diameter / 2}
-          cy={diameter / 2}
-          rx={diameter / 2}
-          ry={diameter / 2}
+        <Circle
+          cx={cfg.size / 2}
+          cy={cfg.size / 2}
+          r={cfg.size / 2}
           fill={`url(#rg_${cfg.id})`}
         />
       </Svg>
@@ -98,25 +138,17 @@ function AnimatedBlob({ cfg, screenW, screenH }: BlobProps) {
 }
 
 export default function CruMeshBackground() {
-  const { width, height } = useWindowDimensions();
-
   return (
-    <>
-      {/* Dark burgundy base */}
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: "#1A0608" }]} pointerEvents="none" />
-
-      {/* Animated color blobs — only breathe in the lower ~2/3 */}
+    <Animated.View style={StyleSheet.absoluteFill} pointerEvents="none">
       {BLOBS.map((cfg) => (
-        <AnimatedBlob key={cfg.id} cfg={cfg} screenW={width} screenH={height} />
+        <Blob key={cfg.id} cfg={cfg} />
       ))}
-
-      {/* Top overlay — locks the header area to deep burgundy regardless of blob motion */}
-      <LinearGradient
-        colors={["#3D0F17", "#5A1A24", "rgba(45,8,15,0.75)", "transparent"]}
-        locations={[0, 0.20, 0.34, 0.50]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-    </>
+    </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  blob: {
+    position: "absolute",
+  },
+});
