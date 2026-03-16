@@ -136,7 +136,164 @@ export async function initializeDatabase() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_cru_memories_user_id ON cru_memories(user_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id)`);
 
+  await pool.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+
+  await pool.query(`
+    CREATE OR REPLACE FUNCTION normalize_wine_text(input TEXT) RETURNS TEXT AS $$
+      SELECT TRIM(
+        REGEXP_REPLACE(
+          REGEXP_REPLACE(
+            REGEXP_REPLACE(
+              LOWER(unaccent(input)),
+              '\\mch\\.\\s*', 'chateau ', 'gi'),
+            '\\mdom\\.\\s*', 'domaine ', 'gi'),
+          '\\s+', ' ', 'g')
+      );
+    $$ LANGUAGE SQL STABLE;
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS master_wines (
+      id SERIAL PRIMARY KEY,
+      producer TEXT NOT NULL,
+      producer_normalized TEXT NOT NULL,
+      wine_name TEXT,
+      wine_name_normalized TEXT,
+      vintage INTEGER,
+      color TEXT,
+      country TEXT,
+      region TEXT,
+      sub_region TEXT,
+      appellation TEXT,
+      varietal TEXT,
+      designation TEXT,
+      vineyard TEXT,
+      wine_type TEXT,
+      drink_window_start INTEGER,
+      drink_window_end INTEGER,
+      avg_community_score NUMERIC(4,2),
+      avg_purchase_price NUMERIC(10,2),
+      avg_estimated_value NUMERIC(10,2),
+      field_confidence JSONB NOT NULL DEFAULT '{}',
+      source TEXT NOT NULL DEFAULT 'ai',
+      times_added INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wine_field_corrections (
+      id SERIAL PRIMARY KEY,
+      master_wine_id INTEGER NOT NULL REFERENCES master_wines(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      field_name TEXT NOT NULL,
+      old_value TEXT,
+      new_value TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(master_wine_id, user_id, field_name, new_value)
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS master_wine_audit_log (
+      id SERIAL PRIMARY KEY,
+      master_wine_id INTEGER NOT NULL REFERENCES master_wines(id) ON DELETE CASCADE,
+      field_name TEXT NOT NULL,
+      old_value TEXT,
+      new_value TEXT NOT NULL,
+      trigger_type TEXT NOT NULL DEFAULT 'auto',
+      correction_count INTEGER NOT NULL,
+      total_users INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_master_wines_producer_norm ON master_wines (producer_normalized)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_master_wines_composite ON master_wines (producer_normalized, vintage, color)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_master_wines_trgm ON master_wines USING GIN (producer_normalized gin_trgm_ops)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_corrections_master_wine ON wine_field_corrections (master_wine_id, field_name)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_master_wine ON master_wine_audit_log (master_wine_id)`);
+  await pool.query(`ALTER TABLE wines ADD COLUMN IF NOT EXISTS master_wine_id INTEGER REFERENCES master_wines(id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_wines_master_wine ON wines (master_wine_id) WHERE master_wine_id IS NOT NULL`);
+
+  await backfillMasterWines();
+
   await seedAccounts();
+}
+
+async function backfillMasterWines() {
+  // Only run if there are wines not yet linked to a master record
+  const unlinked = await pool.query(
+    "SELECT COUNT(*) FROM wines WHERE master_wine_id IS NULL"
+  );
+  if (parseInt(unlinked.rows[0].count) === 0) return;
+
+  console.log("[backfill] Linking existing wines to master records...");
+
+  // Group wines by normalized identity and create master records
+  const groups = await pool.query(`
+    SELECT
+      normalize_wine_text(producer) as producer_norm,
+      MIN(producer) as producer,
+      wine_name,
+      vintage,
+      color,
+      MIN(country) as country,
+      MIN(region) as region,
+      MIN(sub_region) as sub_region,
+      MIN(appellation) as appellation,
+      MIN(varietal) as varietal,
+      MIN(designation) as designation,
+      MIN(vineyard) as vineyard,
+      MIN(wine_type) as wine_type,
+      MIN(drink_window_start) as drink_window_start,
+      MIN(drink_window_end) as drink_window_end,
+      AVG(ct_community_score) as avg_score,
+      COUNT(*) as wine_count
+    FROM wines
+    WHERE master_wine_id IS NULL AND producer IS NOT NULL
+    GROUP BY normalize_wine_text(producer), wine_name, vintage, color
+  `);
+
+  for (const g of groups.rows) {
+    const wineNameNorm = g.wine_name
+      ? g.wine_name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+      : null;
+
+    // Check if master already exists
+    const existing = await pool.query(
+      `SELECT id FROM master_wines WHERE producer_normalized = $1 AND (vintage = $2 OR (vintage IS NULL AND $2 IS NULL)) AND (color = $3 OR (color IS NULL AND $3 IS NULL))`,
+      [g.producer_norm, g.vintage, g.color]
+    );
+
+    let masterWineId: number;
+    if (existing.rows.length > 0) {
+      masterWineId = existing.rows[0].id;
+    } else {
+      const inserted = await pool.query(`
+        INSERT INTO master_wines (producer, producer_normalized, wine_name, wine_name_normalized, vintage, color, country, region, sub_region, appellation, varietal, designation, vineyard, wine_type, drink_window_start, drink_window_end, avg_community_score, field_confidence, source, times_added)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'import', $19)
+        RETURNING id
+      `, [
+        g.producer, g.producer_norm, g.wine_name, wineNameNorm,
+        g.vintage, g.color, g.country, g.region, g.sub_region,
+        g.appellation, g.varietal, g.designation, g.vineyard, g.wine_type,
+        g.drink_window_start, g.drink_window_end,
+        g.avg_score ? Math.round(Number(g.avg_score) * 100) / 100 : null,
+        JSON.stringify({ producer: 0.5, wine_name: 0.5, vintage: 0.5, color: 0.5 }),
+        parseInt(g.wine_count),
+      ]);
+      masterWineId = inserted.rows[0].id;
+    }
+
+    await pool.query(
+      "UPDATE wines SET master_wine_id = $1 WHERE master_wine_id IS NULL AND normalize_wine_text(producer) = $2 AND (wine_name = $3 OR (wine_name IS NULL AND $3 IS NULL)) AND (vintage = $4 OR (vintage IS NULL AND $4 IS NULL)) AND (color = $5 OR (color IS NULL AND $5 IS NULL))",
+      [masterWineId, g.producer_norm, g.wine_name, g.vintage, g.color]
+    );
+  }
+
+  console.log(`[backfill] Done. Processed ${groups.rows.length} wine groups.`);
 }
 
 async function seedAccounts() {

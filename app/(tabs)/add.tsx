@@ -63,6 +63,9 @@ interface ScanResult {
   estimated_value: string;
   cellar_wine_id: number | null;
   fuzzyMatches: FuzzyMatch[];
+  master_wine_id: number | null;
+  field_confidence: Record<string, number>;
+  matched_from_master: boolean;
 }
 
 const EMPTY_FORM = {
@@ -98,10 +101,14 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+function FormField({ label, children, confidence }: { label: string; children: React.ReactNode; confidence?: number }) {
+  const isUncertain = confidence !== undefined && confidence < 0.5;
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <Text style={[styles.fieldLabel, isUncertain && { color: "rgba(114,47,55,0.45)" }]}>{label}</Text>
+        {isUncertain && <Text style={{ fontSize: 10, color: "rgba(114,47,55,0.40)", fontFamily: "Outfit_400Regular" }}>✦</Text>}
+      </View>
       {children}
     </View>
   );
@@ -120,6 +127,10 @@ export default function ScanScreen() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [showFuzzyMatches, setShowFuzzyMatches] = useState(false);
   const [scanContext, setScanContext] = useState<string | null>(null);
+  const [masterWineId, setMasterWineId] = useState<number | null>(null);
+  const [fieldConfidence, setFieldConfidence] = useState<Record<string, number>>({});
+  const [matchedFromMaster, setMatchedFromMaster] = useState(false);
+  const [masterSnapshot, setMasterSnapshot] = useState<Record<string, string> | null>(null);
 
   const { data: storageLocs } = useQuery<{ name: string; type: string }[]>({
     queryKey: ["/api/storage-locations"],
@@ -137,6 +148,10 @@ export default function ScanScreen() {
     setIsCapturing(false);
     setShowFuzzyMatches(false);
     setScanContext(null);
+    setMasterWineId(null);
+    setFieldConfidence({});
+    setMatchedFromMaster(false);
+    setMasterSnapshot(null);
   };
 
   const openCamera = async () => {
@@ -250,6 +265,9 @@ export default function ScanScreen() {
         estimated_value: data.estimated_value ? String(data.estimated_value) : "",
         cellar_wine_id: match?.id || null,
         fuzzyMatches,
+        master_wine_id: data.master_wine_id || null,
+        field_confidence: data.field_confidence || {},
+        matched_from_master: data.matched_from_master || false,
       });
       setPhase("results");
 
@@ -292,27 +310,58 @@ export default function ScanScreen() {
 
   const handleAddToCellar = () => {
     if (!scanResult) return;
-    setForm((prev) => ({
-      ...prev,
-      producer: scanResult.producer || prev.producer,
-      wine_name: scanResult.wine_name || prev.wine_name,
-      vintage: scanResult.vintage || prev.vintage,
-      color: COLOR_OPTIONS.includes(scanResult.color) ? scanResult.color : prev.color,
-      country: scanResult.country || prev.country,
-      region: scanResult.region || prev.region,
-      sub_region: scanResult.sub_region || prev.sub_region,
-      appellation: scanResult.appellation || prev.appellation,
-      varietal: scanResult.varietal || prev.varietal,
-      designation: scanResult.designation || prev.designation,
-      vineyard: scanResult.vineyard || prev.vineyard,
-      size: scanResult.size || prev.size,
-      estimated_value: scanResult.estimated_value || prev.estimated_value,
-    }));
+    const newForm = {
+      ...form,
+      producer: scanResult.producer || form.producer,
+      wine_name: scanResult.wine_name || form.wine_name,
+      vintage: scanResult.vintage || form.vintage,
+      color: COLOR_OPTIONS.includes(scanResult.color) ? scanResult.color : form.color,
+      country: scanResult.country || form.country,
+      region: scanResult.region || form.region,
+      sub_region: scanResult.sub_region || form.sub_region,
+      appellation: scanResult.appellation || form.appellation,
+      varietal: scanResult.varietal || form.varietal,
+      designation: scanResult.designation || form.designation,
+      vineyard: scanResult.vineyard || form.vineyard,
+      size: scanResult.size || form.size,
+      estimated_value: scanResult.estimated_value || form.estimated_value,
+    };
+    setForm(newForm);
+    setMasterWineId(scanResult.master_wine_id);
+    setFieldConfidence(scanResult.field_confidence);
+    setMatchedFromMaster(scanResult.matched_from_master);
+    // Snapshot the form values at this point for correction comparison
+    setMasterSnapshot({
+      producer: scanResult.producer,
+      wine_name: scanResult.wine_name,
+      vintage: scanResult.vintage,
+      color: scanResult.color,
+      country: scanResult.country,
+      region: scanResult.region,
+      sub_region: scanResult.sub_region,
+      appellation: scanResult.appellation,
+      varietal: scanResult.varietal,
+      designation: scanResult.designation,
+      vineyard: scanResult.vineyard,
+    });
     setPhase("add_form");
   };
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      // Build corrections list: any field the user changed vs the master snapshot
+      const corrections: Array<{ field_name: string; old_value: string | null; new_value: string }> = [];
+      if (masterWineId && masterSnapshot) {
+        const correctionFields = ["producer", "wine_name", "vintage", "color", "country", "region", "sub_region", "appellation", "varietal", "designation", "vineyard"] as const;
+        for (const f of correctionFields) {
+          const snapshotVal = masterSnapshot[f] || "";
+          const formVal = form[f as keyof typeof form] || "";
+          if (formVal && formVal !== snapshotVal) {
+            corrections.push({ field_name: f, old_value: snapshotVal || null, new_value: formVal });
+          }
+        }
+      }
+
       const body: any = {
         producer: form.producer,
         wine_name: form.wine_name,
@@ -335,6 +384,8 @@ export default function ScanScreen() {
         location: form.location || null,
         size: form.size || "750ml",
         notes: form.notes || null,
+        master_wine_id: masterWineId || null,
+        corrections: corrections.length > 0 ? corrections : undefined,
       };
       const res = await apiRequest("POST", "/api/wines", body);
       return res.json();
@@ -637,16 +688,28 @@ export default function ScanScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: isWeb ? 84 + 34 : insets.bottom + 100 }}
       >
+        {matchedFromMaster && (
+          <View style={styles.masterMatchBanner}>
+            <Ionicons name="checkmark-circle" size={15} color="#15803D" />
+            <Text style={styles.masterMatchText}>Matched to a known wine in our database</Text>
+          </View>
+        )}
+        {!matchedFromMaster && Object.keys(fieldConfidence).length > 0 && (
+          <View style={styles.aiSuggestBanner}>
+            <Ionicons name="sparkles" size={14} color="#D97706" />
+            <Text style={styles.aiSuggestText}>AI-suggested details — please review for accuracy</Text>
+          </View>
+        )}
         <FormSection title="Wine Identity">
-          <FormField label="Producer *">
+          <FormField label="Producer *" confidence={fieldConfidence.producer}>
             <TextInput style={styles.input} value={form.producer} onChangeText={(v) => update("producer", v)} placeholder="e.g., Ch\u00e2teau Margaux" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
           </FormField>
-          <FormField label="Wine Name *">
+          <FormField label="Wine Name *" confidence={fieldConfidence.wine_name}>
             <TextInput style={styles.input} value={form.wine_name} onChangeText={(v) => update("wine_name", v)} placeholder="e.g., Grand Vin" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
           </FormField>
           <View style={styles.row}>
             <View style={styles.halfField}>
-              <FormField label="Vintage">
+              <FormField label="Vintage" confidence={fieldConfidence.vintage}>
                 <TextInput style={styles.input} value={form.vintage} onChangeText={(v) => update("vintage", v)} placeholder="2020" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
@@ -667,12 +730,12 @@ export default function ScanScreen() {
         <FormSection title="Origin">
           <View style={styles.row}>
             <View style={styles.halfField}>
-              <FormField label="Country">
+              <FormField label="Country" confidence={fieldConfidence.country}>
                 <TextInput style={styles.input} value={form.country} onChangeText={(v) => update("country", v)} placeholder="France" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
             <View style={styles.halfField}>
-              <FormField label="Region">
+              <FormField label="Region" confidence={fieldConfidence.region}>
                 <TextInput style={styles.input} value={form.region} onChangeText={(v) => update("region", v)} placeholder="Bordeaux" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
               </FormField>
             </View>
@@ -689,7 +752,7 @@ export default function ScanScreen() {
               </FormField>
             </View>
           </View>
-          <FormField label="Varietal">
+          <FormField label="Varietal" confidence={fieldConfidence.varietal}>
             <TextInput style={styles.input} value={form.varietal} onChangeText={(v) => update("varietal", v)} placeholder="Cabernet Sauvignon" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
           </FormField>
         </FormSection>
@@ -1333,5 +1396,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
+  },
+  masterMatchBanner: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    backgroundColor: "rgba(21, 128, 61, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(21, 128, 61, 0.18)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  masterMatchText: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: "#15803D",
+    flex: 1,
+  },
+  aiSuggestBanner: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    backgroundColor: "rgba(217, 119, 6, 0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(217, 119, 6, 0.18)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  aiSuggestText: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: "#92400E",
+    flex: 1,
   },
 });

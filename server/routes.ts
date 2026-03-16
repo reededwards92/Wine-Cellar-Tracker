@@ -8,6 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import ExcelJS from "exceljs";
 import { CELLAR_TOOLS, executeTool, getUserMemories } from "./ai-tools";
 import { requireAuth, type AuthRequest } from "./auth";
+import { normalizeWineText } from "./utils/wine-normalization";
 
 const anthropicClient = new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || "",
@@ -62,6 +63,147 @@ setInterval(() => {
     if (now >= bucket.resetAt) aiRateBuckets.delete(key);
   }
 }, 5 * 60 * 1000);
+
+// Find an existing master wine or create a new one from AI-extracted data
+async function findOrCreateMasterWine(
+  wineData: Record<string, any>,
+  fieldConfidence: Record<string, number>
+): Promise<{ masterWineId: number; matchedFromMaster: boolean; canonicalData: Record<string, any> }> {
+  const producerNorm = normalizeWineText(wineData.producer || "");
+  const vintage = wineData.vintage ? parseInt(String(wineData.vintage)) : null;
+  const color = wineData.color || null;
+
+  // 1. Try exact normalized match
+  const exactMatch = await pool.query(
+    `SELECT * FROM master_wines WHERE producer_normalized = $1 AND (vintage = $2 OR (vintage IS NULL AND $2 IS NULL)) AND (color = $3 OR (color IS NULL AND $3 IS NULL)) LIMIT 1`,
+    [producerNorm, vintage, color]
+  );
+
+  if (exactMatch.rows.length > 0) {
+    const master = exactMatch.rows[0];
+    await pool.query(
+      "UPDATE master_wines SET times_added = times_added + 1, updated_at = NOW() WHERE id = $1",
+      [master.id]
+    );
+    return { masterWineId: master.id, matchedFromMaster: true, canonicalData: master };
+  }
+
+  // 2. Try fuzzy match via pg_trgm (only if producer is non-trivial)
+  if (producerNorm.length >= 3) {
+    const fuzzyMatch = await pool.query(
+      `SELECT *, similarity(producer_normalized, $1) as sim FROM master_wines
+       WHERE (vintage = $2 OR (vintage IS NULL AND $2 IS NULL))
+         AND (color = $3 OR (color IS NULL AND $3 IS NULL))
+         AND similarity(producer_normalized, $1) > 0.6
+       ORDER BY sim DESC LIMIT 1`,
+      [producerNorm, vintage, color]
+    );
+
+    if (fuzzyMatch.rows.length > 0) {
+      const master = fuzzyMatch.rows[0];
+      await pool.query(
+        "UPDATE master_wines SET times_added = times_added + 1, updated_at = NOW() WHERE id = $1",
+        [master.id]
+      );
+      return { masterWineId: master.id, matchedFromMaster: true, canonicalData: master };
+    }
+  }
+
+  // 3. No match — create new master record
+  const wineNameNorm = wineData.wine_name
+    ? normalizeWineText(wineData.wine_name)
+    : null;
+
+  const inserted = await pool.query(`
+    INSERT INTO master_wines (
+      producer, producer_normalized, wine_name, wine_name_normalized,
+      vintage, color, country, region, sub_region, appellation, varietal,
+      designation, vineyard, wine_type, drink_window_start, drink_window_end,
+      field_confidence, source, times_added
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'ai', 1)
+    RETURNING *
+  `, [
+    wineData.producer || null, producerNorm,
+    wineData.wine_name || null, wineNameNorm,
+    vintage, color,
+    wineData.country || null, wineData.region || null,
+    wineData.sub_region || null, wineData.appellation || null,
+    wineData.varietal || null, wineData.designation || null,
+    wineData.vineyard || null, wineData.wine_type || null,
+    wineData.drink_window_start || null, wineData.drink_window_end || null,
+    JSON.stringify(fieldConfidence),
+  ]);
+
+  return { masterWineId: inserted.rows[0].id, matchedFromMaster: false, canonicalData: inserted.rows[0] };
+}
+
+// Log a user correction to a master wine field and check if auto-update threshold is met
+async function logCorrectionsAndCheckAutoUpdate(
+  masterWineId: number,
+  userId: number,
+  corrections: Array<{ field_name: string; old_value: string | null; new_value: string }>
+) {
+  if (!corrections || corrections.length === 0) return;
+
+  const CORRECTABLE_FIELDS = new Set([
+    "producer", "wine_name", "vintage", "color", "country", "region",
+    "sub_region", "appellation", "varietal", "designation", "vineyard", "wine_type",
+  ]);
+
+  for (const c of corrections) {
+    if (!CORRECTABLE_FIELDS.has(c.field_name)) continue;
+    if (!c.new_value) continue;
+
+    // Insert correction (UNIQUE constraint handles duplicate user+field+value)
+    await pool.query(
+      `INSERT INTO wine_field_corrections (master_wine_id, user_id, field_name, old_value, new_value)
+       VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
+      [masterWineId, userId, c.field_name, c.old_value || null, c.new_value]
+    );
+
+    // Check auto-update threshold
+    const masterResult = await pool.query(
+      "SELECT * FROM master_wines WHERE id = $1",
+      [masterWineId]
+    );
+    if (masterResult.rows.length === 0) continue;
+    const master = masterResult.rows[0];
+
+    const totalUsers = master.times_added;
+    const threshold = totalUsers <= 10 ? 3 : totalUsers <= 100 ? 5 : Math.max(5, Math.ceil(totalUsers * 0.1));
+
+    // Find most agreed-upon correction value
+    const topCorrection = await pool.query(
+      `SELECT new_value, COUNT(DISTINCT user_id) as agree_count
+       FROM wine_field_corrections
+       WHERE master_wine_id = $1 AND field_name = $2
+       GROUP BY new_value ORDER BY agree_count DESC LIMIT 1`,
+      [masterWineId, c.field_name]
+    );
+
+    if (topCorrection.rows.length === 0) continue;
+    const top = topCorrection.rows[0];
+    if (parseInt(top.agree_count) < threshold) continue;
+
+    const currentValue = master[c.field_name];
+    if (currentValue === top.new_value) continue;
+
+    // Apply the auto-update
+    await pool.query(
+      `UPDATE master_wines SET ${c.field_name} = $1,
+       field_confidence = jsonb_set(field_confidence, $2::text[], to_jsonb(0.85::float)),
+       updated_at = NOW() WHERE id = $3`,
+      [top.new_value, `{${c.field_name}}`, masterWineId]
+    );
+
+    // Log to audit trail
+    await pool.query(
+      `INSERT INTO master_wine_audit_log (master_wine_id, field_name, old_value, new_value, trigger_type, correction_count, total_users)
+       VALUES ($1, $2, $3, $4, 'auto', $5, $6)`,
+      [masterWineId, c.field_name, currentValue ? String(currentValue) : null, top.new_value, parseInt(top.agree_count), totalUsers]
+    );
+  }
+}
 
 function cleanValue(val: string | undefined | null): string | null {
   if (!val || val.trim() === "" || val.trim().toLowerCase() === "unknown") return null;
@@ -402,6 +544,47 @@ User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m:
     }
   });
 
+  app.post("/api/master-wines/match", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const { producer, wine_name, vintage, color } = req.body;
+      if (!producer) return res.json({ match: null });
+
+      const producerNorm = normalizeWineText(producer);
+      const vintageNum = vintage ? parseInt(String(vintage)) : null;
+
+      // Exact normalized match
+      const exact = await pool.query(
+        `SELECT * FROM master_wines WHERE producer_normalized = $1 AND (vintage = $2 OR (vintage IS NULL AND $2 IS NULL)) AND (color = $3 OR (color IS NULL AND $3 IS NULL)) LIMIT 1`,
+        [producerNorm, vintageNum, color || null]
+      );
+
+      if (exact.rows.length > 0) {
+        return res.json({ match: { ...exact.rows[0], match_type: "exact_normalized", confidence: 0.95 } });
+      }
+
+      // Fuzzy match
+      if (producerNorm.length >= 3) {
+        const fuzzy = await pool.query(
+          `SELECT *, similarity(producer_normalized, $1) as confidence FROM master_wines
+           WHERE (vintage = $2 OR (vintage IS NULL AND $2 IS NULL))
+             AND (color = $3 OR (color IS NULL AND $3 IS NULL))
+             AND similarity(producer_normalized, $1) > 0.6
+           ORDER BY confidence DESC LIMIT 1`,
+          [producerNorm, vintageNum, color || null]
+        );
+
+        if (fuzzy.rows.length > 0) {
+          return res.json({ match: { ...fuzzy.rows[0], match_type: "fuzzy" } });
+        }
+      }
+
+      res.json({ match: null });
+    } catch (err: any) {
+      console.error("Master wine match error:", err);
+      res.status(500).json({ error: "Match failed" });
+    }
+  });
+
   app.post("/api/wines/fuzzy-match", requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const { producer, wine_name, vineyard } = req.body;
@@ -730,19 +913,20 @@ User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m:
   });
 
   app.post("/api/wines", requireAuth, async (req: AuthRequest, res: Response) => {
-    const userId = req.userId;
-    const { quantity = 1, purchase_date, purchase_price, estimated_value, location, size, notes, ...wineData } = req.body;
+    const userId = req.userId!;
+    const { quantity = 1, purchase_date, purchase_price, estimated_value, location, size, notes, master_wine_id, corrections, ...wineData } = req.body;
 
     const result = await pool.query(`
-      INSERT INTO wines (producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, critic_scores, user_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *
+      INSERT INTO wines (producer, wine_name, vintage, country, region, sub_region, appellation, varietal, color, wine_type, category, designation, vineyard, drink_window_start, drink_window_end, ct_community_score, critic_scores, master_wine_id, user_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *
     `, [
       wineData.producer, wineData.wine_name, wineData.vintage || null,
       wineData.country || null, wineData.region || null, wineData.sub_region || null,
       wineData.appellation || null, wineData.varietal || null, wineData.color || null,
       wineData.wine_type || null, wineData.category || null, wineData.designation || null,
       wineData.vineyard || null, wineData.drink_window_start || null, wineData.drink_window_end || null,
-      wineData.ct_community_score || null, wineData.critic_scores || null, userId
+      wineData.ct_community_score || null, wineData.critic_scores || null,
+      master_wine_id || null, userId
     ]);
 
     const wineId = result.rows[0].id;
@@ -754,6 +938,13 @@ User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m:
       `, [wineId, purchase_date || null, purchase_price || null, estimated_value || null, location || null, size || "750ml", notes || null, userId]);
     }
 
+    // Log any corrections the user made vs. the master record
+    if (master_wine_id && corrections && Array.isArray(corrections)) {
+      logCorrectionsAndCheckAutoUpdate(master_wine_id, userId, corrections).catch((err) =>
+        console.error("[post wines] correction logging error:", err)
+      );
+    }
+
     res.status(201).json(result.rows[0]);
   });
 
@@ -761,15 +952,17 @@ User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m:
     const wineResult = await pool.query("SELECT * FROM wines WHERE id = $1 AND user_id = $2", [req.params.id, req.userId]);
     if (wineResult.rows.length === 0) return res.status(404).json({ error: "Wine not found" });
 
+    const { corrections, ...bodyFields } = req.body;
+
     const fields = ["producer", "wine_name", "vintage", "country", "region", "sub_region", "appellation", "varietal", "color", "wine_type", "category", "designation", "vineyard", "drink_window_start", "drink_window_end", "ct_community_score", "critic_scores"];
     const updates: string[] = [];
     const values: any[] = [];
     let paramIdx = 1;
 
     for (const field of fields) {
-      if (req.body[field] !== undefined) {
+      if (bodyFields[field] !== undefined) {
         updates.push(`${field} = $${paramIdx++}`);
-        values.push(req.body[field]);
+        values.push(bodyFields[field]);
       }
     }
 
@@ -780,6 +973,15 @@ User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m:
     }
 
     const updated = await pool.query("SELECT * FROM wines WHERE id = $1", [req.params.id]);
+
+    // Log corrections if provided and wine has a master link
+    const masterWineId = updated.rows[0].master_wine_id;
+    if (masterWineId && corrections && Array.isArray(corrections)) {
+      logCorrectionsAndCheckAutoUpdate(masterWineId, req.userId!, corrections).catch((err) =>
+        console.error("[put wines] correction logging error:", err)
+      );
+    }
+
     res.json(updated.rows[0]);
   });
 
@@ -1768,25 +1970,23 @@ Current date: ${new Date().toISOString().split("T")[0]}`;
               },
               {
                 type: "text",
-                text: `Analyze this wine bottle label and extract all visible information. Return ONLY valid JSON with these fields (use empty string "" for anything you can't determine):
+                text: `Analyze this wine bottle label and extract all visible information. Return ONLY valid JSON with this structure. For each field provide a "value" and a "confidence" score (0.0–1.0: 1.0=clearly visible, 0.7–0.9=strongly inferred, 0.4–0.6=inferred from context, 0.1–0.3=general knowledge guess, 0.0=cannot determine). Use empty string for value if you cannot determine it.
 
 {
-  "producer": "winery/producer name",
-  "wine_name": "wine name or cuvée",
-  "vintage": "year as string or empty",
-  "color": "one of: Red, White, Rosé, Sparkling, Dessert, Fortified",
-  "country": "country of origin",
-  "region": "wine region",
-  "sub_region": "sub-region if visible",
-  "appellation": "appellation if visible",
-  "varietal": "grape variety/varieties",
-  "designation": "reserve/grand cru/etc if visible",
-  "vineyard": "vineyard name if visible",
-  "size": "bottle size if visible, default 750ml",
-  "estimated_value": "estimated retail price in USD as a number (no $ sign), based on the wine identified. Use your knowledge of typical retail pricing. Return 0 if uncertain."
-}
-
-Be accurate — only include what you can clearly read from the label. For color, infer from the wine type/varietal if not explicitly stated.`,
+  "producer": { "value": "winery/producer name", "confidence": 0.0 },
+  "wine_name": { "value": "wine name or cuvée", "confidence": 0.0 },
+  "vintage": { "value": "year as string or empty", "confidence": 0.0 },
+  "color": { "value": "one of: Red, White, Rosé, Sparkling, Dessert, Fortified", "confidence": 0.0 },
+  "country": { "value": "country of origin", "confidence": 0.0 },
+  "region": { "value": "wine region", "confidence": 0.0 },
+  "sub_region": { "value": "sub-region if visible", "confidence": 0.0 },
+  "appellation": { "value": "appellation if visible", "confidence": 0.0 },
+  "varietal": { "value": "grape variety/varieties", "confidence": 0.0 },
+  "designation": { "value": "reserve/grand cru/etc if visible", "confidence": 0.0 },
+  "vineyard": { "value": "vineyard name if visible", "confidence": 0.0 },
+  "size": { "value": "bottle size, default 750ml", "confidence": 0.0 },
+  "estimated_value": { "value": "estimated retail price in USD as a number string (no $ sign), 0 if uncertain", "confidence": 0.0 }
+}`,
               },
             ],
           },
@@ -1806,22 +2006,63 @@ Be accurate — only include what you can clearly read from the label. For color
       };
 
       let wineData = { ...defaults };
+      const fieldConfidence: Record<string, number> = {};
+
       try {
-        const jsonMatch = textBlock.text.match(/\{[\s\S]*?\}/);
+        const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           for (const key of Object.keys(defaults)) {
-            if (parsed[key] !== undefined && parsed[key] !== null && parsed[key] !== "") {
-              wineData[key] = parsed[key];
+            if (parsed[key] !== undefined && parsed[key] !== null) {
+              const entry = parsed[key];
+              // Handle both new { value, confidence } format and legacy flat format
+              if (typeof entry === "object" && "value" in entry) {
+                const val = entry.value;
+                if (val !== "" && val !== null && val !== undefined) {
+                  wineData[key] = val;
+                }
+                if (typeof entry.confidence === "number") {
+                  fieldConfidence[key] = entry.confidence;
+                }
+              } else if (entry !== "") {
+                wineData[key] = entry;
+              }
             }
           }
         }
       } catch {
+        // Parsing failed — proceed with defaults
       }
-      if (!wineData.estimated_value) {
-        console.warn("[analyze-wine-image] estimated_value missing from AI response");
+
+      // Find or create master wine record
+      let masterWineId: number | null = null;
+      let matchedFromMaster = false;
+      try {
+        if (wineData.producer) {
+          const result = await findOrCreateMasterWine(wineData, fieldConfidence);
+          masterWineId = result.masterWineId;
+          matchedFromMaster = result.matchedFromMaster;
+
+          // If matched from master, backfill any empty AI fields with canonical data
+          if (matchedFromMaster) {
+            const canon = result.canonicalData;
+            const canonFields = ["wine_name", "country", "region", "sub_region", "appellation", "varietal", "designation", "vineyard", "drink_window_start", "drink_window_end"];
+            for (const f of canonFields) {
+              if ((!wineData[f] || wineData[f] === "") && canon[f]) {
+                wineData[f] = String(canon[f]);
+                // Use master's stored confidence for this field, bumped slightly
+                const masterConf = canon.field_confidence?.[f];
+                fieldConfidence[f] = masterConf ? Math.min(masterConf + 0.1, 0.95) : 0.75;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[analyze-wine-image] master wine lookup error:", err);
+        // Non-fatal — proceed without master link
       }
-      res.json(wineData);
+
+      res.json({ ...wineData, master_wine_id: masterWineId, field_confidence: fieldConfidence, matched_from_master: matchedFromMaster });
     } catch (err: any) {
       console.error("Wine image analysis error:", err);
       res.status(500).json({ error: "Failed to analyze wine image" });
