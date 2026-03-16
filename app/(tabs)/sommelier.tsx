@@ -115,7 +115,7 @@ export default function SommelierScreen() {
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoFadeAnim = useRef(new Animated.Value(0)).current;
   const [homeData, setHomeData] = useState<any>(null);
-  const [homeLoading, setHomeLoading] = useState(true);
+  const [homeLoading, setHomeLoading] = useState(false);
 
   const fetchHomeData = useCallback(async () => {
     try {
@@ -845,7 +845,7 @@ export default function SommelierScreen() {
 
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
-  const tabBarHeight = isWeb ? 84 : 70;
+  const tabBarHeight = isWeb ? 84 : 60;
 
   return (
     <View style={[styles.container, { paddingTop: isWeb ? 67 : 0, paddingBottom: tabBarHeight }]}>

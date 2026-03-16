@@ -564,7 +564,7 @@ export default function CellarScreen() {
           }
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
+            { paddingBottom: isWeb ? 84 + 24 : insets.bottom + 80 },
           ]}
           scrollEnabled={sections.length > 0}
           onScrollToIndexFailed={() => {}}

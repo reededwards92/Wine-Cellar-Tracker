@@ -615,7 +615,7 @@ export default function HistoryScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.statsScrollContent,
-            { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
+            { paddingBottom: isWeb ? 84 + 24 : insets.bottom + 80 },
           ]}
           refreshControl={
             <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={Colors.light.tint} />
@@ -680,7 +680,7 @@ export default function HistoryScreen() {
           }
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
+            { paddingBottom: isWeb ? 84 + 24 : insets.bottom + 80 },
           ]}
           onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
           onEndReachedThreshold={0.3}

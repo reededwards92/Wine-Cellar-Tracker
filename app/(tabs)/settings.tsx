@@ -224,7 +224,7 @@ export default function SettingsScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: isWeb ? 84 + 34 : insets.bottom + 90 },
+          { paddingBottom: isWeb ? 84 + 24 : insets.bottom + 80 },
         ]}
       >
         <SettingsSection title="Cru">

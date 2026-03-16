@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import CruMeshBackground from "@/components/CruMeshBackground";
@@ -99,48 +99,33 @@ export default function OnboardingComplete() {
   const insets = useSafeAreaInsets();
   const { answers } = useOnboarding();
   const { markOnboardingComplete } = useAuth();
-  const hasFired = useRef(false);
+  const [saving, setSaving] = useState(false);
 
   const summary = buildSummary(answers);
 
-  useEffect(() => {
-    if (hasFired.current) return;
-    hasFired.current = true;
+  const handleExplore = async () => {
+    setSaving(true);
+    const { collectorLevel, wineStyles, regions, occasions, additionalNotes } = answers;
+    const hasAny = collectorLevel || wineStyles.length > 0 || regions.length > 0 || occasions.length > 0 || additionalNotes;
 
-    (async () => {
-      const { collectorLevel, wineStyles, regions, occasions, additionalNotes } = answers;
-      const hasAny =
-        collectorLevel ||
-        wineStyles.length > 0 ||
-        regions.length > 0 ||
-        occasions.length > 0 ||
-        additionalNotes;
-
-      // Save taste profile as a Cru memory (best-effort — don't block on failure)
-      if (hasAny) {
-        try {
-          await apiRequest("POST", "/api/memories", {
-            content: buildMemoryString(answers),
-            category: "preference",
-          });
-        } catch (err) {
-          console.warn("[OnboardingComplete] Could not save taste memory:", err);
-        }
-      }
-
-      // Mark onboarding complete on the server
+    if (hasAny) {
       try {
-        await apiRequest("POST", "/api/onboarding/complete", {});
+        await apiRequest("POST", "/api/memories", {
+          content: buildMemoryString(answers),
+          category: "preference",
+        });
       } catch (err) {
-        console.warn("[OnboardingComplete] Could not mark onboarding complete on server:", err);
+        console.warn("[OnboardingComplete] Could not save taste memory:", err);
       }
+    }
 
-      // Always update local state so the app proceeds
-      markOnboardingComplete();
-    })();
-  }, []);
+    try {
+      await apiRequest("POST", "/api/onboarding/complete", {});
+    } catch (err) {
+      console.warn("[OnboardingComplete] Could not mark onboarding complete on server:", err);
+    }
 
-  const handleExplore = () => {
+    markOnboardingComplete();
     router.replace("/(tabs)");
   };
 
@@ -164,8 +149,12 @@ export default function OnboardingComplete() {
           <Text style={styles.summary}>{summary}</Text>
         </View>
 
-        <Pressable style={styles.primaryButton} onPress={handleExplore}>
-          <Text style={styles.primaryButtonText}>Explore My Cellar</Text>
+        <Pressable style={[styles.primaryButton, saving && { opacity: 0.7 }]} onPress={saving ? undefined : handleExplore} disabled={saving}>
+          {saving ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.primaryButtonText}>Explore My Cellar</Text>
+          )}
         </Pressable>
       </View>
     </View>

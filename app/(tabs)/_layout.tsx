@@ -33,7 +33,7 @@ export default function TabLayout() {
             borderTopWidth: 0.5,
             borderTopColor: "rgba(114, 47, 55, 0.10)",
             elevation: 0,
-            height: Platform.OS === "web" ? 84 : 70,
+            height: Platform.OS === "web" ? 84 : 60,
           },
           tabBarBackground: () =>
             isIOS ? (

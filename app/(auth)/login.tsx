@@ -89,7 +89,7 @@ export default function LoginScreen() {
       >
         <View style={styles.header}>
           <Image
-            source={require("@/assets/images/icon.png")}
+            source={require("@/assets/images/splash-icon-transparent-background.png")}
             style={styles.iconImage}
             resizeMode="contain"
           />
