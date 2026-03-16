@@ -1896,6 +1896,8 @@ Be accurate — only include what you can clearly read from the label. For color
 
       let iterations = 0;
       let continueLoop = true;
+      let candidateWineCards: any[] = [];
+      let fullTextResponse = "";
 
       while (continueLoop && iterations < MAX_TOOL_ITERATIONS && !clientDisconnected) {
         iterations++;
@@ -1914,6 +1916,7 @@ Be accurate — only include what you can clearly read from the label. For color
         for (const block of response.content) {
           if (clientDisconnected) break;
           if (block.type === "text" && block.text) {
+            fullTextResponse += block.text;
             res.write(`data: ${JSON.stringify({ content: block.text })}\n\n`);
           } else if (block.type === "tool_use") {
             res.write(`data: ${JSON.stringify({ tool_call: block.name })}\n\n`);
@@ -1926,12 +1929,12 @@ Be accurate — only include what you can clearly read from the label. For color
                 }
               } catch {}
             }
-            // Stream wine cards for recommendation/search results
+            // Accumulate wine cards as candidates (sent after final text)
             if (block.name === "search_wines" || block.name === "get_recommendations") {
               try {
                 const parsed = JSON.parse(result);
                 const wines = parsed.wines || parsed.recommendations || [];
-                const cards = wines.slice(0, 5).map((w: any) => ({
+                const cards = wines.map((w: any) => ({
                   id: w.id,
                   producer: w.producer,
                   wine_name: w.wine_name,
@@ -1942,9 +1945,7 @@ Be accurate — only include what you can clearly read from the label. For color
                   score: w.ct_community_score,
                   bottle_count: Number(w.bottle_count || 0),
                 }));
-                if (cards.length > 0) {
-                  res.write(`data: ${JSON.stringify({ wine_cards: cards })}\n\n`);
-                }
+                candidateWineCards.push(...cards);
               } catch {}
             }
             toolResults.push({
@@ -1960,6 +1961,20 @@ Be accurate — only include what you can clearly read from the label. For color
           anthropicMessages.push({ role: "user", content: toolResults });
         } else {
           continueLoop = false;
+        }
+      }
+
+      // Filter wine cards to only those mentioned in the text response
+      if (candidateWineCards.length > 0 && fullTextResponse.length > 0) {
+        const textLower = fullTextResponse.toLowerCase();
+        const matchedCards = candidateWineCards.filter((card: any) => {
+          const producerMatch = card.producer && textLower.includes(card.producer.toLowerCase());
+          const nameMatch = card.wine_name && textLower.includes(card.wine_name.toLowerCase());
+          return producerMatch || nameMatch;
+        });
+        const cardsToSend = matchedCards.length > 0 ? matchedCards.slice(0, 3) : [];
+        if (cardsToSend.length > 0) {
+          res.write(`data: ${JSON.stringify({ wine_cards: cardsToSend })}\n\n`);
         }
       }
 
