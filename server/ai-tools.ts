@@ -544,7 +544,7 @@ async function getRecommendations(input: any, userId?: number): Promise<string> 
         ${userScope}
         ${input.color ? `AND w.color = $${paramIdx}` : ""}
         GROUP BY w.id HAVING COUNT(CASE WHEN b.status = 'in_cellar' THEN 1 END) > 0
-        ORDER BY w.ct_community_score DESC NULLS LAST
+        ORDER BY w.drink_window_end ASC NULLS LAST
         LIMIT $${input.color ? paramIdx + 1 : paramIdx}
       `;
       if (input.color) { params.push(input.color); paramIdx++; }

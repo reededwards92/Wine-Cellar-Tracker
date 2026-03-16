@@ -272,7 +272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dateStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
       // Daily pick count: 1–3, rotates by day-of-year
       const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
-      const dailyLimit = (dayOfYear % 3) + 1; // cycles 1, 2, 3, 1, 2, 3 ...
+      const dailyLimit = (dayOfYear % 2) + 2; // cycles 2, 3, 2, 3 — always at least 2
 
       // ready_to_drink: daily random selection using md5(id || date) for stable daily ordering
       const readyResult = await pool.query(`
@@ -294,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cards.push({
           type: 'ready_to_drink',
           title: 'In Their Window',
-          subtitle: `${count} wine${count > 1 ? 's' : ''} at peak drinking right now`,
+          subtitle: `${count} wine${count > 1 ? 's' : ''} at peak right now`,
           wines: readyResult.rows.map((r: any) => ({
             id: r.id, producer: r.producer, wine_name: r.wine_name,
             vintage: r.vintage, color: r.color,
@@ -304,29 +304,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // drink_soon: daily random selection (offset date string so picks differ from ready_to_drink)
-      const soonResult = await pool.query(`
+      // past_peak: wines that have passed their drink window end — drink ASAP
+      const pastPeakResult = await pool.query(`
         SELECT w.id, w.producer, w.wine_name, w.vintage, w.color,
                COUNT(b.id)::int as bottle_count
         FROM wines w
         JOIN bottles b ON b.wine_id = w.id AND b.status = 'in_cellar' AND b.user_id = $1
         WHERE w.user_id = $1
-          AND w.drink_window_start IS NOT NULL
-          AND w.drink_window_start > $2
-          AND w.drink_window_start <= $3
+          AND w.drink_window_end IS NOT NULL
+          AND w.drink_window_end < $2
         GROUP BY w.id
-        ORDER BY md5(w.id::text || $4 || 'soon')
-        LIMIT $5
-      `, [userId, currentYear, currentYear + 2, dateStr, dailyLimit]);
+        ORDER BY md5(w.id::text || $3 || 'peak')
+        LIMIT $4
+      `, [userId, currentYear, dateStr, dailyLimit]);
 
-      if (soonResult.rows.length > 0) {
-        const count = soonResult.rows.length;
-        const wineIds = soonResult.rows.map((r: any) => r.id);
+      if (pastPeakResult.rows.length > 0) {
+        const count = pastPeakResult.rows.length;
+        const wineIds = pastPeakResult.rows.map((r: any) => r.id);
         cards.push({
           type: 'drink_soon',
-          title: 'Opening Soon',
-          subtitle: `${count} wine${count > 1 ? 's' : ''} entering their window soon`,
-          wines: soonResult.rows.map((r: any) => ({
+          title: 'Past Their Peak',
+          subtitle: `${count} wine${count > 1 ? 's' : ''} to drink ASAP`,
+          wines: pastPeakResult.rows.map((r: any) => ({
             id: r.id, producer: r.producer, wine_name: r.wine_name,
             vintage: r.vintage, color: r.color,
           })),
@@ -1896,6 +1895,14 @@ When the user explicitly asks for a recommendation ("what should I drink?", "pic
 5. **Drink window & value**: Always factor in which wines are in their prime or approaching peak. Prefer wines that are ready now over those that could wait.
 
 Use get_recommendations with appropriate criteria (ready_to_drink, past_peak, highest_rated, best_value, by_color) to pull candidates, then apply your judgment to pick the best one given all the context above. Don't just echo back the top-rated result — curate.
+
+**Do not use community scores (ct_community_score) to drive recommendations** unless the user explicitly asks for something premium, highly-rated, or special occasion. Scores are a last resort, not a default sort. Drink window readiness, fit for the occasion, and personal history should take priority over numerical ratings.
+
+**Never list more than 3 wines** in a recommendation unless the user explicitly asks for a longer list.
+
+**When mentioning a specific wine by name, bold it in markdown**: e.g., **Château Margaux Grand Vin**. Apply this to any wine name in your response.
+
+**Do not narrate what you're about to do before using tools.** Just call the tools directly and respond when you have results. Never start a response with "Let me check..." or "I'll look that up..." — just look it up.
 
 Key behaviors:
 - When the user mentions drinking a wine, use consume_bottle to record it immediately — do NOT ask for rating, occasion, food pairing, or other details unless the user volunteers them. Just remove it from the cellar. If the user provides extra details (rating, notes, etc.), include them, but never prompt for them.

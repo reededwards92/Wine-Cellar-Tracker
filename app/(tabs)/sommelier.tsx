@@ -88,6 +88,10 @@ export default function SommelierScreen() {
   const [showTyping, setShowTyping] = useState(false);
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const [cruState, setCruState] = useState<CruMarkState>("idle");
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [hasStartedResponse, setHasStartedResponse] = useState(false);
+  const streamingMessageIdRef = useRef<string | null>(null);
+  const lastUpdateTimeRef = useRef<number>(0);
   const celebrateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -305,6 +309,7 @@ export default function SommelierScreen() {
     setShowTyping(true);
     setActiveTools([]);
     setCruState("thinking");
+    setHasStartedResponse(false);
 
     let fullContent = "";
     let assistantAdded = false;
@@ -401,29 +406,37 @@ export default function SommelierScreen() {
               fullContent += parsed.content;
 
               if (!assistantAdded) {
-                setShowTyping(false);
+                const newMsgId = generateUniqueId();
+                streamingMessageIdRef.current = newMsgId;
+                setStreamingMessageId(newMsgId);
+                setHasStartedResponse(true);
                 setActiveTools([]);
                 setCruState("speaking");
                 setMessages((prev) => [
                   ...prev,
                   {
-                    id: generateUniqueId(),
+                    id: newMsgId,
                     role: "assistant",
                     content: fullContent,
                     wineCards: pendingWineCards.length > 0 ? pendingWineCards : undefined,
                   },
                 ]);
                 assistantAdded = true;
+                lastUpdateTimeRef.current = Date.now();
               } else {
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {
-                    ...updated[updated.length - 1],
-                    content: fullContent,
-                    wineCards: pendingWineCards.length > 0 ? pendingWineCards : updated[updated.length - 1].wineCards,
-                  };
-                  return updated;
-                });
+                const now = Date.now();
+                if (now - lastUpdateTimeRef.current >= 80) {
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                      ...updated[updated.length - 1],
+                      content: fullContent,
+                      wineCards: pendingWineCards.length > 0 ? pendingWineCards : updated[updated.length - 1].wineCards,
+                    };
+                    return updated;
+                  });
+                  lastUpdateTimeRef.current = now;
+                }
               }
             }
           } catch {}
@@ -449,6 +462,20 @@ export default function SommelierScreen() {
         ]);
       }
     } finally {
+      if (assistantAdded) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            content: fullContent,
+            wineCards: pendingWineCards.length > 0 ? pendingWineCards : updated[updated.length - 1].wineCards,
+          };
+          return updated;
+        });
+      }
+      streamingMessageIdRef.current = null;
+      setStreamingMessageId(null);
+      setHasStartedResponse(false);
       setIsStreaming(false);
       setShowTyping(false);
       setActiveTools([]);
@@ -521,7 +548,10 @@ export default function SommelierScreen() {
         >
           {!isUser && (
             <View style={styles.avatarGlass}>
-              <CruMark size="sm" state="idle" />
+              {streamingMessageIdRef.current === item.id
+                ? <CruThinking size={32} />
+                : <CruMark size="sm" state="idle" />
+              }
             </View>
           )}
           {isUser ? (
@@ -556,9 +586,11 @@ export default function SommelierScreen() {
                 />
               )}
               {!!item.content && (
-                <Markdown style={markdownStyles}>
-                  {item.content}
-                </Markdown>
+                streamingMessageIdRef.current === item.id ? (
+                  <Text style={styles.streamingText}>{item.content}</Text>
+                ) : (
+                  <Markdown style={markdownStyles}>{item.content}</Markdown>
+                )
               )}
             </View>
           )}
@@ -597,29 +629,51 @@ export default function SommelierScreen() {
     };
   }, [showTyping]);
 
-  const renderTypingIndicator = () => {
-    if (!showTyping) return null;
+  const monologueNames: Record<string, string> = {
+    search_wines: "scanning your cellar...",
+    get_wine_details: "looking up that wine...",
+    add_wine: "adding to cellar...",
+    add_bottles: "logging bottles...",
+    update_wine: "updating that...",
+    update_bottle: "updating bottle...",
+    consume_bottle: "recording that...",
+    get_cellar_stats: "running the numbers...",
+    get_recommendations: "picking some options...",
+    get_weather: "checking the weather...",
+    get_consumption_history: "looking back...",
+    get_storage_locations: "checking storage...",
+    undo_consumption: "undoing that...",
+    save_memory: "making a note...",
+    delete_memory: "noted...",
+  };
 
-    const statusText = activeTools.length > 0
-      ? (toolDisplayNames[activeTools[activeTools.length - 1]] || activeTools[activeTools.length - 1]) + "..."
-      : "Thinking...";
+  const renderTypingIndicator = () => {
+    if (!showTyping || hasStartedResponse) return null;
+
+    const thoughtText = activeTools.length > 0
+      ? (monologueNames[activeTools[activeTools.length - 1]] || activeTools[activeTools.length - 1] + "...")
+      : null;
 
     return (
-      <View style={styles.thinkingContainer}>
-        <CruThinking size={28} />
-        <Animated.Text
-          style={[
-            styles.thinkingText,
-            {
-              opacity: pulseAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.4, 0.8],
-              }),
-            },
-          ]}
-        >
-          {statusText}
-        </Animated.Text>
+      <View style={[styles.bubbleRow, styles.bubbleRowAssistant]}>
+        <View style={styles.avatarGlass}>
+          <CruThinking size={32} />
+        </View>
+        {thoughtText && (
+          <Animated.Text
+            style={[
+              styles.thinkingMonologue,
+              {
+                opacity: pulseAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.65],
+                }),
+              },
+            ]}
+          >
+            {thoughtText}
+          </Animated.Text>
+        )}
       </View>
     );
   };
@@ -791,7 +845,7 @@ export default function SommelierScreen() {
 
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
-  const tabBarHeight = isWeb ? 84 : Platform.OS === "ios" ? 49 + insets.bottom : 56;
+  const tabBarHeight = isWeb ? 84 : Platform.OS === "ios" ? 70 + insets.bottom : 70;
 
   return (
     <LinearGradient
@@ -1120,23 +1174,20 @@ const styles = StyleSheet.create({
   bubbleTextUser: {
     color: "#FFFFFF",
   },
-  thinkingContainer: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    alignSelf: "flex-start" as const,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 10,
-  },
-  thinkingAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  thinkingText: {
-    fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+  thinkingMonologue: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    fontStyle: "italic" as const,
     color: CruColors.textSecondary,
+    alignSelf: "center" as const,
+    marginLeft: 4,
+    flexShrink: 1,
+  },
+  streamingText: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontFamily: "Outfit_400Regular",
+    color: CruColors.textPrimary,
   },
   inputBlur: {
     borderTopWidth: 1,

@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginHorizontal: 16,
     marginTop: 12,
-    marginBottom: 4,
+    marginBottom: 12,
     ...theme.shadows.card,
   },
   accent: {

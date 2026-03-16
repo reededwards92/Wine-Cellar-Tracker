@@ -22,7 +22,7 @@ interface Props {
 }
 
 const SIZE_MAP = { sm: 32, md: 64, lg: 200 };
-const SPARKLE_SIZE = { sm: 12, md: 24, lg: 56 };
+const SPARKLE_SIZE = { sm: 16, md: 28, lg: 64 };
 
 const GRADIENT_COLORS: Record<CruMarkState, [string, string, string, string]> = {
   idle: ["#6B2A32", "#C4787F", "#FDF6F0", "#D4A574"],
