@@ -39,7 +39,7 @@ const CruColors = {
   gradientBottom: "#FDF6F4",
   textPrimary: "#1A0A0C",
   textSecondary: "rgba(45,18,21,0.55)",
-  glassBg: "rgba(255,255,255,0.55)",
+  glassBg: "rgba(255,255,255,0.72)",
   glassBorder: "rgba(255,255,255,0.7)",
   accent: "#722F37",
   accentMuted: "rgba(114,47,55,0.2)",
@@ -547,7 +547,7 @@ export default function SommelierScreen() {
               )}
             </View>
           ) : (
-            <BlurView intensity={30} tint="light" style={[styles.bubble, styles.bubbleAssistant]}>
+            <View style={[styles.bubble, styles.bubbleAssistant]}>
               {item.imageUri && (
                 <Image
                   source={{ uri: item.imageUri }}
@@ -560,7 +560,7 @@ export default function SommelierScreen() {
                   {item.content}
                 </Markdown>
               )}
-            </BlurView>
+            </View>
           )}
         </View>
         {!isUser && item.wineCards && item.wineCards.length > 0 && renderWineCards(item.wineCards)}
@@ -842,6 +842,9 @@ export default function SommelierScreen() {
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
               scrollEnabled={messages.length > 0}
+              removeClippedSubviews={Platform.OS !== "web"}
+              maxToRenderPerBatch={6}
+              windowSize={7}
             />
           )}
         </Pressable>
