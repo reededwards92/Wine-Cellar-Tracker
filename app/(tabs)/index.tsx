@@ -496,12 +496,15 @@ export default function CellarScreen() {
           if (card.cta_filter) {
             setFilters((prev) => ({
               ...prev,
+              sort: "drink_window_start",
+              order: "asc",
               ...Object.fromEntries(
                 Object.entries(card.cta_filter!).map(([k, v]) =>
                   Array.isArray(prev[k as keyof FilterState]) ? [k, [v]] : [k, v]
                 )
               ),
             }));
+            setFiltersExpanded(true);
           }
         }}
         isLoading={insightsLoading}

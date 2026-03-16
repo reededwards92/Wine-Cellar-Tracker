@@ -17,8 +17,7 @@ interface Props {
 
 export default function InsightCard({ card, onPress }: Props) {
   const accent = ACCENT_COLORS[card.type];
-  const displayWines = card.wines.slice(0, 2);
-  const remaining = card.wines.length - displayWines.length;
+  const displayWines = card.wines.slice(0, 3);
 
   return (
     <Pressable
@@ -36,9 +35,6 @@ export default function InsightCard({ card, onPress }: Props) {
               <Text style={styles.wineText} numberOfLines={1}>{w.producer}</Text>
             </View>
           ))}
-          {remaining > 0 && (
-            <Text style={styles.moreText}>+{remaining} more</Text>
-          )}
         </View>
       </View>
     </Pressable>
@@ -47,8 +43,8 @@ export default function InsightCard({ card, onPress }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 200,
-    height: 140,
+    width: 210,
+    height: 155,
     backgroundColor: Colors.light.cardBackground,
     borderRadius: theme.radius.lg,
     flexDirection: "row",
@@ -97,9 +93,5 @@ const styles = StyleSheet.create({
     ...theme.typography.caption,
     color: Colors.light.textSecondary,
     flexShrink: 1,
-  },
-  moreText: {
-    ...theme.typography.caption,
-    color: Colors.light.tabIconDefault,
   },
 });
