@@ -142,9 +142,6 @@ export default function OnboardingComplete() {
         ]}
       >
         <View style={styles.centerArea}>
-          <View style={styles.iconCircle}>
-            <Text style={styles.iconEmoji}>🍷</Text>
-          </View>
           <Text style={styles.heading}>You're all set</Text>
           <Text style={styles.summary}>{summary}</Text>
         </View>
@@ -172,28 +169,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#2D1215",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  iconEmoji: {
-    fontSize: 38,
-  },
   heading: {
-    fontSize: 32,
+    fontSize: 42,
     fontFamily: "LibreBaskerville_700Bold",
     color: TEXT_PRIMARY,
-    marginTop: 24,
     textAlign: "center",
+    marginBottom: 16,
   },
   summary: {
     fontSize: 15,
