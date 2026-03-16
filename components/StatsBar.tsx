@@ -83,12 +83,12 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 18,
-    fontFamily: "Outfit_700Bold",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
   },
   label: {
     fontSize: 11,
-    fontFamily: "Outfit_300Light",
+    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.55)",
     marginTop: 2,
   },

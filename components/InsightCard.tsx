@@ -63,7 +63,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   title: {
-    ...theme.typography.heading3,
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
   },
   subtitle: {

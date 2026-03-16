@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   producer: {
-    fontSize: 15,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontSize: 14,
+    fontFamily: "LibreBaskerville_400Regular",
     color: Colors.light.text,
   },
   wineName: {
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   score: {
     fontSize: 12,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.tint,
+    color: Colors.light.textSecondary,
   },
   footer: {
     flexDirection: "row",
@@ -208,6 +208,6 @@ const styles = StyleSheet.create({
   },
   dwLabel: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
   },
 });

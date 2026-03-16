@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.65)",
   },
   badge: {
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   accordionLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   accordionRight: {
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   clearBtn: {

@@ -11,7 +11,7 @@ function ScanTabButton({ onPress, accessibilityState }: any) {
   return (
     <Pressable onPress={onPress} style={styles.scanButtonWrapper}>
       <View style={[styles.scanButton, focused && styles.scanButtonFocused]}>
-        <Ionicons name="camera" size={24} color="#fff" />
+        <Ionicons name="camera" size={26} color="#fff" />
       </View>
     </Pressable>
   );
@@ -33,7 +33,7 @@ export default function TabLayout() {
             borderTopWidth: 0.5,
             borderTopColor: "rgba(114, 47, 55, 0.10)",
             elevation: 0,
-            height: Platform.OS === "web" ? 84 : undefined,
+            height: Platform.OS === "web" ? 84 : 60,
           },
           tabBarBackground: () =>
             isIOS ? (
@@ -100,20 +100,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: 4,
+    top: -16,
   },
   scanButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.light.tint,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#2D1215",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.20,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 6,
   },
   scanButtonFocused: {
     backgroundColor: "#5a1f28",

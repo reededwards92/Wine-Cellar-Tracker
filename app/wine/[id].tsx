@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     textAlign: "center",
   },
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
   },
   producer: {
     fontSize: 22,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "LibreBaskerville_400Regular",
     color: Colors.light.text,
     textAlign: "center",
   },
@@ -830,8 +830,8 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     fontSize: 18,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.tint,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.textSecondary,
   },
   scoreLabel: {
     fontSize: 11,
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   },
   detailSectionTitle: {
     fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "Outfit_400Regular",
     color: "rgba(114, 47, 55, 0.55)",
     marginBottom: 12,
   },
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
   },
   modalLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     marginBottom: 5,
     marginTop: 12,
@@ -1066,7 +1066,7 @@ const styles = StyleSheet.create({
   },
   quantityNum: {
     fontSize: 24,
-    fontFamily: "Outfit_700Bold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
     minWidth: 40,
     textAlign: "center",

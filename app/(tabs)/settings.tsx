@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
   },
   listContent: {
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "Outfit_400Regular",
     color: "rgba(114, 47, 55, 0.55)",
     marginBottom: 8,
     paddingHorizontal: 4,
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   rowLabelDestructive: {

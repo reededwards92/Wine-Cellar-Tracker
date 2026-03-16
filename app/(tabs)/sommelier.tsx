@@ -795,7 +795,8 @@ export default function SommelierScreen() {
 
   return (
     <LinearGradient
-      colors={['#6B2A32', '#8B3D46', '#A85560', '#C4787F', '#DDA8AC', '#EDD0D3', '#F7EAEB', '#FDF6F4']}
+      colors={['#6B2A32', '#8B3D46', '#BF7A82', '#E8C8CB', '#F5E8E9', '#FDF6F0', '#FDF6F0', '#FDF6F0']}
+      locations={[0, 0.12, 0.22, 0.32, 0.42, 0.55, 0.78, 1.0]}
       style={[styles.container, { paddingTop: isWeb ? 67 : 0, paddingBottom: tabBarHeight }]}
     >
       <View

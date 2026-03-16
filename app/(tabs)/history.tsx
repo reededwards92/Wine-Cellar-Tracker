@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
   },
   subtitle: {
@@ -732,12 +732,12 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 32,
-    fontFamily: "Outfit_700Bold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
   },
   statLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.55)",
     marginTop: 2,
     textAlign: "center",
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
   },
   chartTitle: {
     fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
     marginBottom: 16,
   },
@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
   },
   donutCenterNumber: {
     fontSize: 24,
-    fontFamily: "Outfit_700Bold",
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
   },
   donutCenterLabel: {
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
   barCount: {
     fontSize: 10,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.tint,
+    color: Colors.light.textSecondary,
     height: 14,
   },
   barLabel: {
@@ -878,8 +878,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardProducer: {
-    fontSize: 15,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontSize: 14,
+    fontFamily: "LibreBaskerville_400Regular",
     color: Colors.light.text,
   },
   cardWine: {
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
   score: {
     fontSize: 12,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.tint,
+    color: Colors.light.textSecondary,
   },
   cardMeta: {
     flexDirection: "row",
@@ -965,7 +965,7 @@ const styles = StyleSheet.create({
   },
   filterToggleText: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: "rgba(114, 47, 55, 0.55)",
     flex: 1,
   },
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: 11,
-    fontFamily: "Outfit_600SemiBold",
+    fontFamily: "Outfit_400Regular",
     color: "rgba(114, 47, 55, 0.55)",
     marginBottom: 6,
   },
@@ -1017,7 +1017,7 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.70)",
   },
   filterChipTextActive: {
