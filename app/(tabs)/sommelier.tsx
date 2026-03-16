@@ -500,7 +500,7 @@ export default function SommelierScreen() {
             {wine.producer}{wine.vintage ? ` · ${wine.vintage}` : ""}{wine.region ? ` · ${wine.region}` : ""}
           </Text>
           <View style={styles.wineCardFooter}>
-            {wine.score ? <Text style={styles.wineCardScore}>{wine.score} pts</Text> : null}
+            {wine.score ? <Text style={styles.wineCardScore}>{Math.round(wine.score)} pts</Text> : null}
             {wine.bottle_count ? <Text style={styles.wineCardBottles}>{wine.bottle_count} bottle{wine.bottle_count !== 1 ? "s" : ""}</Text> : null}
           </View>
         </Pressable>
@@ -605,7 +605,7 @@ export default function SommelierScreen() {
 
     return (
       <View style={styles.thinkingContainer}>
-        <CruMark size="md" state={cruState} />
+        <CruMark size="sm" state={cruState} />
         <Animated.Text
           style={[
             styles.thinkingText,

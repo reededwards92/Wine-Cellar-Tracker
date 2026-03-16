@@ -99,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND w.drink_window_end IS NOT NULL AND w.drink_window_end >= $2
         GROUP BY w.id
         ORDER BY w.drink_window_end ASC
-        LIMIT 5
+        LIMIT 3
       `, [userId, currentYear]);
 
       if (readyResult.rows.length > 0) {
@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND w.drink_window_start <= $3
         GROUP BY w.id
         ORDER BY w.drink_window_start ASC
-        LIMIT 5
+        LIMIT 3
       `, [userId, currentYear, currentYear + 2]);
 
       if (soonResult.rows.length > 0) {

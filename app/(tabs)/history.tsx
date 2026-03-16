@@ -226,7 +226,7 @@ function ConsumptionCard({
               <Text style={styles.value}>${Math.round(price)}</Text>
             ) : null}
             {entry.ct_community_score ? (
-              <Text style={styles.score}>{entry.ct_community_score.toFixed(1)}</Text>
+              <Text style={styles.score}>{Math.round(entry.ct_community_score)}</Text>
             ) : null}
           </View>
         </View>
