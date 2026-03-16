@@ -119,7 +119,16 @@ export default function SettingsScreen() {
       const res = await apiRequest("PATCH", "/api/notifications/preferences", prefs);
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications/preferences"] }),
+    onMutate: async (newPrefs) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/notifications/preferences"] });
+      const previous = queryClient.getQueryData(["/api/notifications/preferences"]);
+      queryClient.setQueryData(["/api/notifications/preferences"], (old: any) => ({ ...old, ...newPrefs }));
+      return { previous };
+    },
+    onError: (_err, _newPrefs, context) => {
+      if (context?.previous) queryClient.setQueryData(["/api/notifications/preferences"], context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications/preferences"] }),
   });
 
   const handleBiometricsToggle = async (_val: boolean) => {
