@@ -26,7 +26,9 @@ function SkeletonCard() {
 }
 
 export default function InsightsRow({ insights, onCardPress, isLoading }: Props) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  const totalWines = insights.reduce((sum, card) => sum + card.wines.length, 0);
 
   if (!isLoading && insights.length === 0) return null;
 
@@ -36,9 +38,9 @@ export default function InsightsRow({ insights, onCardPress, isLoading }: Props)
         <View style={styles.headerLeft}>
           <Ionicons name="sparkles" size={16} color={Colors.light.tint} />
           <Text style={styles.headerText}>Cru's Picks</Text>
-          {!expanded && insights.length > 0 && (
+          {!expanded && totalWines > 0 && (
             <View style={styles.countBadge}>
-              <Text style={styles.countText}>{insights.length}</Text>
+              <Text style={styles.countText}>{totalWines}</Text>
             </View>
           )}
         </View>

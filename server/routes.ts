@@ -125,7 +125,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentYear = new Date().getFullYear();
       const cards: any[] = [];
 
-      // ready_to_drink: wines currently in their drinking window with bottles in cellar
+      // Daily seed from today's date (YYYYMMDD as float between 0–1)
+      const today = new Date();
+      const dateSeed = (today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()) / 99999999;
+      // Daily pick count: 1–3, rotates by day-of-year
+      const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+      const dailyLimit = (dayOfYear % 3) + 1; // cycles 1, 2, 3, 1, 2, 3 ...
+
+      // ready_to_drink: daily random selection of wines in their drinking window
       const readyResult = await pool.query(`
         SELECT w.id, w.producer, w.wine_name, w.vintage, w.color,
                COUNT(b.id)::int as bottle_count
@@ -135,12 +142,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND w.drink_window_start IS NOT NULL AND w.drink_window_start <= $2
           AND w.drink_window_end IS NOT NULL AND w.drink_window_end >= $2
         GROUP BY w.id
-        ORDER BY w.drink_window_end ASC
-        LIMIT 3
-      `, [userId, currentYear]);
+        ORDER BY setseed($3), random()
+        LIMIT $4
+      `, [userId, currentYear, dateSeed, dailyLimit]);
 
       if (readyResult.rows.length > 0) {
         const count = readyResult.rows.length;
+        const wineIds = readyResult.rows.map((r: any) => r.id);
         cards.push({
           type: 'ready_to_drink',
           title: 'In Their Window',
@@ -150,11 +158,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             vintage: r.vintage, color: r.color,
           })),
           cta_label: 'View Wines',
-          cta_filter: { drinkWindow: 'in_window' },
+          cta_filter: { wineIds },
         });
       }
 
-      // drink_soon: wines entering window in next 1-2 years
+      // drink_soon: daily random selection of wines entering window soon
       const soonResult = await pool.query(`
         SELECT w.id, w.producer, w.wine_name, w.vintage, w.color,
                COUNT(b.id)::int as bottle_count
@@ -165,12 +173,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND w.drink_window_start > $2
           AND w.drink_window_start <= $3
         GROUP BY w.id
-        ORDER BY w.drink_window_start ASC
-        LIMIT 3
-      `, [userId, currentYear, currentYear + 2]);
+        ORDER BY setseed($4), random()
+        LIMIT $5
+      `, [userId, currentYear, currentYear + 2, dateSeed + 0.1, dailyLimit]);
 
       if (soonResult.rows.length > 0) {
         const count = soonResult.rows.length;
+        const wineIds = soonResult.rows.map((r: any) => r.id);
         cards.push({
           type: 'drink_soon',
           title: 'Opening Soon',
@@ -180,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             vintage: r.vintage, color: r.color,
           })),
           cta_label: 'View Wines',
-          cta_filter: { drinkWindow: 'approaching' },
+          cta_filter: { wineIds },
         });
       }
 
@@ -573,6 +582,7 @@ User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m:
       maxValue,
       inStock = "true",
       search,
+      wine_ids,
     } = req.query;
 
     let whereClauses: string[] = ["w.user_id = $1"];
@@ -603,6 +613,15 @@ User preferences: ${memoriesResult.rows.length > 0 ? memoriesResult.rows.map((m:
       );
       params.push(`%${search}%`);
       paramIdx++;
+    }
+
+    if (wine_ids) {
+      const ids = (wine_ids as string).split(",").map(Number).filter(Boolean);
+      if (ids.length > 0) {
+        const placeholders = ids.map(() => `$${paramIdx++}`);
+        whereClauses.push(`w.id IN (${placeholders.join(",")})`);
+        params.push(...ids);
+      }
     }
 
     const currentYear = new Date().getFullYear();

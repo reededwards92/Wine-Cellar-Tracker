@@ -44,6 +44,7 @@ const DEFAULT_FILTERS: FilterState = {
   search: "",
   sort: "producer",
   order: "asc",
+  wineIds: [],
 };
 
 interface Section {
@@ -304,6 +305,7 @@ export default function CellarScreen() {
     if (filters.minValue) params.set("minValue", filters.minValue);
     if (filters.maxValue) params.set("maxValue", filters.maxValue);
     if (filters.search) params.set("search", filters.search);
+    if (filters.wineIds?.length > 0) params.set("wine_ids", filters.wineIds.join(","));
     return params.toString();
   }, [filters]);
 
@@ -494,19 +496,12 @@ export default function CellarScreen() {
       <InsightsRow
         insights={insights ?? []}
         onCardPress={(card) => {
-          if (card.cta_filter) {
+          if (card.cta_filter?.wineIds?.length > 0) {
             setFilters((prev) => ({
-              ...prev,
-              sort: "drink_window_start",
-              order: "asc",
-              ...Object.fromEntries(
-                Object.entries(card.cta_filter!).map(([k, v]) =>
-                  Array.isArray(prev[k as keyof FilterState]) ? [k, [v]] : [k, v]
-                )
-              ),
+              ...DEFAULT_FILTERS,
+              search: prev.search,
+              wineIds: card.cta_filter!.wineIds,
             }));
-            setFiltersExpanded(true);
-            setFilterOpenSection("dw");
           }
         }}
         isLoading={insightsLoading}

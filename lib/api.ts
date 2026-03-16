@@ -107,7 +107,7 @@ export interface InsightCard {
   subtitle: string;
   wines: Array<{ id: number; producer: string; wine_name: string; vintage?: number; color?: string }>;
   cta_label: string;
-  cta_filter?: Record<string, string>;
+  cta_filter?: { wineIds?: number[]; [key: string]: any };
 }
 
 export function getDrinkWindowStatus(start: number | null, end: number | null): "in_window" | "approaching" | "past_peak" | "not_set" {

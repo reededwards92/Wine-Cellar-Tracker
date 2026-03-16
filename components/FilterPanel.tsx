@@ -18,6 +18,7 @@ export interface FilterState {
   search: string;
   sort: string;
   order: string;
+  wineIds: number[];
 }
 
 interface FilterPanelProps {
@@ -124,7 +125,8 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
     filters.locations.length +
     (filters.minValue ? 1 : 0) +
     (filters.maxValue ? 1 : 0) +
-    (!filters.inStock ? 1 : 0);
+    (!filters.inStock ? 1 : 0) +
+    (filters.wineIds?.length > 0 ? 1 : 0);
 
   return (
     <View style={styles.container}>
@@ -276,7 +278,7 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
               onPress={() => onChange({
                 colors: [], region: "", country: "", varietal: "",
                 drinkWindow: [], locations: [], minValue: "", maxValue: "", inStock: true,
-                search: filters.search, sort: "producer", order: "asc",
+                search: filters.search, sort: "producer", order: "asc", wineIds: [],
               })}
             >
               <Text style={styles.clearText}>Clear all filters</Text>
