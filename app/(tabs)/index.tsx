@@ -509,18 +509,18 @@ export default function CellarScreen() {
 
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color="rgba(114, 47, 55, 0.45)" />
+          <Ionicons name="search" size={18} color="rgba(94, 38, 38, 0.45)" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search wines..."
-            placeholderTextColor="rgba(114, 47, 55, 0.40)"
+            placeholderTextColor="rgba(94, 38, 38, 0.40)"
             value={searchText}
             onChangeText={setSearchText}
             returnKeyType="search"
           />
           {searchText ? (
             <Pressable onPress={() => { setSearchText(""); setFilters((p) => ({ ...p, search: "" })); }}>
-              <Ionicons name="close-circle" size={18} color="rgba(114, 47, 55, 0.45)" />
+              <Ionicons name="close-circle" size={18} color="rgba(94, 38, 38, 0.45)" />
             </Pressable>
           ) : null}
         </View>
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: Colors.light.text,
   },
   searchRow: {
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.60)",
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    borderColor: "rgba(114, 47, 55, 0.15)",
+    borderColor: "rgba(94, 38, 38, 0.15)",
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === "web" ? 10 : 8,
     gap: 8,
@@ -668,7 +668,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     padding: 0,
   },
@@ -686,7 +685,7 @@ const styles = StyleSheet.create({
   },
   sectionHeaderText: {
     fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.tint,
   },
   scrubberContainer: {
@@ -708,12 +707,12 @@ const styles = StyleSheet.create({
   },
   scrubberText: {
     fontSize: 9,
-    fontFamily: "Outfit_500Medium",
-    color: "rgba(114, 47, 55, 0.45)",
+    fontWeight: "500",
+    color: "rgba(94, 38, 38, 0.45)",
   },
   scrubberTextActive: {
     color: Colors.light.tint,
-    fontFamily: "Outfit_700Bold",
+    fontWeight: "700",
   },
   scrubberBubble: {
     position: "absolute" as const,
@@ -728,7 +727,7 @@ const styles = StyleSheet.create({
   },
   scrubberBubbleText: {
     fontSize: 18,
-    fontFamily: "Outfit_700Bold",
+    fontWeight: "700",
     color: "#fff",
   },
   scrubberBubbleArrow: {
@@ -753,12 +752,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   emptyText: {
     fontSize: 14,
-    fontFamily: "Outfit_300Light",
+    fontWeight: "300",
     color: Colors.light.textSecondary,
     textAlign: "center",
     paddingHorizontal: 40,
@@ -770,12 +769,12 @@ const styles = StyleSheet.create({
   },
   selectCancel: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   selectCount: {
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   bulkBar: {
@@ -785,7 +784,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "rgba(255,255,255,0.95)",
     borderTopWidth: 1,
-    borderTopColor: "rgba(114, 47, 55, 0.1)",
+    borderTopColor: "rgba(94, 38, 38, 0.1)",
     paddingTop: 12,
     paddingHorizontal: 16,
   },
@@ -800,7 +799,7 @@ const styles = StyleSheet.create({
   },
   bulkMoveBtnText: {
     fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
   modalOverlay: {
@@ -820,11 +819,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.10)",
+    borderBottomColor: "rgba(94, 38, 38, 0.10)",
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   modalBody: {
@@ -836,13 +835,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.07)",
+    borderBottomColor: "rgba(94, 38, 38, 0.07)",
     gap: 12,
   },
   locationOptionText: {
     flex: 1,
     fontSize: 16,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
 });

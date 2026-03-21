@@ -67,7 +67,7 @@ function SettingsRow({
           thumbColor={Colors.light.white}
         />
       ) : onPress ? (
-        <Ionicons name="chevron-forward" size={16} color="rgba(114,47,55,0.35)" />
+        <Ionicons name="chevron-forward" size={16} color="rgba(94,38,38,0.35)" />
       ) : null}
     </>
   );
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: Colors.light.text,
   },
   listContent: {
@@ -386,8 +386,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: "rgba(114, 47, 55, 0.55)",
+    color: "rgba(94, 38, 38, 0.55)",
     marginBottom: 8,
     paddingHorizontal: 4,
   },
@@ -395,7 +394,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.62)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(114, 47, 55, 0.10)",
+    borderColor: "rgba(94, 38, 38, 0.10)",
     overflow: "hidden",
   },
   row: {
@@ -404,7 +403,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114,47,55,0.07)",
+    borderBottomColor: "rgba(94,38,38,0.07)",
   },
   rowPressed: {
     backgroundColor: Colors.light.cardBackground,
@@ -426,7 +425,6 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   rowLabelDestructive: {
@@ -434,7 +432,6 @@ const styles = StyleSheet.create({
   },
   rowSubtitle: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.50)",
     marginTop: 1,
   },

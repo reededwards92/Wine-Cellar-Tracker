@@ -7,7 +7,7 @@ import ProgressBar from "@/components/onboarding/ProgressBar";
 import SelectionCard from "@/components/onboarding/SelectionCard";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 
-const TINT = "#722F37";
+const TINT = "#5E2626";
 const TEXT_PRIMARY = "#1A0A0C";
 const TEXT_SECONDARY = "rgba(45,18,21,0.55)";
 
@@ -30,7 +30,7 @@ export default function CollectorType() {
   const handleNext = () => router.push("/(onboarding)/wine-styles");
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#FDF6F0" }}>
+    <View style={{ flex: 1, backgroundColor: "#FDF8F5" }}>
       <CruMeshBackground />
 
       <View
@@ -46,7 +46,7 @@ export default function CollectorType() {
           <ProgressBar current={1} total={5} />
         </View>
         <Pressable onPress={skip} style={{ paddingLeft: 16 }}>
-          <Text style={{ fontSize: 14, fontFamily: "Outfit_400Regular", color: "rgba(107,74,79,0.7)" }}>
+          <Text style={{ fontSize: 14, , color: "rgba(107,74,79,0.7)" }}>
             Skip
           </Text>
         </Pressable>
@@ -60,7 +60,7 @@ export default function CollectorType() {
         <Text
           style={{
             fontSize: 22,
-            fontFamily: "LibreBaskerville_700Bold",
+            fontFamily: "New York", fontWeight: "700",
             color: TEXT_PRIMARY,
             marginBottom: 6,
           }}
@@ -103,7 +103,7 @@ export default function CollectorType() {
           onPress={canProceed ? handleNext : undefined}
           disabled={!canProceed}
         >
-          <Text style={{ fontSize: 16, fontFamily: "Outfit_600SemiBold", color: "#FFFFFF" }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", color: "#FFFFFF" }}>
             Next →
           </Text>
         </Pressable>

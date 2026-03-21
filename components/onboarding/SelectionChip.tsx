@@ -24,16 +24,16 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: "rgba(114,47,55,0.22)",
+    borderColor: "rgba(94,38,38,0.22)",
     backgroundColor: "rgba(255,255,255,0.80)",
   },
   chipSelected: {
-    backgroundColor: "#722F37",
-    borderColor: "#722F37",
+    backgroundColor: "#5E2626",
+    borderColor: "#5E2626",
   },
   label: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: "rgba(45,18,21,0.75)",
   },
   labelSelected: {

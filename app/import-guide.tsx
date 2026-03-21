@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   content: {
@@ -253,7 +253,6 @@ const styles = StyleSheet.create({
   },
   intro: {
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     lineHeight: 22,
     marginBottom: 20,
@@ -281,12 +280,12 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.textSecondary,
   },
   tabTextActive: {
     color: Colors.light.text,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
   },
   stepCard: {
     backgroundColor: Colors.light.white,
@@ -314,12 +313,12 @@ const styles = StyleSheet.create({
   },
   stepBadgeText: {
     fontSize: 13,
-    fontFamily: "Outfit_700Bold",
+    fontWeight: "700",
     color: "#fff",
   },
   stepTitle: {
     fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
     flex: 1,
   },
@@ -339,7 +338,6 @@ const styles = StyleSheet.create({
   },
   bulletText: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     lineHeight: 20,
     flex: 1,
@@ -355,7 +353,6 @@ const styles = StyleSheet.create({
   },
   noteText: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     lineHeight: 19,
     flex: 1,
@@ -385,7 +382,7 @@ const styles = StyleSheet.create({
   },
   uploadBtnText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
 });

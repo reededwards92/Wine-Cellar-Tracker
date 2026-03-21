@@ -106,8 +106,8 @@ function FormField({ label, children, confidence }: { label: string; children: R
   return (
     <View style={styles.field}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        <Text style={[styles.fieldLabel, isUncertain && { color: "rgba(114,47,55,0.45)" }]}>{label}</Text>
-        {isUncertain && <Text style={{ fontSize: 10, color: "rgba(114,47,55,0.40)", fontFamily: "Outfit_400Regular" }}>✦</Text>}
+        <Text style={[styles.fieldLabel, isUncertain && { color: "rgba(94,38,38,0.45)" }]}>{label}</Text>
+        {isUncertain && <Text style={{ fontSize: 10, color: "rgba(94,38,38,0.40)",  }}>✦</Text>}
       </View>
       {children}
     </View>
@@ -627,7 +627,7 @@ export default function ScanScreen() {
                   <View style={{ flexDirection: "row", marginBottom: 12, backgroundColor: Colors.light.cardBackground, borderRadius: theme.radius.md, overflow: "hidden", ...theme.shadows.card }}>
                     <View style={{ width: 2, backgroundColor: Colors.light.tint }} />
                     <View style={{ flex: 1, padding: 12 }}>
-                      <Text style={{ fontFamily: theme.fonts.outfit.semiBold, fontSize: 11, color: Colors.light.tint, marginBottom: 4 }}>{"\u2726"} Cru</Text>
+                      <Text style={{ fontWeight: "600", fontSize: 11, color: Colors.light.tint, marginBottom: 4 }}>{"\u2726"} Cru</Text>
                       <Text style={{ ...theme.typography.bodySmall, color: Colors.light.textSecondary }}>{scanContext}</Text>
                     </View>
                   </View>
@@ -702,15 +702,15 @@ export default function ScanScreen() {
         )}
         <FormSection title="Wine Identity">
           <FormField label="Producer *" confidence={fieldConfidence.producer}>
-            <TextInput style={styles.input} value={form.producer} onChangeText={(v) => update("producer", v)} placeholder="e.g., Ch\u00e2teau Margaux" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+            <TextInput style={styles.input} value={form.producer} onChangeText={(v) => update("producer", v)} placeholder="e.g., Ch\u00e2teau Margaux" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
           </FormField>
           <FormField label="Wine Name *" confidence={fieldConfidence.wine_name}>
-            <TextInput style={styles.input} value={form.wine_name} onChangeText={(v) => update("wine_name", v)} placeholder="e.g., Grand Vin" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+            <TextInput style={styles.input} value={form.wine_name} onChangeText={(v) => update("wine_name", v)} placeholder="e.g., Grand Vin" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
           </FormField>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Vintage" confidence={fieldConfidence.vintage}>
-                <TextInput style={styles.input} value={form.vintage} onChangeText={(v) => update("vintage", v)} placeholder="2020" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
+                <TextInput style={styles.input} value={form.vintage} onChangeText={(v) => update("vintage", v)} placeholder="2020" placeholderTextColor="rgba(94, 38, 38, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
@@ -731,29 +731,29 @@ export default function ScanScreen() {
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Country" confidence={fieldConfidence.country}>
-                <TextInput style={styles.input} value={form.country} onChangeText={(v) => update("country", v)} placeholder="France" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+                <TextInput style={styles.input} value={form.country} onChangeText={(v) => update("country", v)} placeholder="France" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Region" confidence={fieldConfidence.region}>
-                <TextInput style={styles.input} value={form.region} onChangeText={(v) => update("region", v)} placeholder="Bordeaux" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+                <TextInput style={styles.input} value={form.region} onChangeText={(v) => update("region", v)} placeholder="Bordeaux" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
               </FormField>
             </View>
           </View>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Sub-Region">
-                <TextInput style={styles.input} value={form.sub_region} onChangeText={(v) => update("sub_region", v)} placeholder="Margaux" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+                <TextInput style={styles.input} value={form.sub_region} onChangeText={(v) => update("sub_region", v)} placeholder="Margaux" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Appellation">
-                <TextInput style={styles.input} value={form.appellation} onChangeText={(v) => update("appellation", v)} placeholder="Margaux AOC" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+                <TextInput style={styles.input} value={form.appellation} onChangeText={(v) => update("appellation", v)} placeholder="Margaux AOC" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
               </FormField>
             </View>
           </View>
           <FormField label="Varietal" confidence={fieldConfidence.varietal}>
-            <TextInput style={styles.input} value={form.varietal} onChangeText={(v) => update("varietal", v)} placeholder="Cabernet Sauvignon" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+            <TextInput style={styles.input} value={form.varietal} onChangeText={(v) => update("varietal", v)} placeholder="Cabernet Sauvignon" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
           </FormField>
         </FormSection>
 
@@ -761,29 +761,29 @@ export default function ScanScreen() {
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Designation">
-                <TextInput style={styles.input} value={form.designation} onChangeText={(v) => update("designation", v)} placeholder="Reserve" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+                <TextInput style={styles.input} value={form.designation} onChangeText={(v) => update("designation", v)} placeholder="Reserve" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Vineyard">
-                <TextInput style={styles.input} value={form.vineyard} onChangeText={(v) => update("vineyard", v)} placeholder="Les Pavots" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+                <TextInput style={styles.input} value={form.vineyard} onChangeText={(v) => update("vineyard", v)} placeholder="Les Pavots" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
               </FormField>
             </View>
           </View>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Drink Start">
-                <TextInput style={styles.input} value={form.drink_window_start} onChangeText={(v) => update("drink_window_start", v)} placeholder="2024" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
+                <TextInput style={styles.input} value={form.drink_window_start} onChangeText={(v) => update("drink_window_start", v)} placeholder="2024" placeholderTextColor="rgba(94, 38, 38, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Drink End">
-                <TextInput style={styles.input} value={form.drink_window_end} onChangeText={(v) => update("drink_window_end", v)} placeholder="2030" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
+                <TextInput style={styles.input} value={form.drink_window_end} onChangeText={(v) => update("drink_window_end", v)} placeholder="2030" placeholderTextColor="rgba(94, 38, 38, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
           </View>
           <FormField label="Community Score">
-            <TextInput style={styles.input} value={form.ct_community_score} onChangeText={(v) => update("ct_community_score", v)} placeholder="90.5" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="decimal-pad" />
+            <TextInput style={styles.input} value={form.ct_community_score} onChangeText={(v) => update("ct_community_score", v)} placeholder="90.5" placeholderTextColor="rgba(94, 38, 38, 0.38)" keyboardType="decimal-pad" />
           </FormField>
         </FormSection>
 
@@ -791,24 +791,24 @@ export default function ScanScreen() {
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Quantity">
-                <TextInput style={styles.input} value={form.quantity} onChangeText={(v) => update("quantity", v)} placeholder="1" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="number-pad" />
+                <TextInput style={styles.input} value={form.quantity} onChangeText={(v) => update("quantity", v)} placeholder="1" placeholderTextColor="rgba(94, 38, 38, 0.38)" keyboardType="number-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Size">
-                <TextInput style={styles.input} value={form.size} onChangeText={(v) => update("size", v)} placeholder="750ml" placeholderTextColor="rgba(114, 47, 55, 0.38)" />
+                <TextInput style={styles.input} value={form.size} onChangeText={(v) => update("size", v)} placeholder="750ml" placeholderTextColor="rgba(94, 38, 38, 0.38)" />
               </FormField>
             </View>
           </View>
           <View style={styles.row}>
             <View style={styles.halfField}>
               <FormField label="Purchase Price">
-                <TextInput style={styles.input} value={form.purchase_price} onChangeText={(v) => update("purchase_price", v)} placeholder="$0.00" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="decimal-pad" />
+                <TextInput style={styles.input} value={form.purchase_price} onChangeText={(v) => update("purchase_price", v)} placeholder="$0.00" placeholderTextColor="rgba(94, 38, 38, 0.38)" keyboardType="decimal-pad" />
               </FormField>
             </View>
             <View style={styles.halfField}>
               <FormField label="Est. Value">
-                <TextInput style={styles.input} value={form.estimated_value} onChangeText={(v) => update("estimated_value", v)} placeholder="$0.00" placeholderTextColor="rgba(114, 47, 55, 0.38)" keyboardType="decimal-pad" />
+                <TextInput style={styles.input} value={form.estimated_value} onChangeText={(v) => update("estimated_value", v)} placeholder="$0.00" placeholderTextColor="rgba(94, 38, 38, 0.38)" keyboardType="decimal-pad" />
               </FormField>
             </View>
           </View>
@@ -824,7 +824,7 @@ export default function ScanScreen() {
             </FormField>
           ) : null}
           <FormField label="Notes">
-            <TextInput style={[styles.input, styles.textArea]} value={form.notes} onChangeText={(v) => update("notes", v)} placeholder="Tasting notes, purchase details..." placeholderTextColor="rgba(114, 47, 55, 0.38)" multiline numberOfLines={3} textAlignVertical="top" />
+            <TextInput style={[styles.input, styles.textArea]} value={form.notes} onChangeText={(v) => update("notes", v)} placeholder="Tasting notes, purchase details..." placeholderTextColor="rgba(94, 38, 38, 0.38)" multiline numberOfLines={3} textAlignVertical="top" />
           </FormField>
         </FormSection>
 
@@ -876,13 +876,12 @@ const styles = StyleSheet.create({
   },
   idleTitle: {
     fontSize: 22,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: Colors.light.text,
     marginBottom: 8,
   },
   idleText: {
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.55)",
     textAlign: "center" as const,
     marginBottom: 32,
@@ -898,7 +897,7 @@ const styles = StyleSheet.create({
   },
   scanBtnText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
   analyzePhoto: {
@@ -908,7 +907,7 @@ const styles = StyleSheet.create({
   },
   analyzingLabel: {
     fontSize: 16,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
     marginTop: 16,
   },
@@ -935,18 +934,17 @@ const styles = StyleSheet.create({
   },
   resultProducer: {
     fontSize: 20,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: Colors.light.text,
   },
   resultWine: {
     fontSize: 15,
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "New York",
     color: "rgba(45,18,21,0.55)",
     marginTop: 4,
   },
   resultMeta: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.55)",
     marginTop: 8,
   },
@@ -966,23 +964,21 @@ const styles = StyleSheet.create({
   },
   resultColorText: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   resultCountry: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.55)",
   },
   noResultTitle: {
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
     marginTop: 8,
   },
   noResultText: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.55)",
     marginTop: 4,
   },
@@ -997,7 +993,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.22)",
+    borderColor: "rgba(94,38,38,0.22)",
   },
   actionIcon: {
     width: 40,
@@ -1012,12 +1008,11 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
-    color: "#722F37",
+    fontWeight: "600",
+    color: "#5E2626",
   },
   actionSub: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.55)",
     marginTop: 1,
   },
@@ -1034,12 +1029,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.22)",
+    borderColor: "rgba(94,38,38,0.22)",
     backgroundColor: "rgba(255,255,255,0.60)",
   },
   retakeBtnText: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   cancelBtnSmall: {
@@ -1049,12 +1044,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.22)",
+    borderColor: "rgba(94,38,38,0.22)",
     backgroundColor: "rgba(255,255,255,0.60)",
   },
   cancelBtnText: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: "rgba(45,18,21,0.55)",
   },
   header: {
@@ -1072,12 +1067,12 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   headerTitle: {
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   section: {
@@ -1091,7 +1086,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "rgba(45,18,21,0.55)",
     marginBottom: 12,
   },
@@ -1100,7 +1095,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
     marginBottom: 5,
   },
@@ -1109,11 +1104,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: "rgba(255,255,255,0.60)",
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.18)",
+    borderColor: "rgba(94,38,38,0.18)",
   },
   textArea: {
     minHeight: 70,
@@ -1136,7 +1130,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.18)",
+    borderColor: "rgba(94,38,38,0.18)",
   },
   colorChipActive: {
     backgroundColor: Colors.light.tint,
@@ -1144,7 +1138,6 @@ const styles = StyleSheet.create({
   },
   colorChipText: {
     fontSize: 11,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   colorChipTextActive: {
@@ -1161,7 +1154,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.18)",
+    borderColor: "rgba(94,38,38,0.18)",
     alignItems: "center" as const,
     backgroundColor: "rgba(255,255,255,0.60)",
   },
@@ -1171,7 +1164,7 @@ const styles = StyleSheet.create({
   },
   locationOptionText: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
   locationOptionTextActive: {
@@ -1195,7 +1188,7 @@ const styles = StyleSheet.create({
   },
   submitText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
   cancelBtnOutline: {
@@ -1205,12 +1198,12 @@ const styles = StyleSheet.create({
     justifyContent: "center" as const,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.22)",
+    borderColor: "rgba(94,38,38,0.22)",
     backgroundColor: "rgba(255,255,255,0.60)",
   },
   cancelOutlineText: {
     fontSize: 16,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: "rgba(45,18,21,0.55)",
   },
   manualEntryBtnOutline: {
@@ -1226,7 +1219,7 @@ const styles = StyleSheet.create({
   },
   manualEntryBtnOutlineText: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   cameraContainer: {
@@ -1255,7 +1248,7 @@ const styles = StyleSheet.create({
   },
   cameraTitle: {
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
   cameraFrameContainer: {
@@ -1306,7 +1299,6 @@ const styles = StyleSheet.create({
   },
   cameraHint: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(255,255,255,0.7)",
     textAlign: "center" as const,
     marginTop: 16,
@@ -1325,7 +1317,7 @@ const styles = StyleSheet.create({
   },
   manualEntryText: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: "#fff",
   },
   captureBtn: {
@@ -1368,17 +1360,15 @@ const styles = StyleSheet.create({
   },
   fuzzyMatchProducer: {
     fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   fuzzyMatchName: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   fuzzyMatchMeta: {
     fontSize: 11,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.tabIconDefault,
     marginTop: 2,
   },
@@ -1390,7 +1380,7 @@ const styles = StyleSheet.create({
   },
   fuzzyMatchCount: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
     backgroundColor: Colors.light.tint + "15",
     paddingHorizontal: 8,
@@ -1413,7 +1403,6 @@ const styles = StyleSheet.create({
   },
   masterMatchText: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: "#15803D",
     flex: 1,
   },
@@ -1433,7 +1422,6 @@ const styles = StyleSheet.create({
   },
   aiSuggestText: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: "#92400E",
     flex: 1,
   },

@@ -25,10 +25,10 @@ const SIZE_MAP = { sm: 32, md: 64, lg: 200 };
 const SPARKLE_SIZE = { sm: 16, md: 28, lg: 64 };
 
 const GRADIENT_COLORS: Record<CruMarkState, [string, string, string, string]> = {
-  idle: ["#6B2A32", "#C4787F", "#FDF6F0", "#D4A574"],
-  thinking: ["#4A1520", "#8B3540", "#C4787F", "#FDF6F0"],
-  speaking: ["#722F37", "#C4787F", "#FDF6F0", "#D4A574"],
-  celebrating: ["#D4A574", "#E8C49A", "#722F37", "#FDF6F0"],
+  idle: ["#4A1F1F", "#C4787F", "#FDF8F5", "#D4A574"],
+  thinking: ["#4A1520", "#8B3540", "#C4787F", "#FDF8F5"],
+  speaking: ["#5E2626", "#C4787F", "#FDF8F5", "#D4A574"],
+  celebrating: ["#D4A574", "#E8C49A", "#5E2626", "#FDF8F5"],
 };
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);

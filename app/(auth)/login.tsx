@@ -112,7 +112,7 @@ export default function LoginScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="your@email.com"
-              placeholderTextColor="rgba(114, 47, 55, 0.38)"
+              placeholderTextColor="rgba(94, 38, 38, 0.38)"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -128,7 +128,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Enter password"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 testID="login-password"
@@ -229,13 +229,12 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 32,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: Colors.light.tint,
     marginBottom: 4,
   },
   tagline: {
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   form: {
@@ -255,7 +254,6 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.danger,
   },
   inputGroup: {
@@ -263,7 +261,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
     marginBottom: 6,
   },
@@ -272,7 +270,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.white,
   },
@@ -307,7 +304,7 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.white,
   },
   divider: {
@@ -322,7 +319,6 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.tabIconDefault,
     marginHorizontal: 16,
   },
@@ -335,11 +331,10 @@ const styles = StyleSheet.create({
   },
   registerLinkText: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   registerLinkBold: {
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.tint,
   },
   forgotRow: {
@@ -349,7 +344,7 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   googleButton: {
@@ -368,7 +363,7 @@ const styles = StyleSheet.create({
   },
   googleButtonText: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
 });

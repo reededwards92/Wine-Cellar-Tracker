@@ -30,9 +30,9 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   filled: {
-    backgroundColor: "#722F37",
+    backgroundColor: "#5E2626",
   },
   empty: {
-    backgroundColor: "rgba(114,47,55,0.18)",
+    backgroundColor: "rgba(94,38,38,0.18)",
   },
 });

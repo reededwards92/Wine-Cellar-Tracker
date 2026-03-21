@@ -6,7 +6,7 @@ import CruMeshBackground from "@/components/CruMeshBackground";
 import ProgressBar from "@/components/onboarding/ProgressBar";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 
-const TINT = "#722F37";
+const TINT = "#5E2626";
 const TEXT_PRIMARY = "#1A0A0C";
 const TEXT_SECONDARY = "rgba(45,18,21,0.55)";
 
@@ -52,7 +52,7 @@ export default function Occasions() {
   const handleNext = () => router.push("/(onboarding)/anything-else");
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#FDF6F0" }}>
+    <View style={{ flex: 1, backgroundColor: "#FDF8F5" }}>
       <CruMeshBackground />
 
       <View
@@ -68,7 +68,7 @@ export default function Occasions() {
           <ProgressBar current={4} total={5} />
         </View>
         <Pressable onPress={skip} style={{ paddingLeft: 16 }}>
-          <Text style={{ fontSize: 14, fontFamily: "Outfit_400Regular", color: "rgba(107,74,79,0.7)" }}>
+          <Text style={{ fontSize: 14, , color: "rgba(107,74,79,0.7)" }}>
             Skip
           </Text>
         </Pressable>
@@ -82,7 +82,7 @@ export default function Occasions() {
         <Text
           style={{
             fontSize: 22,
-            fontFamily: "LibreBaskerville_700Bold",
+            fontFamily: "New York", fontWeight: "700",
             color: TEXT_PRIMARY,
             marginBottom: 6,
           }}
@@ -126,12 +126,12 @@ export default function Occasions() {
           onPress={canProceed ? handleNext : undefined}
           disabled={!canProceed}
         >
-          <Text style={{ fontSize: 16, fontFamily: "Outfit_600SemiBold", color: "#FFFFFF" }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", color: "#FFFFFF" }}>
             Next →
           </Text>
         </Pressable>
         <Pressable onPress={skip} style={{ alignItems: "center", paddingVertical: 6 }}>
-          <Text style={{ fontSize: 14, fontFamily: "Outfit_400Regular", color: "rgba(107,74,79,0.7)" }}>
+          <Text style={{ fontSize: 14, , color: "rgba(107,74,79,0.7)" }}>
             Skip
           </Text>
         </Pressable>
@@ -145,21 +145,21 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.85)",
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: "rgba(114,47,55,0.12)",
+    borderColor: "rgba(94,38,38,0.12)",
     paddingVertical: 16,
     paddingHorizontal: 18,
     marginBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#2D1215",
+    shadowColor: "#1C1B1A",
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   cardSelected: {
-    borderColor: "#722F37",
-    backgroundColor: "rgba(114,47,55,0.06)",
+    borderColor: "#5E2626",
+    backgroundColor: "rgba(94,38,38,0.06)",
   },
   emoji: {
     fontSize: 22,
@@ -167,11 +167,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#1A0A0C",
     flex: 1,
   },
   labelSelected: {
-    color: "#722F37",
+    color: "#5E2626",
   },
 });

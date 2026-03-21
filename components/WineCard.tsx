@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: "transparent",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.08)",
+    borderBottomColor: "rgba(94, 38, 38, 0.08)",
     paddingLeft: 16,
     paddingRight: 32,
     paddingVertical: 14,
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: "rgba(114, 47, 55, 0.25)",
+    borderColor: "rgba(94, 38, 38, 0.25)",
     marginTop: 3,
     marginRight: 10,
     alignItems: "center" as const,
@@ -137,12 +137,12 @@ const styles = StyleSheet.create({
   },
   producer: {
     fontSize: 14,
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "New York",
     color: Colors.light.text,
   },
   wineName: {
     fontSize: 13,
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "New York",
     color: Colors.light.textSecondary,
     marginTop: 1,
   },
@@ -153,12 +153,12 @@ const styles = StyleSheet.create({
   },
   meta: {
     fontSize: 12,
-    fontFamily: "Outfit_300Light",
+    fontWeight: "300",
     color: Colors.light.textSecondary,
   },
   metaSep: {
     fontSize: 12,
-    fontFamily: "Outfit_300Light",
+    fontWeight: "300",
     color: Colors.light.textSecondary,
   },
   right: {
@@ -177,17 +177,17 @@ const styles = StyleSheet.create({
   },
   quantityText: {
     fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
   value: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
   score: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.textSecondary,
   },
   footer: {
@@ -204,10 +204,9 @@ const styles = StyleSheet.create({
   },
   dwText: {
     fontSize: 12,
-    fontFamily: "Outfit_300Light",
+    fontWeight: "300",
   },
   dwLabel: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
   },
 });

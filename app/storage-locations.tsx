@@ -212,7 +212,7 @@ export default function StorageLocationsScreen() {
             value={item.name}
             onChangeText={(val) => renameLocation(idx, val)}
             placeholder="Location name"
-            placeholderTextColor="rgba(114, 47, 55, 0.38)"
+            placeholderTextColor="rgba(94, 38, 38, 0.38)"
           />
           <Pressable onPress={() => removeLocation(idx)} hitSlop={8} style={styles.removeBtn}>
             <Ionicons name="close-circle" size={20} color={Colors.light.danger} />
@@ -246,7 +246,7 @@ export default function StorageLocationsScreen() {
             value={customName}
             onChangeText={setCustomName}
             placeholder="Enter custom location name"
-            placeholderTextColor="rgba(114, 47, 55, 0.38)"
+            placeholderTextColor="rgba(94, 38, 38, 0.38)"
             autoFocus
             onSubmitEditing={addCustomLocation}
             returnKeyType="done"
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: Colors.light.text,
     textAlign: "center",
     flex: 1,
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.white,
   },
   content: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.textSecondary,
     marginBottom: 10,
     paddingHorizontal: 4,
@@ -384,13 +384,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
     marginTop: 4,
   },
   emptySubtext: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   locationsList: {
@@ -433,13 +432,13 @@ const styles = StyleSheet.create({
   locationName: {
     flex: 1,
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
   locationNameInput: {
     flex: 1,
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
     paddingVertical: 0,
   },
@@ -465,7 +464,7 @@ const styles = StyleSheet.create({
   },
   typeLabel: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
   customInputRow: {
@@ -480,7 +479,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.background,
   },
@@ -492,12 +490,11 @@ const styles = StyleSheet.create({
   },
   addCustomBtnText: {
     fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.white,
   },
   hint: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     marginTop: 16,
     lineHeight: 18,

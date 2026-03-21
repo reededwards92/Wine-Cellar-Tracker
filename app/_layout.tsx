@@ -1,19 +1,7 @@
-import {
-  Outfit_300Light,
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-} from "@expo-google-fonts/outfit";
-import {
-  LibreBaskerville_400Regular,
-  LibreBaskerville_700Bold,
-} from "@expo-google-fonts/libre-baskerville";
-import { useFonts } from "expo-font";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useSegments, useRouter, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -84,23 +72,9 @@ function AuthGate() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    Outfit_300Light,
-    Outfit_400Regular,
-    Outfit_500Medium,
-    Outfit_600SemiBold,
-    Outfit_700Bold,
-    LibreBaskerville_400Regular,
-    LibreBaskerville_700Bold,
-  });
-
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
-  if (!fontsLoaded && !fontError) return null;
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
     <ErrorBoundary>

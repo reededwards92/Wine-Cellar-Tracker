@@ -463,7 +463,7 @@ export default function WineDetailScreen() {
                 value={consumeForm.occasion}
                 onChangeText={(v) => setConsumeForm((p) => ({ ...p, occasion: v }))}
                 placeholder="Dinner party, celebration..."
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Paired With</Text>
@@ -472,7 +472,7 @@ export default function WineDetailScreen() {
                 value={consumeForm.paired_with}
                 onChangeText={(v) => setConsumeForm((p) => ({ ...p, paired_with: v }))}
                 placeholder="Grilled steak, cheese..."
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Who With</Text>
@@ -481,7 +481,7 @@ export default function WineDetailScreen() {
                 value={consumeForm.who_with}
                 onChangeText={(v) => setConsumeForm((p) => ({ ...p, who_with: v }))}
                 placeholder="Friends, family..."
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Tasting Notes</Text>
@@ -490,7 +490,7 @@ export default function WineDetailScreen() {
                 value={consumeForm.tasting_notes}
                 onChangeText={(v) => setConsumeForm((p) => ({ ...p, tasting_notes: v }))}
                 placeholder="Describe the wine..."
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 multiline
                 textAlignVertical="top"
               />
@@ -562,7 +562,7 @@ export default function WineDetailScreen() {
                 value={addForm.purchase_price}
                 onChangeText={(v) => setAddForm((p) => ({ ...p, purchase_price: v }))}
                 placeholder="$0.00"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 keyboardType="decimal-pad"
               />
 
@@ -572,7 +572,7 @@ export default function WineDetailScreen() {
                 value={addForm.estimated_value}
                 onChangeText={(v) => setAddForm((p) => ({ ...p, estimated_value: v }))}
                 placeholder="$0.00"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 keyboardType="decimal-pad"
               />
 
@@ -622,7 +622,7 @@ export default function WineDetailScreen() {
                 value={editForm.producer}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, producer: v }))}
                 placeholder="Producer"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Wine Name</Text>
@@ -631,7 +631,7 @@ export default function WineDetailScreen() {
                 value={editForm.wine_name}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, wine_name: v }))}
                 placeholder="Wine name"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Vintage</Text>
@@ -640,7 +640,7 @@ export default function WineDetailScreen() {
                 value={editForm.vintage}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, vintage: v }))}
                 placeholder="e.g. 2020"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 keyboardType="number-pad"
               />
 
@@ -663,7 +663,7 @@ export default function WineDetailScreen() {
                 value={editForm.varietal}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, varietal: v }))}
                 placeholder="e.g. Cabernet Sauvignon"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Country</Text>
@@ -672,7 +672,7 @@ export default function WineDetailScreen() {
                 value={editForm.country}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, country: v }))}
                 placeholder="e.g. France"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Region</Text>
@@ -681,7 +681,7 @@ export default function WineDetailScreen() {
                 value={editForm.region}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, region: v }))}
                 placeholder="e.g. Napa Valley"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Sub-Region</Text>
@@ -690,7 +690,7 @@ export default function WineDetailScreen() {
                 value={editForm.sub_region}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, sub_region: v }))}
                 placeholder="e.g. Oakville"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Appellation</Text>
@@ -699,7 +699,7 @@ export default function WineDetailScreen() {
                 value={editForm.appellation}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, appellation: v }))}
                 placeholder="Appellation"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
               />
 
               <Text style={styles.modalLabel}>Drink Window Start</Text>
@@ -708,7 +708,7 @@ export default function WineDetailScreen() {
                 value={editForm.drink_window_start}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, drink_window_start: v }))}
                 placeholder="e.g. 2024"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 keyboardType="number-pad"
               />
 
@@ -718,7 +718,7 @@ export default function WineDetailScreen() {
                 value={editForm.drink_window_end}
                 onChangeText={(v) => setEditForm((p) => ({ ...p, drink_window_end: v }))}
                 placeholder="e.g. 2030"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 keyboardType="number-pad"
               />
             </ScrollView>
@@ -783,7 +783,6 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     fontSize: 17,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     textAlign: "center",
   },
@@ -809,13 +808,13 @@ const styles = StyleSheet.create({
   },
   producer: {
     fontSize: 22,
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "New York",
     color: Colors.light.text,
     textAlign: "center",
   },
   wineName: {
     fontSize: 15,
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "New York",
     color: Colors.light.textSecondary,
     textAlign: "center",
     marginTop: 4,
@@ -830,12 +829,11 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     fontSize: 18,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.textSecondary,
   },
   scoreLabel: {
     fontSize: 11,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.55)",
   },
   detailSection: {
@@ -850,8 +848,7 @@ const styles = StyleSheet.create({
   },
   detailSectionTitle: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: "rgba(114, 47, 55, 0.55)",
+    color: "rgba(94, 38, 38, 0.55)",
     marginBottom: 12,
   },
   infoRow: {
@@ -859,16 +856,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 7,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.07)",
+    borderBottomColor: "rgba(94, 38, 38, 0.07)",
   },
   infoLabel: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.50)",
   },
   infoValue: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
     textAlign: "right",
     flex: 1,
@@ -890,7 +886,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.07)",
+    borderBottomColor: "rgba(94, 38, 38, 0.07)",
   },
   bottleHeader: {
     flexDirection: "row",
@@ -904,22 +900,19 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
   },
   bottleSize: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   bottleMeta: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     marginTop: 4,
   },
   bottleNotes: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     marginTop: 4,
     fontStyle: "italic" as const,
@@ -936,7 +929,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(114, 47, 55, 0.18)",
+    borderColor: "rgba(94, 38, 38, 0.18)",
     backgroundColor: "rgba(255,255,255,0.55)",
     alignItems: "center" as const,
   },
@@ -946,7 +939,7 @@ const styles = StyleSheet.create({
   },
   locationPillText: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
   locationPillTextActive: {
@@ -961,12 +954,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(114, 47, 55, 0.35)",
-    backgroundColor: "rgba(114, 47, 55, 0.06)",
+    borderColor: "rgba(94, 38, 38, 0.35)",
+    backgroundColor: "rgba(94, 38, 38, 0.06)",
   },
   consumeBtnText: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   modalOverlay: {
@@ -987,11 +980,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.10)",
+    borderBottomColor: "rgba(94, 38, 38, 0.10)",
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   modalBody: {
@@ -999,7 +992,6 @@ const styles = StyleSheet.create({
   },
   modalLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     marginBottom: 5,
     marginTop: 12,
@@ -1007,11 +999,10 @@ const styles = StyleSheet.create({
   modalInput: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(114, 47, 55, 0.18)",
+    borderColor: "rgba(94, 38, 38, 0.18)",
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: "rgba(255, 255, 255, 0.60)",
   },
@@ -1029,7 +1020,7 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
   addBottlesBtn: {
@@ -1046,7 +1037,7 @@ const styles = StyleSheet.create({
   },
   addBottlesBtnText: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   quantityRow: {
@@ -1066,7 +1057,7 @@ const styles = StyleSheet.create({
   },
   quantityNum: {
     fontSize: 24,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
     minWidth: 40,
     textAlign: "center",
@@ -1092,7 +1083,6 @@ const styles = StyleSheet.create({
   undoToastText: {
     flex: 1,
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: "#FFFFFF",
   },
   undoButton: {
@@ -1103,7 +1093,7 @@ const styles = StyleSheet.create({
   },
   undoButtonText: {
     fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
 });

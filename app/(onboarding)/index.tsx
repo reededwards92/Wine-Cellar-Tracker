@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import CruMeshBackground from "@/components/CruMeshBackground";
 
-const TINT = "#722F37";
+const TINT = "#5E2626";
 const TEXT_PRIMARY = "#1A0A0C";
 const TEXT_SECONDARY = "rgba(45,18,21,0.55)";
 
@@ -12,7 +12,7 @@ export default function OnboardingWelcome() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { backgroundColor: "#FDF6F0" }]}>
+    <View style={[styles.container, { backgroundColor: "#FDF8F5" }]}>
       <CruMeshBackground />
       <View
         style={[
@@ -65,14 +65,13 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontSize: 42,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: TEXT_PRIMARY,
     textAlign: "center",
     marginBottom: 16,
   },
   body: {
     fontSize: 16,
-    fontFamily: "Outfit_400Regular",
     color: TEXT_SECONDARY,
     textAlign: "center",
     paddingHorizontal: 8,
@@ -90,7 +89,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   skipLink: {
@@ -99,7 +98,6 @@ const styles = StyleSheet.create({
   },
   skipLinkText: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(107,74,79,0.7)",
   },
 });

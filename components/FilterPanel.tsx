@@ -74,7 +74,7 @@ function AccordionSection({
           <Ionicons
             name={expanded ? "chevron-up" : "chevron-down"}
             size={14}
-            color="rgba(114, 47, 55, 0.45)"
+            color="rgba(94, 38, 38, 0.45)"
           />
         </View>
       </Pressable>
@@ -218,7 +218,7 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
               <TextInput
                 style={styles.rangeInput}
                 placeholder="Min"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 value={filters.minValue}
                 onChangeText={(v) => onChange({ ...filters, minValue: v })}
                 keyboardType="numeric"
@@ -227,7 +227,7 @@ export default function FilterPanel({ filters, onChange, options, isExpanded, on
               <TextInput
                 style={styles.rangeInput}
                 placeholder="Max"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 value={filters.maxValue}
                 onChangeText={(v) => onChange({ ...filters, maxValue: v })}
                 keyboardType="numeric"
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: "transparent",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.08)",
+    borderBottomColor: "rgba(94, 38, 38, 0.08)",
   },
   header: {
     flexDirection: "row",
@@ -310,7 +310,6 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.65)",
   },
   badge: {
@@ -324,7 +323,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
   body: {
@@ -333,7 +332,7 @@ const styles = StyleSheet.create({
   },
   accordionSection: {
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.06)",
+    borderBottomColor: "rgba(94, 38, 38, 0.06)",
   },
   accordionHeader: {
     flexDirection: "row",
@@ -343,7 +342,6 @@ const styles = StyleSheet.create({
   },
   accordionLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   accordionRight: {
@@ -352,7 +350,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   accordionBadge: {
-    backgroundColor: "rgba(114, 47, 55, 0.12)",
+    backgroundColor: "rgba(94, 38, 38, 0.12)",
     borderRadius: 8,
     minWidth: 18,
     height: 18,
@@ -362,7 +360,7 @@ const styles = StyleSheet.create({
   },
   accordionBadgeText: {
     fontSize: 11,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.tint,
   },
   accordionBody: {
@@ -378,23 +376,22 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(114, 47, 55, 0.20)",
+    borderColor: "rgba(94, 38, 38, 0.20)",
     backgroundColor: "rgba(255, 255, 255, 0.55)",
   },
   sortChip: {
     marginRight: 6,
   },
   chipActive: {
-    backgroundColor: "rgba(114, 47, 55, 0.15)",
-    borderColor: "rgba(114, 47, 55, 0.45)",
+    backgroundColor: "rgba(94, 38, 38, 0.15)",
+    borderColor: "rgba(94, 38, 38, 0.45)",
   },
   chipText: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.70)",
   },
   chipTextActive: {
-    color: "#722F37",
+    color: "#5E2626",
   },
   rangeRow: {
     flexDirection: "row",
@@ -405,11 +402,10 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(114, 47, 55, 0.18)",
+    borderColor: "rgba(94, 38, 38, 0.18)",
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: "rgba(255, 255, 255, 0.60)",
   },
@@ -423,11 +419,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.06)",
+    borderBottomColor: "rgba(94, 38, 38, 0.06)",
   },
   switchLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   clearBtn: {
@@ -436,7 +431,7 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
 });

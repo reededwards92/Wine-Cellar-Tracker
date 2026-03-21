@@ -1,18 +1,10 @@
 import type { TextStyle, ViewStyle } from "react-native";
 
-// Font family constants
+// Font family constants — system fonts, zero bundle cost
 export const fonts = {
-  outfit: {
-    light: "Outfit_300Light",
-    regular: "Outfit_400Regular",
-    medium: "Outfit_500Medium",
-    semiBold: "Outfit_600SemiBold",
-    bold: "Outfit_700Bold",
-  },
-  libre: {
-    regular: "LibreBaskerville_400Regular",
-    bold: "LibreBaskerville_700Bold",
-  },
+  // Apple's system serif (iOS 13+). No loading required.
+  serif: "New York",
+  // SF Pro is the iOS system default — omit fontFamily to use it.
 } as const;
 
 type ShadowStyle = Pick<
@@ -22,7 +14,7 @@ type ShadowStyle = Pick<
 
 type TypographyStyle = Pick<
   TextStyle,
-  "fontFamily" | "fontSize" | "lineHeight" | "letterSpacing" | "textTransform"
+  "fontFamily" | "fontSize" | "lineHeight" | "letterSpacing" | "textTransform" | "fontWeight"
 >;
 
 export const theme = {
@@ -51,28 +43,28 @@ export const theme = {
 
   shadows: {
     card: {
-      shadowColor: "#2D1215",
+      shadowColor: "#1C1B1A",
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
+      shadowOpacity: 0.05,
       shadowRadius: 4,
       elevation: 1,
     },
     elevated: {
-      shadowColor: "#2D1215",
+      shadowColor: "#1C1B1A",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.10,
       shadowRadius: 8,
       elevation: 3,
     },
     floating: {
-      shadowColor: "#2D1215",
+      shadowColor: "#1C1B1A",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.16,
       shadowRadius: 10,
       elevation: 5,
     },
     glass: {
-      shadowColor: "#2D1215",
+      shadowColor: "#1C1B1A",
       shadowOpacity: 0.07,
       shadowRadius: 16,
       shadowOffset: { width: 0, height: 2 },
@@ -82,54 +74,53 @@ export const theme = {
 
   typography: {
     display: {
-      fontFamily: fonts.libre.bold,
+      fontFamily: fonts.serif,
+      fontWeight: "700",
       fontSize: 30,
       lineHeight: 38,
     },
     heading1: {
-      fontFamily: fonts.libre.bold,
+      fontFamily: fonts.serif,
+      fontWeight: "700",
       fontSize: 22,
       lineHeight: 30,
     },
     heading2: {
-      fontFamily: fonts.outfit.semiBold,
+      fontWeight: "600",
       fontSize: 17,
       lineHeight: 24,
     },
     heading3: {
-      fontFamily: fonts.outfit.semiBold,
+      fontWeight: "600",
       fontSize: 15,
       lineHeight: 22,
     },
     body: {
-      fontFamily: fonts.outfit.regular,
       fontSize: 15,
       lineHeight: 22,
     },
     bodySmall: {
-      fontFamily: fonts.outfit.regular,
       fontSize: 14,
       lineHeight: 20,
     },
     label: {
-      fontFamily: fonts.outfit.medium,
+      fontWeight: "500",
       fontSize: 13,
       lineHeight: 18,
     },
     caption: {
-      fontFamily: fonts.outfit.regular,
       fontSize: 12,
       lineHeight: 16,
     },
     overline: {
-      fontFamily: fonts.outfit.semiBold,
+      fontWeight: "600",
       fontSize: 12,
       lineHeight: 16,
       textTransform: "uppercase" as const,
       letterSpacing: 0.5,
     },
     button: {
-      fontFamily: fonts.outfit.semiBold,
+      fontWeight: "600",
       fontSize: 16,
       lineHeight: 22,
     },

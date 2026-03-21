@@ -131,7 +131,7 @@ export default function ForgotPasswordScreen() {
                   value={email}
                   onChangeText={setEmail}
                   placeholder="your@email.com"
-                  placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                  placeholderTextColor="rgba(94, 38, 38, 0.38)"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -168,7 +168,7 @@ export default function ForgotPasswordScreen() {
                   value={code}
                   onChangeText={setCode}
                   placeholder="000000"
-                  placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                  placeholderTextColor="rgba(94, 38, 38, 0.38)"
                   keyboardType="number-pad"
                   maxLength={6}
                 />
@@ -182,7 +182,7 @@ export default function ForgotPasswordScreen() {
                     value={newPassword}
                     onChangeText={setNewPassword}
                     placeholder="At least 6 characters"
-                    placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                    placeholderTextColor="rgba(94, 38, 38, 0.38)"
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                   />
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   header: {
@@ -258,13 +258,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: Colors.light.tint,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center",
     lineHeight: 20,
@@ -286,7 +285,6 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.danger,
   },
   infoBox: {
@@ -301,7 +299,6 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.tint,
     lineHeight: 18,
   },
@@ -310,7 +307,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
     marginBottom: 6,
   },
@@ -319,13 +316,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.white,
   },
   codeInput: {
     fontSize: 24,
-    fontFamily: "Outfit_700Bold",
+    fontWeight: "700",
     letterSpacing: 6,
     textAlign: "center",
   },
@@ -360,7 +356,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.white,
   },
   resendRow: {
@@ -370,11 +366,10 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   resendLink: {
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.tint,
   },
 });

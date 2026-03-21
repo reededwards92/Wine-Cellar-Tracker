@@ -6,7 +6,7 @@ import CruMeshBackground from "@/components/CruMeshBackground";
 import ProgressBar from "@/components/onboarding/ProgressBar";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 
-const TINT = "#722F37";
+const TINT = "#5E2626";
 const TEXT_PRIMARY = "#1A0A0C";
 const TEXT_SECONDARY = "rgba(45,18,21,0.55)";
 
@@ -20,7 +20,7 @@ export default function AnythingElse() {
   const handleFinish = () => router.replace("/(onboarding)/complete");
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#FDF6F0" }}>
+    <View style={{ flex: 1, backgroundColor: "#FDF8F5" }}>
       <CruMeshBackground />
 
       <View
@@ -36,7 +36,7 @@ export default function AnythingElse() {
           <ProgressBar current={5} total={5} />
         </View>
         <Pressable onPress={skip} style={{ paddingLeft: 16 }}>
-          <Text style={{ fontSize: 14, fontFamily: "Outfit_400Regular", color: "rgba(107,74,79,0.7)" }}>
+          <Text style={{ fontSize: 14, , color: "rgba(107,74,79,0.7)" }}>
             Skip
           </Text>
         </Pressable>
@@ -50,7 +50,7 @@ export default function AnythingElse() {
         <Text
           style={{
             fontSize: 22,
-            fontFamily: "LibreBaskerville_700Bold",
+            fontFamily: "New York", fontWeight: "700",
             color: TEXT_PRIMARY,
             marginBottom: 6,
           }}
@@ -60,7 +60,6 @@ export default function AnythingElse() {
         <Text
           style={{
             fontSize: 14,
-            fontFamily: "Outfit_400Regular",
             color: TEXT_SECONDARY,
             marginBottom: 20,
           }}
@@ -98,7 +97,7 @@ export default function AnythingElse() {
           }}
           onPress={handleFinish}
         >
-          <Text style={{ fontSize: 16, fontFamily: "Outfit_600SemiBold", color: "#FFFFFF" }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", color: "#FFFFFF" }}>
             Finish
           </Text>
         </Pressable>
@@ -114,11 +113,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.80)",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.15)",
+    borderColor: "rgba(94,38,38,0.15)",
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: "#1A0A0C",
   },
 });

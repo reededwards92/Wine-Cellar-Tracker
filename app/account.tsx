@@ -155,7 +155,7 @@ export default function AccountScreen() {
                 value={displayName}
                 onChangeText={setDisplayName}
                 placeholder="Your name"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 autoCapitalize="words"
               />
             </View>
@@ -181,7 +181,7 @@ export default function AccountScreen() {
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Enter current password"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 secureTextEntry
               />
             </View>
@@ -193,7 +193,7 @@ export default function AccountScreen() {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="Enter new password"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 secureTextEntry
               />
             </View>
@@ -205,7 +205,7 @@ export default function AccountScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Confirm new password"
-                placeholderTextColor="rgba(114, 47, 55, 0.38)"
+                placeholderTextColor="rgba(94, 38, 38, 0.38)"
                 secureTextEntry
               />
             </View>
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   content: {
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.textSecondary,
     marginBottom: 8,
     paddingHorizontal: 4,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.textSecondary,
     marginBottom: 6,
   },
@@ -294,12 +294,10 @@ const styles = StyleSheet.create({
   },
   emailText: {
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
   },
   input: {
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     backgroundColor: Colors.light.background,
     borderRadius: 12,
@@ -324,7 +322,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#fff",
   },
   deleteBtn: {
@@ -340,12 +338,11 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.danger,
   },
   deleteHint: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center",
     marginTop: 8,

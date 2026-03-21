@@ -7,7 +7,7 @@ import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
 
-const TINT = "#722F37";
+const TINT = "#5E2626";
 const TEXT_PRIMARY = "#1A0A0C";
 const TEXT_SECONDARY = "rgba(45,18,21,0.55)";
 
@@ -130,7 +130,7 @@ export default function OnboardingComplete() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#FDF6F0" }}>
+    <View style={{ flex: 1, backgroundColor: "#FDF8F5" }}>
       <CruMeshBackground />
       <View
         style={[
@@ -171,14 +171,13 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontSize: 42,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: TEXT_PRIMARY,
     textAlign: "center",
     marginBottom: 16,
   },
   summary: {
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: TEXT_SECONDARY,
     textAlign: "center",
     paddingHorizontal: 4,
@@ -194,7 +193,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
 });

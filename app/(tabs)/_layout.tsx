@@ -25,13 +25,13 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: "#722F37",
+          tabBarActiveTintColor: "#5E2626",
           tabBarInactiveTintColor: "rgba(45, 18, 21, 0.38)",
           tabBarStyle: {
             position: "absolute",
             backgroundColor: "transparent",
             borderTopWidth: 0.5,
-            borderTopColor: "rgba(114, 47, 55, 0.10)",
+            borderTopColor: "rgba(94, 38, 38, 0.10)",
             elevation: 0,
             height: Platform.OS === "web" ? 84 : 68,
           },
@@ -42,7 +42,7 @@ export default function TabLayout() {
               <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.light.bgGradientEnd }]} />
             ),
           tabBarLabelStyle: {
-            fontFamily: "Outfit_500Medium",
+            fontWeight: "500",
             fontSize: 11,
           },
         }}
@@ -109,13 +109,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#2D1215",
+    shadowColor: "#1C1B1A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.50,
     shadowRadius: 14,
     elevation: 12,
   },
   scanButtonFocused: {
-    backgroundColor: "#5a1f28",
+    backgroundColor: "#4A191C",
   },
 });

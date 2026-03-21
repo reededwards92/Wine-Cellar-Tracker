@@ -91,7 +91,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headerText: {
-    fontFamily: theme.fonts.libre.bold,
+    fontFamily: "New York",
+    fontWeight: "700",
     fontSize: 16,
     color: Colors.light.text,
   },
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
   },
   countText: {
     fontSize: 11,
-    fontFamily: theme.fonts.outfit.semiBold,
+    fontWeight: "600",
     color: "#fff",
   },
   listContent: {

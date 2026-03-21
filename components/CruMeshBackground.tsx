@@ -28,7 +28,7 @@ const BLOBS: BlobConfig[] = [
   {
     id: "b1",
     size: 340,
-    color: "#722F37",
+    color: "#5E2626",
     stopOpacity: 0.20,
     position: { top: -80, left: -80 },
     dx: 40, dy: 30,
@@ -58,7 +58,7 @@ const BLOBS: BlobConfig[] = [
   {
     id: "b4",
     size: 300,
-    color: "#722F37",
+    color: "#5E2626",
     stopOpacity: 0.22,
     position: { bottom: -60, right: -60 },
     dx: 35, dy: 40,

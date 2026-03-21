@@ -7,7 +7,7 @@ interface Props {
   color?: string;
 }
 
-export default function CruThinking({ size = 28, color = "#722F37" }: Props) {
+export default function CruThinking({ size = 28, color = "#5E2626" }: Props) {
   const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

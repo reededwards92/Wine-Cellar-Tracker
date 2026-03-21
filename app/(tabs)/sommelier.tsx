@@ -33,17 +33,17 @@ import { useCruInsights } from "@/contexts/CruInsightsContext";
 
 // Cru tab color palette
 const CruColors = {
-  gradientTop: "#6B2A32",
-  gradientMid: "#722F37",
+  gradientTop: "#4A1F1F",
+  gradientMid: "#5E2626",
   gradientBlush: "#C4787F",
-  gradientBottom: "#FDF6F4",
+  gradientBottom: "#FDF8F5",
   textPrimary: "#1A0A0C",
   textSecondary: "rgba(45,18,21,0.55)",
   glassBg: "rgba(255,255,255,0.72)",
   glassBorder: "rgba(255,255,255,0.7)",
-  accent: "#722F37",
-  accentMuted: "rgba(114,47,55,0.2)",
-  warmShadow: "#2D1215",
+  accent: "#5E2626",
+  accentMuted: "rgba(94,38,38,0.2)",
+  warmShadow: "#1C1B1A",
 };
 
 interface WineCard {
@@ -597,7 +597,7 @@ export default function SommelierScreen() {
               )}
             </View>
           ) : (
-            <View style={[styles.bubble, styles.bubbleAssistant]}>
+            <BlurView intensity={40} tint="light" style={[styles.bubble, styles.bubbleAssistant]}>
               {item.imageUri && (
                 <Image
                   source={{ uri: item.imageUri }}
@@ -612,7 +612,7 @@ export default function SommelierScreen() {
                   <Markdown style={markdownStyles}>{item.content}</Markdown>
                 )
               )}
-            </View>
+            </BlurView>
           )}
         </View>
         {!isUser && item.wineCards && item.wineCards.length > 0 && renderWineCards(item.wineCards)}
@@ -764,7 +764,7 @@ export default function SommelierScreen() {
         topLabel: "RATE & REVIEW",
         mainText: `${homeData.unrated_count} unrated`,
         subtitle: "Bottles awaiting your notes",
-        accentColor: "#722F37",
+        accentColor: "#5E2626",
         onPress: () => {
           router.push({ pathname: "/(tabs)/history", params: { rated: "false" } });
         },
@@ -774,7 +774,7 @@ export default function SommelierScreen() {
         topLabel: "ADD TO CELLAR",
         mainText: "Scan a label",
         subtitle: "Identify any wine instantly",
-        accentColor: "rgba(114,47,55,0.35)",
+        accentColor: "rgba(94,38,38,0.35)",
         onPress: () => {
           router.push("/(tabs)/add");
         },
@@ -788,7 +788,7 @@ export default function SommelierScreen() {
           topLabel: "ADD TO CELLAR",
           mainText: "Scan a label",
           subtitle: "Identify any wine instantly",
-          accentColor: "rgba(114,47,55,0.35)",
+          accentColor: "rgba(94,38,38,0.35)",
           onPress: () => router.push("/(tabs)/add"),
         },
       ];
@@ -972,7 +972,7 @@ export default function SommelierScreen() {
               <Ionicons
                 name="camera-outline"
                 size={24}
-                color={isStreaming ? CruColors.accentMuted : "rgba(114,47,55,0.6)"}
+                color={isStreaming ? CruColors.accentMuted : "rgba(94,38,38,0.6)"}
               />
             </Pressable>
             <Pressable
@@ -984,14 +984,14 @@ export default function SommelierScreen() {
               <Ionicons
                 name="image-outline"
                 size={24}
-                color={isStreaming ? CruColors.accentMuted : "rgba(114,47,55,0.6)"}
+                color={isStreaming ? CruColors.accentMuted : "rgba(94,38,38,0.6)"}
               />
             </Pressable>
             <TextInput
               ref={inputRef}
               style={styles.textInput}
               placeholder="Ask Cru anything..."
-              placeholderTextColor="rgba(114,47,55,0.4)"
+              placeholderTextColor="rgba(94,38,38,0.4)"
               value={inputText}
               onChangeText={setInputText}
               onSubmitEditing={handleSend}
@@ -1021,7 +1021,7 @@ export default function SommelierScreen() {
                 color={
                   (inputText.trim() || pendingImage) && !isStreaming
                     ? "#FFFFFF"
-                    : "rgba(114,47,55,0.4)"
+                    : "rgba(94,38,38,0.4)"
                 }
               />
             </Pressable>
@@ -1048,36 +1048,33 @@ const markdownStyles = {
   body: {
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: "Outfit_400Regular",
     color: CruColors.textPrimary,
   },
   text: {
-    fontFamily: "Outfit_400Regular",
   },
   strong: {
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
   },
   em: {
-    fontFamily: "Outfit_400Regular",
     fontStyle: "italic" as const,
   },
   heading1: {
     fontSize: 20,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: CruColors.textPrimary,
     marginTop: 8,
     marginBottom: 4,
   },
   heading2: {
     fontSize: 18,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: CruColors.textPrimary,
     marginTop: 6,
     marginBottom: 4,
   },
   heading3: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: CruColors.textPrimary,
     marginTop: 4,
     marginBottom: 2,
@@ -1095,13 +1092,10 @@ const markdownStyles = {
     marginBottom: 2,
   },
   bullet_list_content: {
-    fontFamily: "Outfit_400Regular",
   },
   ordered_list_content: {
-    fontFamily: "Outfit_400Regular",
   },
   textgroup: {
-    fontFamily: "Outfit_400Regular",
   },
   paragraph: {
     marginTop: 0,
@@ -1116,7 +1110,7 @@ const markdownStyles = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FDF6F0",
+    backgroundColor: "#FDF8F5",
   },
   flex: {
     flex: 1,
@@ -1131,7 +1125,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 34,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: "#1A0A0C",
   },
   messageList: {
@@ -1185,7 +1179,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   bubbleAssistant: {
-    backgroundColor: CruColors.glassBg,
+    backgroundColor: "rgba(253, 248, 245, 0.42)",
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: CruColors.glassBorder,
@@ -1198,14 +1192,12 @@ const styles = StyleSheet.create({
   bubbleText: {
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: "Outfit_400Regular",
   },
   bubbleTextUser: {
     color: "#FFFFFF",
   },
   thinkingMonologue: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     fontStyle: "italic" as const,
     color: CruColors.textSecondary,
     alignSelf: "center" as const,
@@ -1215,7 +1207,6 @@ const styles = StyleSheet.create({
   streamingText: {
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: "Outfit_400Regular",
     color: CruColors.textPrimary,
   },
   inputBlur: {
@@ -1237,12 +1228,11 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.15)",
+    borderColor: "rgba(94,38,38,0.15)",
     paddingHorizontal: 16,
     paddingTop: Platform.OS === "ios" ? 10 : 8,
     paddingBottom: Platform.OS === "ios" ? 10 : 8,
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: CruColors.textPrimary,
     backgroundColor: "rgba(255,255,255,0.5)",
   },
@@ -1299,7 +1289,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: "hidden" as const,
     marginBottom: 16,
-    shadowColor: "#2D1215",
+    shadowColor: "#1C1B1A",
     shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 4 },
@@ -1317,37 +1307,36 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   pickLabel: {
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     fontSize: 12,
     letterSpacing: 0.5,
-    color: "rgba(114,47,55,0.65)",
+    color: "rgba(94,38,38,0.65)",
   },
   pickWineName: {
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "New York",
     fontSize: 22,
     color: "#1A0A0C",
     marginTop: 4,
     marginBottom: 4,
   },
   pickDetail: {
-    fontFamily: "Outfit_400Regular",
     fontSize: 14,
     color: "rgba(45,18,21,0.60)",
   },
   pickReasonTag: {
-    backgroundColor: "rgba(114,47,55,0.10)",
+    backgroundColor: "rgba(94,38,38,0.10)",
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.22)",
+    borderColor: "rgba(94,38,38,0.22)",
     paddingHorizontal: 14,
     paddingVertical: 6,
     marginTop: 8,
     alignSelf: "flex-start" as const,
   },
   pickReasonText: {
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     fontSize: 12,
-    color: "rgba(114,47,55,0.85)",
+    color: "rgba(94,38,38,0.85)",
   },
   // Three insight cards
   tilesRow: {
@@ -1359,7 +1348,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     overflow: "hidden" as const,
-    shadowColor: "#2D1215",
+    shadowColor: "#1C1B1A",
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 2 },
@@ -1388,18 +1377,17 @@ const styles = StyleSheet.create({
     justifyContent: "center" as const,
   },
   insightTopLabel: {
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     fontSize: 11,
-    color: "rgba(114,47,55,0.55)",
+    color: "rgba(94,38,38,0.55)",
   },
   insightMainText: {
-    fontFamily: "Outfit_700Bold",
+    fontWeight: "700",
     fontSize: 16,
     color: "#1A0A0C",
     marginTop: 2,
   },
   insightSubtitle: {
-    fontFamily: "Outfit_400Regular",
     fontSize: 13,
     color: "rgba(45,18,21,0.55)",
     marginTop: 1,
@@ -1418,20 +1406,20 @@ const styles = StyleSheet.create({
     alignItems: "center" as const,
     backgroundColor: "rgba(255,255,255,0.70)",
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.25)",
+    borderColor: "rgba(94,38,38,0.25)",
     borderRadius: 22,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    shadowColor: "#2D1215",
+    shadowColor: "#1C1B1A",
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
   promptChipText: {
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     fontSize: 14,
-    color: "#722F37",
+    color: "#5E2626",
   },
   wineCardsContainer: {
     paddingLeft: 48,
@@ -1483,7 +1471,7 @@ const styles = StyleSheet.create({
   wineCardScore: {
     ...theme.typography.caption,
     color: CruColors.accent,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
   },
   wineCardBottles: {
     ...theme.typography.caption,
@@ -1510,7 +1498,6 @@ const styles = StyleSheet.create({
   undoToastText: {
     flex: 1,
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: "#FFFFFF",
   },
   undoButton: {
@@ -1521,7 +1508,7 @@ const styles = StyleSheet.create({
   },
   undoButtonText: {
     fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   emptyCellarContainer: {
@@ -1531,14 +1518,13 @@ const styles = StyleSheet.create({
   },
   emptyCellarHeading: {
     fontSize: 28,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: "#1A0A0C",
     textAlign: "center",
     marginBottom: 14,
   },
   emptyCellarBody: {
     fontSize: 15,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.55)",
     textAlign: "center",
     lineHeight: 23,
@@ -1547,14 +1533,14 @@ const styles = StyleSheet.create({
   emptyCellarButton: {
     height: 50,
     paddingHorizontal: 32,
-    backgroundColor: "#722F37",
+    backgroundColor: "#5E2626",
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   emptyCellarButtonText: {
     fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
 });

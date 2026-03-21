@@ -79,16 +79,15 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 28,
-    backgroundColor: "rgba(114, 47, 55, 0.12)",
+    backgroundColor: "rgba(94, 38, 38, 0.12)",
   },
   value: {
     fontSize: 18,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
   label: {
     fontSize: 11,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.55)",
     marginTop: 2,
   },

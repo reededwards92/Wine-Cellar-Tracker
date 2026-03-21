@@ -524,7 +524,7 @@ export default function HistoryScreen() {
               value={filterSearch}
               onChangeText={setFilterSearch}
               placeholder="Search history..."
-              placeholderTextColor="rgba(114, 47, 55, 0.40)"
+              placeholderTextColor="rgba(94, 38, 38, 0.40)"
               returnKeyType="search"
             />
             {filterSearch ? (
@@ -713,18 +713,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "LibreBaskerville_700Bold",
+    fontFamily: "New York", fontWeight: "700",
     color: Colors.light.text,
   },
   subtitle: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     marginTop: 2,
   },
   editBtn: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   editBar: {
@@ -734,7 +733,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "rgba(114, 47, 55, 0.08)",
+    borderTopColor: "rgba(94, 38, 38, 0.08)",
   },
   selectAllBtn: {
     flexDirection: "row",
@@ -743,12 +742,11 @@ const styles = StyleSheet.create({
   },
   selectAllText: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   selectedCount: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   deleteBtn: {
@@ -762,7 +760,7 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: {
     fontSize: 14,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.danger,
   },
   statsContainer: {
@@ -785,19 +783,17 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 32,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   statLabel: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.55)",
     marginTop: 2,
     textAlign: "center",
   },
   statFun: {
     fontSize: 11,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     marginTop: 4,
     textAlign: "center",
@@ -812,7 +808,7 @@ const styles = StyleSheet.create({
   },
   chartTitle: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
     marginBottom: 16,
   },
@@ -833,12 +829,11 @@ const styles = StyleSheet.create({
   },
   donutCenterNumber: {
     fontSize: 24,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   donutCenterLabel: {
     fontSize: 11,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     marginTop: -2,
   },
@@ -858,13 +853,12 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     flex: 1,
   },
   legendCount: {
     fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   barChartContainer: {
@@ -887,13 +881,12 @@ const styles = StyleSheet.create({
   },
   barCount: {
     fontSize: 10,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.textSecondary,
     height: 14,
   },
   barLabel: {
     fontSize: 9,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center",
   },
@@ -907,7 +900,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(114, 47, 55, 0.08)",
+    borderBottomColor: "rgba(94, 38, 38, 0.08)",
   },
   cardPressed: {
     backgroundColor: Colors.light.cardBackground,
@@ -932,12 +925,12 @@ const styles = StyleSheet.create({
   },
   cardProducer: {
     fontSize: 14,
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "New York",
     color: Colors.light.text,
   },
   cardWine: {
     fontSize: 13,
-    fontFamily: "LibreBaskerville_400Regular",
+    fontFamily: "New York",
     color: "rgba(45, 18, 21, 0.60)",
     marginTop: 1,
   },
@@ -948,7 +941,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     fontSize: 12,
-    fontFamily: "Outfit_300Light",
+    fontWeight: "300",
     color: "rgba(45, 18, 21, 0.45)",
   },
   right: {
@@ -958,17 +951,16 @@ const styles = StyleSheet.create({
   },
   cardDate: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45, 18, 21, 0.50)",
   },
   value: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.text,
   },
   score: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.textSecondary,
   },
   cardMeta: {
@@ -984,12 +976,10 @@ const styles = StyleSheet.create({
   },
   cardOccasion: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   cardNotes: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     marginTop: 6,
     marginLeft: 20,
@@ -1004,7 +994,6 @@ const styles = StyleSheet.create({
   },
   pairingText: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
   statsScrollContent: {
@@ -1021,14 +1010,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.62)",
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.10)",
+    borderColor: "rgba(94,38,38,0.10)",
   },
   accordionBtnPressed: {
     backgroundColor: Colors.light.cardBackground,
   },
   accordionBtnText: {
     fontSize: 15,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tint,
   },
   searchRow: {
@@ -1037,7 +1026,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.60)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.15)",
+    borderColor: "rgba(94,38,38,0.15)",
     paddingHorizontal: 10,
     paddingVertical: 8,
     gap: 8,
@@ -1046,7 +1035,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
     padding: 0,
   },
@@ -1057,12 +1045,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(114, 47, 55, 0.08)",
+    borderTopColor: "rgba(94, 38, 38, 0.08)",
   },
   filterToggleText: {
     fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: "rgba(114, 47, 55, 0.55)",
+    color: "rgba(94, 38, 38, 0.55)",
     flex: 1,
   },
   filterPanel: {
@@ -1070,8 +1057,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: 11,
-    fontFamily: "Outfit_400Regular",
-    color: "rgba(114, 47, 55, 0.55)",
+    color: "rgba(94, 38, 38, 0.55)",
     marginBottom: 6,
   },
   filterChips: {
@@ -1085,20 +1071,19 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(114,47,55,0.20)",
+    borderColor: "rgba(94,38,38,0.20)",
     backgroundColor: "rgba(255,255,255,0.55)",
   },
   filterChipActive: {
-    backgroundColor: "rgba(114,47,55,0.15)",
-    borderColor: "rgba(114,47,55,0.45)",
+    backgroundColor: "rgba(94,38,38,0.15)",
+    borderColor: "rgba(94,38,38,0.45)",
   },
   filterChipText: {
     fontSize: 12,
-    fontFamily: "Outfit_400Regular",
     color: "rgba(45,18,21,0.70)",
   },
   filterChipTextActive: {
-    color: "#722F37",
+    color: "#5E2626",
   },
   ratingFilter: {
     flexDirection: "row",
@@ -1108,7 +1093,7 @@ const styles = StyleSheet.create({
   },
   ratingFilterAny: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.tabIconDefault,
     borderWidth: 1,
     borderColor: Colors.light.border,
@@ -1130,7 +1115,7 @@ const styles = StyleSheet.create({
   },
   clearFiltersBtnText: {
     fontSize: 12,
-    fontFamily: "Outfit_500Medium",
+    fontWeight: "500",
     color: Colors.light.danger,
   },
   centered: {
@@ -1142,12 +1127,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontFamily: "Outfit_600SemiBold",
+    fontWeight: "600",
     color: Colors.light.text,
   },
   emptyText: {
     fontSize: 14,
-    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center",
     paddingHorizontal: 40,

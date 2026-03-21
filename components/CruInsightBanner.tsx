@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   label: {
-    fontFamily: theme.fonts.outfit.semiBold,
+    fontWeight: "600",
     fontSize: 11,
     color: Colors.light.tint,
     marginBottom: 4,
