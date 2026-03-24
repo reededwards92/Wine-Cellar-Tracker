@@ -36,7 +36,7 @@ export default function AnythingElse() {
           <ProgressBar current={5} total={5} />
         </View>
         <Pressable onPress={skip} style={{ paddingLeft: 16 }}>
-          <Text style={{ fontSize: 14, , color: "rgba(107,74,79,0.7)" }}>
+          <Text style={{ fontSize: 14, color: "rgba(107,74,79,0.7)" }}>
             Skip
           </Text>
         </Pressable>
