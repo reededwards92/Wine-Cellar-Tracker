@@ -53,7 +53,6 @@ export default function ImportGuideScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const [importing, setImporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cellartracker" | "vivino">("cellartracker");
 
   const handleUpload = async () => {
     if (importing) return;
@@ -128,73 +127,26 @@ export default function ImportGuideScreen() {
           Export your wine collection from another app, then upload the CSV file here. Vin will automatically match the columns.
         </Text>
 
-        <View style={styles.tabs}>
-          <Pressable
-            style={[styles.tab, activeTab === "cellartracker" && styles.tabActive]}
-            onPress={() => setActiveTab("cellartracker")}
-          >
-            <Text style={[styles.tabText, activeTab === "cellartracker" && styles.tabTextActive]}>
-              CellarTracker
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.tab, activeTab === "vivino" && styles.tabActive]}
-            onPress={() => setActiveTab("vivino")}
-          >
-            <Text style={[styles.tabText, activeTab === "vivino" && styles.tabTextActive]}>
-              Vivino
-            </Text>
-          </Pressable>
-        </View>
+        <StepCard step={1} title="Log in to CellarTracker">
+            <Bullet text="Go to cellartracker.com on a desktop browser and sign in" />
+            <Bullet text="Note: the export feature is not available on the mobile app or mobile site" />
+          </StepCard>
 
-        {activeTab === "cellartracker" ? (
-          <View>
-            <StepCard step={1} title="Log in to CellarTracker">
-              <Bullet text='Go to cellartracker.com and sign in to your account' />
-            </StepCard>
+          <StepCard step={2} title="Open your cellar">
+            <Bullet text='Click "My Cellar" in the top navigation' />
+          </StepCard>
 
-            <StepCard step={2} title="Open your wine list">
-              <Bullet text='Click "My Cellar" in the top navigation' />
-              <Bullet text='Make sure you are viewing your full cellar list' />
-            </StepCard>
+          <StepCard step={3} title="Export as CSV">
+            <Bullet text='Click the "Export" button in the top right of the page' />
+            <Bullet text="Select your desired columns in the export dialog" />
+            <Bullet text='Choose "CSV" as the format and download the file' />
+          </StepCard>
 
-            <StepCard step={3} title="Export as CSV">
-              <Bullet text='Look for the "Download" or "Export" link, usually near the top of the list' />
-              <Bullet text='Select "CSV" as the export format' />
-              <Bullet text='Save the file to your device' />
-            </StepCard>
-
-            <StepCard step={4} title="Upload to Vin">
-              <Bullet text='Tap the "Upload CSV File" button below' />
-              <Bullet text='Select the CSV file you just downloaded' />
-              <Bullet text='Vin will automatically detect the CellarTracker format' />
-            </StepCard>
-          </View>
-        ) : (
-          <View>
-            <StepCard step={1} title="Open the Vivino app or website">
-              <Bullet text='Open Vivino on your phone or go to vivino.com' />
-              <Bullet text='Sign in to your account' />
-            </StepCard>
-
-            <StepCard step={2} title="Request your data export">
-              <Bullet text='Go to your Profile settings' />
-              <Bullet text='Look for "Download my data" or "Export" option' />
-              <Bullet text='Vivino will email you a download link (may take a few hours)' />
-            </StepCard>
-
-            <StepCard step={3} title="Download the CSV">
-              <Bullet text='Check your email for the download link from Vivino' />
-              <Bullet text='Download and save the CSV file to your device' />
-            </StepCard>
-
-            <StepCard step={4} title="Upload to Vin">
-              <Bullet text='Tap the "Upload CSV File" button below' />
-              <Bullet text='Select the CSV file from your downloads' />
-              <Bullet text="Vin's AI will automatically map the columns from Vivino's format" />
-            </StepCard>
-          </View>
-        )}
+          <StepCard step={4} title="Upload to Vin">
+            <Bullet text='Tap the "Upload CSV File" button below' />
+            <Bullet text="Select the CSV file you just downloaded" />
+            <Bullet text="Vin will automatically detect the CellarTracker format" />
+          </StepCard>
 
         <View style={styles.noteCard}>
           <Ionicons name="information-circle-outline" size={20} color={Colors.light.tint} />
@@ -256,36 +208,6 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     lineHeight: 22,
     marginBottom: 20,
-  },
-  tabs: {
-    flexDirection: "row",
-    backgroundColor: Colors.light.cardBackground,
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 20,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  tabActive: {
-    backgroundColor: Colors.light.white,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: Colors.light.textSecondary,
-  },
-  tabTextActive: {
-    color: Colors.light.text,
-    fontWeight: "600",
   },
   stepCard: {
     backgroundColor: Colors.light.white,

@@ -274,7 +274,7 @@ export default function StorageLocationsScreen() {
             <Ionicons name="chevron-back" size={24} color={Colors.light.tint} />
           </Pressable>
           <Text style={styles.title}>Storage Locations</Text>
-          <View style={{ width: 60 }}>
+          <View style={{ width: 72 }}>
             {hasChanges ? (
               <Pressable onPress={handleSave} disabled={saving} style={styles.saveBtn}>
                 {saving ? (
