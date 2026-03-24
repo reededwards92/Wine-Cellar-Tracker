@@ -60,7 +60,7 @@ export default function Regions() {
           <ProgressBar current={3} total={5} />
         </View>
         <Pressable onPress={skip} style={{ paddingLeft: 16 }}>
-          <Text style={{ fontSize: 14, , color: "rgba(107,74,79,0.7)" }}>
+          <Text style={{ fontSize: 14, color: "rgba(107,74,79,0.7)" }}>
             Skip
           </Text>
         </Pressable>
@@ -136,7 +136,7 @@ export default function Regions() {
           </Text>
         </Pressable>
         <Pressable onPress={skip} style={{ alignItems: "center", paddingVertical: 6 }}>
-          <Text style={{ fontSize: 14, , color: "rgba(107,74,79,0.7)" }}>
+          <Text style={{ fontSize: 14, color: "rgba(107,74,79,0.7)" }}>
             Skip
           </Text>
         </Pressable>
