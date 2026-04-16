@@ -202,53 +202,97 @@ function configureExpoAndLanding(app: express.Application) {
   const termsPageTemplate = fs.readFileSync(termsPath, "utf-8");
   const appName = getAppName();
 
+  const webBuildDir = path.resolve(process.cwd(), "dist");
+  const webIndexPath = path.join(webBuildDir, "index.html");
+  const hasWebBuild = fs.existsSync(webIndexPath);
+
+  log(
+    hasWebBuild
+      ? `Web PWA build found at ${webBuildDir} — serving as the default web response`
+      : "No web build found; browsers will fall back to the marketing landing page",
+  );
   log("Serving static Expo files with dynamic manifest routing");
 
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith("/api")) {
-      return next();
-    }
+  const LEGAL_PAGES: Record<string, string> = {
+    "/support": supportPageTemplate,
+    "/privacy": privacyPageTemplate,
+    "/terms": termsPageTemplate,
+  };
 
-    if (req.path !== "/" && req.path !== "/manifest" && req.path !== "/support" && req.path !== "/privacy" && req.path !== "/terms") {
-      return next();
-    }
+  // 1) Expo native manifest: /, /manifest with `expo-platform: ios|android`.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api")) return next();
+    if (req.path !== "/" && req.path !== "/manifest") return next();
 
     const platform = req.header("expo-platform");
-    if (platform && (platform === "ios" || platform === "android")) {
+    if (platform === "ios" || platform === "android") {
       return serveExpoManifest(platform, res);
-    }
-
-    if (req.path === "/") {
-      return serveLandingPage({
-        req,
-        res,
-        landingPageTemplate,
-        appName,
-      });
-    }
-
-    if (req.path === "/support") {
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(supportPageTemplate);
-    }
-
-    if (req.path === "/privacy") {
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(privacyPageTemplate);
-    }
-
-    if (req.path === "/terms") {
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(termsPageTemplate);
     }
 
     next();
   });
 
+  // 2) Legal pages: served verbatim regardless of whether a PWA is built.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const page = LEGAL_PAGES[req.path];
+    if (!page) return next();
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(page);
+  });
+
+  // 3) PWA static assets (when the web build is present).
+  if (hasWebBuild) {
+    app.use(
+      express.static(webBuildDir, {
+        // Let the SW handle version-based cache busting for HTML; everything
+        // else is hashed by Metro and safe to cache for a long time.
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith(".html")) {
+            res.setHeader("Cache-Control", "no-cache");
+          } else if (filePath.includes(`${path.sep}_expo${path.sep}`)) {
+            res.setHeader(
+              "Cache-Control",
+              "public, max-age=31536000, immutable",
+            );
+          }
+        },
+      }),
+    );
+  }
+
+  // 4) Native static bundle + /assets (used by the Expo manifest response).
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
-  log("Expo routing: Checking expo-platform header on / and /manifest");
+  // 5) Root request: PWA if built, otherwise marketing landing page.
+  app.get("/", (req: Request, res: Response) => {
+    if (hasWebBuild) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      return res.status(200).sendFile(webIndexPath);
+    }
+    return serveLandingPage({
+      req,
+      res,
+      landingPageTemplate,
+      appName,
+    });
+  });
+
+  // 6) SPA fallback: any unknown GET that isn't an API call gets the PWA
+  //    shell so expo-router can handle client-side routing.
+  app.get(/^(?!\/api\/).*/, (req: Request, res: Response, next: NextFunction) => {
+    if (!hasWebBuild) return next();
+    if (req.method !== "GET") return next();
+
+    // Don't swallow requests that look like assets — let them 404 naturally.
+    const ext = path.extname(req.path);
+    if (ext && ext !== ".html") return next();
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache");
+    return res.status(200).sendFile(webIndexPath);
+  });
 }
 
 function setupErrorHandler(app: express.Application) {

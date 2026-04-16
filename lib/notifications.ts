@@ -2,14 +2,18 @@ import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { apiRequest } from "@/lib/query-client";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () =>
-    ({
-      shouldShowAlert: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }) as any,
-});
+// Web uses the Web Push API via the service worker, not expo-notifications.
+// Skip the handler setup on web to avoid spurious warnings.
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () =>
+      ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }) as any,
+  });
+}
 
 export async function registerForPushNotifications(): Promise<string | null> {
   if (Platform.OS === "web") return null;

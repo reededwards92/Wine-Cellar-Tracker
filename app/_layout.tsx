@@ -1,4 +1,3 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useSegments, useRouter, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef } from "react";
@@ -6,9 +5,9 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { queryClient } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { QueryPersistProvider } from "@/components/QueryPersistProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -78,7 +77,7 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+      <QueryPersistProvider>
         <AuthProvider>
           <GestureHandlerRootView>
             <KeyboardProvider>
@@ -86,7 +85,7 @@ export default function RootLayout() {
             </KeyboardProvider>
           </GestureHandlerRootView>
         </AuthProvider>
-      </QueryClientProvider>
+      </QueryPersistProvider>
     </ErrorBoundary>
   );
 }
