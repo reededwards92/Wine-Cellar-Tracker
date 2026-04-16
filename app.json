@@ -38,7 +38,18 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/icon.png",
+      "bundler": "metro",
+      "output": "static",
+      "name": "Vin",
+      "shortName": "Vin",
+      "description": "Your personal wine cellar tracker and AI sommelier",
+      "themeColor": "#722F37",
+      "backgroundColor": "#FDF8F5",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "lang": "en"
     },
     "plugins": [
       [

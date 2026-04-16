@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { Platform } from "react-native";
-import * as SecureStore from "expo-secure-store";
 import { getApiUrl, queryClient } from "@/lib/query-client";
 import { setAuthToken } from "@/lib/auth-token";
+import * as SecureStorage from "@/lib/secure-storage";
 import {
   isBiometricsAvailable,
   isBiometricsEnabled,
@@ -56,36 +55,9 @@ const AuthContext = createContext<AuthContextType>({
 
 const TOKEN_KEY = "vin_auth_token";
 
-async function getStoredToken(): Promise<string | null> {
-  try {
-    if (Platform.OS === "web") {
-      return localStorage.getItem(TOKEN_KEY);
-    }
-    return await SecureStore.getItemAsync(TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-async function setStoredToken(token: string): Promise<void> {
-  try {
-    if (Platform.OS === "web") {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
-    }
-  } catch {}
-}
-
-async function removeStoredToken(): Promise<void> {
-  try {
-    if (Platform.OS === "web") {
-      localStorage.removeItem(TOKEN_KEY);
-    } else {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-    }
-  } catch {}
-}
+const getStoredToken = () => SecureStorage.getItem(TOKEN_KEY);
+const setStoredToken = (token: string) => SecureStorage.setItem(TOKEN_KEY, token);
+const removeStoredToken = () => SecureStorage.removeItem(TOKEN_KEY);
 
 async function restoreSession(storedToken: string): Promise<User | null> {
   setAuthToken(storedToken);
