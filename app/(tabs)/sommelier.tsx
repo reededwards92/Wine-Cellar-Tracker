@@ -24,7 +24,11 @@ const KeyboardAvoidingView =
     : require("react-native-keyboard-controller").KeyboardAvoidingView;
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { fetch } from "expo/fetch";
+// expo/fetch provides streaming on native but can crash on web.
+const expoFetch: typeof globalThis.fetch =
+  Platform.OS === "web"
+    ? globalThis.fetch.bind(globalThis)
+    : require("expo/fetch").fetch;
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "react-native-markdown-display";
 import * as Location from "expo-location";
@@ -137,7 +141,7 @@ export default function SommelierScreen() {
       setHomeLoading(true);
       const baseUrl = getApiUrl();
       const { currentAuthToken } = await import("@/lib/auth-token");
-      const res = await fetch(new URL("/api/cru/home", baseUrl).toString(), {
+      const res = await expoFetch(new URL("/api/cru/home", baseUrl).toString(), {
         headers: currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {},
       });
       if (res.ok) {
@@ -365,7 +369,7 @@ export default function SommelierScreen() {
       abortRef.current = controller;
 
       const { currentAuthToken } = await import("@/lib/auth-token");
-      const response = await fetch(new URL("/api/chat", baseUrl).toString(), {
+      const response = await expoFetch(new URL("/api/chat", baseUrl).toString(), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

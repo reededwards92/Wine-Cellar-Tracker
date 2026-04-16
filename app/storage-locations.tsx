@@ -8,13 +8,27 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-native-draggable-flatlist";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+// react-native-draggable-flatlist is native-only. On web, fall back to a
+// plain FlatList (no drag reorder — acceptable for the PWA).
+let DraggableFlatList: any;
+let ScaleDecorator: any;
+type RenderItemParams<T> = any;
+
+if (Platform.OS !== "web") {
+  const draggable = require("react-native-draggable-flatlist");
+  DraggableFlatList = draggable.default;
+  ScaleDecorator = draggable.ScaleDecorator;
+} else {
+  ScaleDecorator = ({ children }: any) => children;
+}
 import Colors from "@/constants/colors";
 import { theme } from "@/constants/theme";
 import { apiRequest, queryClient } from "@/lib/query-client";
@@ -41,6 +55,57 @@ const STORAGE_TYPES = [
 function getIconForType(type: string): keyof typeof Ionicons.glyphMap {
   const found = STORAGE_TYPES.find((t) => t.type === type);
   return found?.icon || "ellipsis-horizontal-outline";
+}
+
+function LocationList({
+  isWeb,
+  locations,
+  setLocations,
+  setHasChanges,
+  renderLocationItem,
+  insets,
+  listFooter,
+}: any) {
+  const sharedProps = {
+    data: locations,
+    keyExtractor: (item: StorageLocation, idx: number) => `${item.type}-${idx}`,
+    contentContainerStyle: [
+      styles.content,
+      { paddingBottom: isWeb ? 54 : insets.bottom + 20 },
+    ],
+    keyboardShouldPersistTaps: "handled" as const,
+    ListHeaderComponent: <Text style={styles.sectionTitle}>YOUR LOCATIONS</Text>,
+    ListEmptyComponent: (
+      <View style={styles.emptyCard}>
+        <Ionicons name="location-outline" size={32} color={Colors.light.tabIconDefault} />
+        <Text style={styles.emptyText}>No storage locations set up yet</Text>
+        <Text style={styles.emptySubtext}>Add locations below to organize your cellar</Text>
+      </View>
+    ),
+    ListFooterComponent: listFooter,
+  };
+
+  if (Platform.OS === "web" || !DraggableFlatList) {
+    return (
+      <FlatList
+        {...sharedProps}
+        renderItem={({ item, index }: any) =>
+          renderLocationItem({ item, drag: () => {}, isActive: false, getIndex: () => index })
+        }
+      />
+    );
+  }
+
+  return (
+    <DraggableFlatList
+      {...sharedProps}
+      renderItem={renderLocationItem}
+      onDragEnd={({ data }: any) => {
+        setLocations(data);
+        setHasChanges(true);
+      }}
+    />
+  );
 }
 
 export default function StorageLocationsScreen() {
@@ -293,30 +358,14 @@ export default function StorageLocationsScreen() {
           <ActivityIndicator size="large" color={Colors.light.tint} />
         </View>
       ) : (
-        <DraggableFlatList
-          data={locations}
-          keyExtractor={(item, idx) => `${item.type}-${idx}`}
-          renderItem={renderLocationItem}
-          onDragEnd={({ data }) => {
-            setLocations(data);
-            setHasChanges(true);
-          }}
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: isWeb ? 34 + 20 : insets.bottom + 20 },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={
-            <Text style={styles.sectionTitle}>YOUR LOCATIONS</Text>
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyCard}>
-              <Ionicons name="location-outline" size={32} color={Colors.light.tabIconDefault} />
-              <Text style={styles.emptyText}>No storage locations set up yet</Text>
-              <Text style={styles.emptySubtext}>Add locations below to organize your cellar</Text>
-            </View>
-          }
-          ListFooterComponent={listFooter}
+        <LocationList
+          isWeb={isWeb}
+          locations={locations}
+          setLocations={setLocations}
+          setHasChanges={setHasChanges}
+          renderLocationItem={renderLocationItem}
+          insets={insets}
+          listFooter={listFooter}
         />
       )}
     </GestureHandlerRootView>
