@@ -13,8 +13,15 @@ import {
   Animated,
   Easing,
   Keyboard,
+  KeyboardAvoidingView as RNKeyboardAvoidingView,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+
+// react-native-keyboard-controller is native-only; fall back to the
+// built-in RN KeyboardAvoidingView on web.
+const KeyboardAvoidingView =
+  Platform.OS === "web"
+    ? RNKeyboardAvoidingView
+    : require("react-native-keyboard-controller").KeyboardAvoidingView;
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { fetch } from "expo/fetch";
