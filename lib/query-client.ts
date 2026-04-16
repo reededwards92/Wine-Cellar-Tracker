@@ -1,5 +1,12 @@
-import { fetch } from "expo/fetch";
+import { Platform } from "react-native";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+
+// expo/fetch provides streaming support on native but can crash on web.
+// The standard browser fetch is fully capable, so only use expo/fetch on native.
+const fetchFn: typeof globalThis.fetch =
+  Platform.OS === "web"
+    ? globalThis.fetch.bind(globalThis)
+    : require("expo/fetch").fetch;
 import { currentAuthToken } from "@/lib/auth-token";
 
 export function getApiUrl(): string {
@@ -44,7 +51,7 @@ export async function apiRequest(
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(url.toString(), {
+  const res = await fetchFn(url.toString(), {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -76,7 +83,7 @@ export const getQueryFn: <T>(options: {
 
     const url = new URL(fullPath, baseUrl);
 
-    const res = await fetch(url.toString(), {
+    const res = await fetchFn(url.toString(), {
       headers: getAuthHeaders(),
       credentials: "include",
     });
