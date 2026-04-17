@@ -35,6 +35,10 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleRestart = async () => {
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined") window.location.reload();
+      return;
+    }
     try {
       await reloadAppAsync();
     } catch (restartError) {
@@ -85,6 +89,26 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
         <Text style={[styles.message, { color: theme.textSecondary }]}>
           Please reload the app to continue.
         </Text>
+
+        {/* Show error details on web (PWA) to help diagnose crashes. */}
+        {Platform.OS === "web" ? (
+          <View
+            style={[
+              styles.errorContainer,
+              { backgroundColor: theme.backgroundSecondary, marginVertical: 16 },
+            ]}
+          >
+            <Text
+              style={[
+                styles.errorText,
+                { color: theme.text, fontFamily: monoFont },
+              ]}
+              selectable
+            >
+              {formatErrorDetails()}
+            </Text>
+          </View>
+        ) : null}
 
         <Pressable
           onPress={handleRestart}
